@@ -1,11 +1,12 @@
-import { getFeaturedProducts } from '@/data/products';
+import { useFeaturedProducts } from '@/hooks/useProducts';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function FeaturedProducts() {
-  const featuredProducts = getFeaturedProducts();
+  const { data: featuredProducts, isLoading } = useFeaturedProducts();
 
   return (
     <section className="py-16 md:py-24 bg-cream-dark">
@@ -30,15 +31,29 @@ export function FeaturedProducts() {
 
         {/* Products Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredProducts.map((product, index) => (
-            <div 
-              key={product.id} 
-              className="animate-fade-in"
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              <ProductCard product={product} />
+          {isLoading ? (
+            [...Array(4)].map((_, i) => (
+              <div key={i} className="bg-card rounded-xl border border-border p-4">
+                <Skeleton className="aspect-square rounded-lg mb-4" />
+                <Skeleton className="h-4 w-3/4 mb-2" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            ))
+          ) : featuredProducts && featuredProducts.length > 0 ? (
+            featuredProducts.map((product, index) => (
+              <div 
+                key={product.id} 
+                className="animate-fade-in"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <ProductCard product={product} />
+              </div>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12">
+              <p className="text-muted-foreground">No featured products available</p>
             </div>
-          ))}
+          )}
         </div>
       </div>
     </section>

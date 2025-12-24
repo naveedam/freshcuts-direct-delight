@@ -1,19 +1,20 @@
 import { useParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ProductCard } from '@/components/products/ProductCard';
-import { categories, getProductsByCategory } from '@/data/products';
+import { categories, useProductsByCategory } from '@/hooks/useProducts';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const CategoryPage = () => {
   const { categoryId } = useParams<{ categoryId: string }>();
   const category = categories.find(c => c.id === categoryId);
-  const products = getProductsByCategory(categoryId || '');
+  const { data: products, isLoading } = useProductsByCategory(categoryId || '');
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
 
-  const filteredProducts = selectedSubCategory
+  const filteredProducts = selectedSubCategory && products
     ? products.filter(p => p.subCategory === selectedSubCategory)
-    : products;
+    : products || [];
 
   if (!category) {
     return (
@@ -72,29 +73,41 @@ const CategoryPage = () => {
 
           {/* Products Count */}
           <p className="font-body text-muted-foreground mb-6">
-            Showing {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
+            {isLoading ? (
+              <Skeleton className="h-4 w-32 inline-block" />
+            ) : (
+              `Showing ${filteredProducts.length} product${filteredProducts.length !== 1 ? 's' : ''}`
+            )}
           </p>
 
           {/* Products Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map((product, index) => (
-              <div 
-                key={product.id}
-                className="animate-fade-in"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <ProductCard product={product} />
+            {isLoading ? (
+              [...Array(8)].map((_, i) => (
+                <div key={i} className="bg-card rounded-xl border border-border p-4">
+                  <Skeleton className="aspect-square rounded-lg mb-4" />
+                  <Skeleton className="h-4 w-3/4 mb-2" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+              ))
+            ) : filteredProducts.length > 0 ? (
+              filteredProducts.map((product, index) => (
+                <div 
+                  key={product.id}
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <ProductCard product={product} />
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <p className="font-body text-muted-foreground">
+                  No products found in this category.
+                </p>
               </div>
-            ))}
+            )}
           </div>
-
-          {filteredProducts.length === 0 && (
-            <div className="text-center py-12">
-              <p className="font-body text-muted-foreground">
-                No products found in this category.
-              </p>
-            </div>
-          )}
         </div>
       </section>
     </Layout>

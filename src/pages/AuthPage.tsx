@@ -1,12 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 const AuthPage = () => {
+  const navigate = useNavigate();
+  const { user, signIn, signUp, loading: authLoading } = useAuth();
+  
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -18,22 +23,75 @@ const AuthPage = () => {
     confirmPassword: ''
   });
 
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigate('/');
+    }
+  }, [user, authLoading, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      if (!isLogin) {
+        // Signup validation
+        if (formData.password !== formData.confirmPassword) {
+          toast.error('Passwords do not match');
+          setLoading(false);
+          return;
+        }
+        
+        if (formData.password.length < 6) {
+          toast.error('Password must be at least 6 characters');
+          setLoading(false);
+          return;
+        }
 
-    if (!isLogin && formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
+        const { error } = await signUp(formData.email, formData.password, formData.name);
+        
+        if (error) {
+          if (error.message.includes('already registered')) {
+            toast.error('An account with this email already exists');
+          } else {
+            toast.error(error.message);
+          }
+        } else {
+          toast.success('Account created successfully! You are now logged in.');
+          navigate('/');
+        }
+      } else {
+        // Login
+        const { error } = await signIn(formData.email, formData.password);
+        
+        if (error) {
+          if (error.message.includes('Invalid login credentials')) {
+            toast.error('Invalid email or password');
+          } else {
+            toast.error(error.message);
+          }
+        } else {
+          toast.success('Welcome back!');
+          navigate('/');
+        }
+      }
+    } catch (err: any) {
+      toast.error('An unexpected error occurred');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    toast.success(isLogin ? 'Welcome back!' : 'Account created successfully!');
-    setLoading(false);
   };
+
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="min-h-[80vh] flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -126,14 +184,6 @@ const AuthPage = () => {
                       required={!isLogin}
                     />
                   </div>
-                </div>
-              )}
-
-              {isLogin && (
-                <div className="text-right">
-                  <button type="button" className="font-body text-sm text-primary hover:underline">
-                    Forgot password?
-                  </button>
                 </div>
               )}
 
