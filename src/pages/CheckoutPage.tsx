@@ -5,14 +5,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ArrowLeft, CreditCard, Truck, CheckCircle } from 'lucide-react';
+import { ArrowLeft, CreditCard, Truck, CheckCircle, Loader2 } from 'lucide-react';
 
 const CheckoutPage = () => {
   const { items, totalPrice, clearCart } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'shipping' | 'payment' | 'confirmation'>('shipping');
+  const [orderId, setOrderId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     firstName: '',
@@ -43,13 +47,50 @@ const CheckoutPage = () => {
     e.preventDefault();
     setLoading(true);
     
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setLoading(false);
-    setStep('confirmation');
-    clearCart();
-    toast.success('Order placed successfully!');
+    try {
+      // Create order in database
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user?.id || null,
+          total_amount: orderTotal,
+          status: 'pending',
+          shipping_address: formData.address,
+          shipping_city: formData.city,
+          shipping_postal_code: formData.zipCode,
+          phone: formData.phone,
+          notes: `${formData.firstName} ${formData.lastName} - ${formData.email}`
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order items
+      const orderItems = items.map(({ product, quantity }) => ({
+        order_id: order.id,
+        product_id: product.id,
+        product_name: product.name,
+        quantity,
+        unit_price: product.price,
+        total_price: product.price * quantity
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      setOrderId(order.id);
+      setStep('confirmation');
+      clearCart();
+      toast.success('Order placed successfully!');
+    } catch (error: any) {
+      toast.error('Failed to place order: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (items.length === 0 && step !== 'confirmation') {
@@ -72,8 +113,15 @@ const CheckoutPage = () => {
               Thank you for your order. We've sent a confirmation to your email.
             </p>
             <p className="font-body text-sm text-muted-foreground mb-8">
-              Order #FC{Math.random().toString(36).substr(2, 9).toUpperCase()}
+              Order #{orderId?.slice(0, 8).toUpperCase() || 'N/A'}
             </p>
+            {user && (
+              <Link to="/account/orders" className="block mb-4">
+                <Button variant="outline" size="lg">
+                  View Order History
+                </Button>
+              </Link>
+            )}
             <Link to="/">
               <Button variant="hero" size="lg">
                 Continue Shopping
@@ -272,7 +320,14 @@ const CheckoutPage = () => {
                     className="flex-1"
                     disabled={loading}
                   >
-                    {loading ? 'Processing...' : `Pay $${orderTotal.toFixed(2)}`}
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      `Pay $${orderTotal.toFixed(2)}`
+                    )}
                   </Button>
                 </div>
               </form>

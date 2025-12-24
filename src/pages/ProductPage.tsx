@@ -1,17 +1,38 @@
 import { useParams, Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
-import { getProductById, getProductsByCategory } from '@/data/products';
+import { useProduct, useProductsByCategory } from '@/hooks/useProducts';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';
 import { ShoppingCart, Minus, Plus, ArrowLeft, Truck, Shield, Clock } from 'lucide-react';
 import { useState } from 'react';
 import { ProductCard } from '@/components/products/ProductCard';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const ProductPage = () => {
   const { productId } = useParams<{ productId: string }>();
-  const product = getProductById(productId || '');
+  const { data: product, isLoading } = useProduct(productId || '');
+  const { data: relatedProductsData } = useProductsByCategory(product?.category || '');
   const [quantity, setQuantity] = useState(1);
   const { addToCart } = useCart();
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-8 md:py-12">
+          <Skeleton className="h-4 w-48 mb-8" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
+            <Skeleton className="aspect-square rounded-2xl" />
+            <div className="space-y-4">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-10 w-3/4" />
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!product) {
     return (
@@ -34,9 +55,9 @@ const ProductPage = () => {
     );
   }
 
-  const relatedProducts = getProductsByCategory(product.category)
-    .filter(p => p.id !== product.id)
-    .slice(0, 4);
+  const relatedProducts = relatedProductsData
+    ?.filter(p => p.id !== product.id)
+    .slice(0, 4) || [];
 
   const handleAddToCart = () => {
     addToCart(product, quantity);

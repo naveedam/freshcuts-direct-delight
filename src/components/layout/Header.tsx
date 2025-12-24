@@ -1,12 +1,21 @@
 import { Link } from 'react-router-dom';
-import { ShoppingCart, User, Menu, X } from 'lucide-react';
+import { ShoppingCart, User, Menu, X, LogOut, Settings, Package, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 import { useState } from 'react';
-import { categories } from '@/data/products';
+import { categories } from '@/hooks/useProducts';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export function Header() {
   const { totalItems } = useCart();
+  const { user, signOut, isAdmin } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -52,12 +61,59 @@ export function Header() {
                 )}
               </Button>
             </Link>
-            <Link to="/auth" className="hidden md:block">
-              <Button variant="outline" size="sm" className="gap-2">
-                <User className="h-4 w-4" />
-                Sign In
-              </Button>
-            </Link>
+            
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2 hidden md:flex">
+                    <User className="h-4 w-4" />
+                    Account
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <div className="px-2 py-1.5">
+                    <p className="text-sm font-medium truncate">{user.email}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/account/orders" className="cursor-pointer">
+                      <Package className="h-4 w-4 mr-2" />
+                      Order History
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/account/profile" className="cursor-pointer">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Profile Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin" className="cursor-pointer text-primary">
+                          <Shield className="h-4 w-4 mr-2" />
+                          Admin Panel
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Link to="/auth" className="hidden md:block">
+                <Button variant="outline" size="sm" className="gap-2">
+                  <User className="h-4 w-4" />
+                  Sign In
+                </Button>
+              </Link>
+            )}
+            
             <Button
               variant="ghost"
               size="icon"
@@ -90,15 +146,58 @@ export function Header() {
                   {cat.name}
                 </Link>
               ))}
-              <Link 
-                to="/auth"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Button variant="outline" size="sm" className="gap-2 w-full">
-                  <User className="h-4 w-4" />
-                  Sign In
-                </Button>
-              </Link>
+              
+              {user ? (
+                <>
+                  <div className="border-t border-border pt-4 mt-2">
+                    <p className="text-xs text-muted-foreground mb-2">{user.email}</p>
+                    <div className="flex flex-col gap-2">
+                      <Link to="/account/orders" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <Package className="h-4 w-4" />
+                          Order History
+                        </Button>
+                      </Link>
+                      <Link to="/account/profile" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <Settings className="h-4 w-4" />
+                          Profile Settings
+                        </Button>
+                      </Link>
+                      {isAdmin && (
+                        <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>
+                          <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-primary">
+                            <Shield className="h-4 w-4" />
+                            Admin Panel
+                          </Button>
+                        </Link>
+                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full justify-start gap-2 text-destructive"
+                        onClick={() => {
+                          signOut();
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Sign Out
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <Link 
+                  to="/auth"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Button variant="outline" size="sm" className="gap-2 w-full">
+                    <User className="h-4 w-4" />
+                    Sign In
+                  </Button>
+                </Link>
+              )}
             </div>
           </nav>
         )}
