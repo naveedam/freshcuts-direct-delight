@@ -6,6 +6,11 @@ import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
 
 const CartPage = () => {
   const { items, updateQuantity, removeFromCart, totalPrice, clearCart } = useCart();
+  const shippingThreshold = 2000;
+  const remainingForFreeShipping = Math.max(0, shippingThreshold - totalPrice);
+  const hasFreeShipping = totalPrice >= shippingThreshold;
+  const shippingCost = hasFreeShipping ? 0 : 99;
+  const orderTotal = totalPrice + shippingCost;
 
   if (items.length === 0) {
     return (
@@ -33,11 +38,6 @@ const CartPage = () => {
     );
   }
 
-  const shippingThreshold = 75;
-  const remainingForFreeShipping = Math.max(0, shippingThreshold - totalPrice);
-  const hasFreeShipping = totalPrice >= shippingThreshold;
-  const shippingCost = hasFreeShipping ? 0 : 9.99;
-  const orderTotal = totalPrice + shippingCost;
 
   return (
     <Layout>
@@ -53,7 +53,7 @@ const CartPage = () => {
             {!hasFreeShipping && (
               <div className="bg-gold/10 border border-gold/30 rounded-lg p-4 mb-6">
                 <p className="font-body text-sm text-foreground">
-                  Add <span className="font-semibold text-primary">${remainingForFreeShipping.toFixed(2)}</span> more for free shipping!
+                  Add <span className="font-semibold text-primary">₹{remainingForFreeShipping.toFixed(0)}</span> more for free shipping!
                 </p>
                 <div className="mt-2 bg-muted rounded-full h-2 overflow-hidden">
                   <div 
@@ -71,10 +71,16 @@ const CartPage = () => {
                 className="flex gap-4 p-4 bg-card rounded-xl border border-border"
               >
                 {/* Image */}
-                <div className="w-24 h-24 rounded-lg bg-muted flex items-center justify-center text-4xl shrink-0">
-                  {product.category === 'lamb' && '🥩'}
-                  {product.category === 'poultry' && '🍗'}
-                  {product.category === 'seafood' && '🐟'}
+                <div className="w-24 h-24 rounded-lg bg-muted overflow-hidden shrink-0">
+                  {product.image ? (
+                    <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-4xl">
+                      {product.category === 'lamb' && '🥩'}
+                      {product.category === 'poultry' && '🍗'}
+                      {product.category === 'seafood' && '🐟'}
+                    </div>
+                  )}
                 </div>
 
                 {/* Details */}
@@ -88,7 +94,7 @@ const CartPage = () => {
                     {product.subCategory || product.category}
                   </p>
                   <p className="font-heading text-lg font-bold text-primary mt-2">
-                    ${product.price.toFixed(2)} <span className="font-body text-sm text-muted-foreground font-normal">{product.unit}</span>
+                    ₹{product.price.toFixed(0)} <span className="font-body text-sm text-muted-foreground font-normal">{product.unit}</span>
                   </p>
                 </div>
 
@@ -149,17 +155,17 @@ const CartPage = () => {
               <div className="space-y-4 mb-6">
                 <div className="flex justify-between font-body">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium text-foreground">${totalPrice.toFixed(2)}</span>
+                  <span className="font-medium text-foreground">₹{totalPrice.toFixed(0)}</span>
                 </div>
                 <div className="flex justify-between font-body">
                   <span className="text-muted-foreground">Shipping</span>
                   <span className={`font-medium ${hasFreeShipping ? 'text-green-600' : 'text-foreground'}`}>
-                    {hasFreeShipping ? 'FREE' : `$${shippingCost.toFixed(2)}`}
+                    {hasFreeShipping ? 'FREE' : `₹${shippingCost}`}
                   </span>
                 </div>
                 <div className="border-t border-border pt-4 flex justify-between">
                   <span className="font-heading font-bold text-foreground">Total</span>
-                  <span className="font-heading text-xl font-bold text-primary">${orderTotal.toFixed(2)}</span>
+                  <span className="font-heading text-xl font-bold text-primary">₹{orderTotal.toFixed(0)}</span>
                 </div>
               </div>
 

@@ -81,10 +81,20 @@ const ProductPage = () => {
         {/* Product Details */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 mb-16">
           {/* Image */}
-          <div className="aspect-square rounded-2xl bg-muted flex items-center justify-center text-9xl overflow-hidden">
-            {product.category === 'lamb' && '🥩'}
-            {product.category === 'poultry' && '🍗'}
-            {product.category === 'seafood' && '🐟'}
+          <div className="aspect-square rounded-2xl bg-muted overflow-hidden">
+            {product.image ? (
+              <img 
+                src={product.image} 
+                alt={product.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-9xl">
+                {product.category === 'lamb' && '🥩'}
+                {product.category === 'poultry' && '🍗'}
+                {product.category === 'seafood' && '🐟'}
+              </div>
+            )}
           </div>
 
           {/* Info */}
@@ -109,7 +119,7 @@ const ProductPage = () => {
             {/* Price */}
             <div className="flex items-baseline gap-2 mb-6">
               <span className="font-heading text-3xl font-bold text-primary">
-                ${product.price.toFixed(2)}
+                ₹{product.price.toFixed(0)}
               </span>
               <span className="font-body text-muted-foreground">
                 {product.unit}
@@ -168,14 +178,14 @@ const ProductPage = () => {
               disabled={!product.inStock}
             >
               <ShoppingCart className="h-5 w-5" />
-              Add to Cart - ${(product.price * quantity).toFixed(2)}
+              Add to Cart - ₹{(product.price * quantity).toFixed(0)}
             </Button>
 
             {/* Features */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-border">
               <div className="flex items-center gap-3">
                 <Truck className="h-5 w-5 text-primary" />
-                <span className="font-body text-sm text-muted-foreground">Free delivery over $75</span>
+                <span className="font-body text-sm text-muted-foreground">Free delivery over ₹2000</span>
               </div>
               <div className="flex items-center gap-3">
                 <Clock className="h-5 w-5 text-primary" />

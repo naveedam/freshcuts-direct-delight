@@ -33,9 +33,9 @@ const CheckoutPage = () => {
     cardName: ''
   });
 
-  const shippingThreshold = 75;
+  const shippingThreshold = 2000;
   const hasFreeShipping = totalPrice >= shippingThreshold;
-  const shippingCost = hasFreeShipping ? 0 : 9.99;
+  const shippingCost = hasFreeShipping ? 0 : 99;
   const orderTotal = totalPrice + shippingCost;
 
   const handleShippingSubmit = (e: React.FormEvent) => {
@@ -326,7 +326,7 @@ const CheckoutPage = () => {
                         Processing...
                       </>
                     ) : (
-                      `Pay $${orderTotal.toFixed(2)}`
+                      `Pay ₹${orderTotal.toFixed(0)}`
                     )}
                   </Button>
                 </div>
@@ -344,10 +344,16 @@ const CheckoutPage = () => {
               <div className="space-y-4 mb-6">
                 {items.map(({ product, quantity }) => (
                   <div key={product.id} className="flex gap-3">
-                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-xl shrink-0">
-                      {product.category === 'lamb' && '🥩'}
-                      {product.category === 'poultry' && '🍗'}
-                      {product.category === 'seafood' && '🐟'}
+                    <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden shrink-0">
+                      {product.image ? (
+                        <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xl">
+                          {product.category === 'lamb' && '🥩'}
+                          {product.category === 'poultry' && '🍗'}
+                          {product.category === 'seafood' && '🐟'}
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-body text-sm font-medium text-foreground line-clamp-1">
@@ -358,7 +364,7 @@ const CheckoutPage = () => {
                       </p>
                     </div>
                     <span className="font-body text-sm font-medium text-foreground">
-                      ${(product.price * quantity).toFixed(2)}
+                      ₹{(product.price * quantity).toFixed(0)}
                     </span>
                   </div>
                 ))}
@@ -367,17 +373,17 @@ const CheckoutPage = () => {
               <div className="border-t border-border pt-4 space-y-3">
                 <div className="flex justify-between font-body">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium text-foreground">${totalPrice.toFixed(2)}</span>
+                  <span className="font-medium text-foreground">₹{totalPrice.toFixed(0)}</span>
                 </div>
                 <div className="flex justify-between font-body">
                   <span className="text-muted-foreground">Shipping</span>
                   <span className={`font-medium ${hasFreeShipping ? 'text-green-600' : 'text-foreground'}`}>
-                    {hasFreeShipping ? 'FREE' : `$${shippingCost.toFixed(2)}`}
+                    {hasFreeShipping ? 'FREE' : `₹${shippingCost}`}
                   </span>
                 </div>
                 <div className="border-t border-border pt-3 flex justify-between">
                   <span className="font-heading font-bold text-foreground">Total</span>
-                  <span className="font-heading text-xl font-bold text-primary">${orderTotal.toFixed(2)}</span>
+                  <span className="font-heading text-xl font-bold text-primary">₹{orderTotal.toFixed(0)}</span>
                 </div>
               </div>
             </div>

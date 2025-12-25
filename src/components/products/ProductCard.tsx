@@ -15,11 +15,19 @@ export function ProductCard({ product }: ProductCardProps) {
     <div className="group bg-card rounded-xl border border-border shadow-card overflow-hidden card-hover">
       {/* Image Container */}
       <Link to={`/product/${product.id}`} className="block relative aspect-square overflow-hidden bg-muted">
-        <div className="absolute inset-0 flex items-center justify-center text-6xl">
-          {product.category === 'lamb' && '🥩'}
-          {product.category === 'poultry' && '🍗'}
-          {product.category === 'seafood' && '🐟'}
-        </div>
+        {product.image ? (
+          <img 
+            src={product.image} 
+            alt={product.name}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-6xl">
+            {product.category === 'lamb' && '🥩'}
+            {product.category === 'poultry' && '🍗'}
+            {product.category === 'seafood' && '🐟'}
+          </div>
+        )}
         
         {/* Featured Badge */}
         {product.featured && (
@@ -78,7 +86,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="flex items-center justify-between">
           <div>
             <span className="font-heading text-xl font-bold text-primary">
-              ${product.price.toFixed(2)}
+              ₹{product.price.toFixed(0)}
             </span>
             <span className="font-body text-sm text-muted-foreground ml-1">
               {product.unit}

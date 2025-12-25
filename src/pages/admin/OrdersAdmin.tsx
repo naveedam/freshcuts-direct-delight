@@ -111,7 +111,7 @@ export default function OrdersAdmin() {
                         <p className="text-xs text-muted-foreground">{order.phone || 'No phone'}</p>
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">${Number(order.total_amount).toFixed(2)}</TableCell>
+                    <TableCell className="font-medium">₹{Number(order.total_amount).toFixed(0)}</TableCell>
                     <TableCell>
                       <Select 
                         value={order.status} 
@@ -173,7 +173,7 @@ export default function OrdersAdmin() {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Total</p>
-                    <p className="font-bold">${Number(selectedOrder.total_amount).toFixed(2)}</p>
+                    <p className="font-bold">₹{Number(selectedOrder.total_amount).toFixed(0)}</p>
                   </div>
                 </div>
 
@@ -202,7 +202,7 @@ export default function OrdersAdmin() {
                           <span>
                             {item.product_name} × {item.quantity}
                           </span>
-                          <span className="font-medium">${Number(item.total_price).toFixed(2)}</span>
+                          <span className="font-medium">₹{Number(item.total_price).toFixed(0)}</span>
                         </div>
                       ))}
                     </div>
