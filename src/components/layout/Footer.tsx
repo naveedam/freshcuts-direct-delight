@@ -1,7 +1,20 @@
 import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Clock } from 'lucide-react';
+import { usePageContent, FooterContent } from '@/hooks/usePageContent';
+
+const defaultContent: FooterContent = {
+  companyName: 'FreshCuts',
+  tagline: 'Premium quality meats delivered fresh to your doorstep. Sourced from trusted farms, cut with precision, delivered with care.',
+  phone: '+91 98765 43210',
+  email: 'support@freshmeat.com',
+  address: '123 Market Street, Mumbai, Maharashtra 400001',
+  workingHours: 'Mon-Sat: 8AM - 8PM',
+};
 
 export function Footer() {
+  const { data: content } = usePageContent<FooterContent>('footer');
+  const c = content || defaultContent;
+
   return (
     <footer className="bg-foreground text-primary-foreground">
       <div className="container mx-auto px-4 py-12 md:py-16">
@@ -10,13 +23,12 @@ export function Footer() {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <span className="font-heading text-2xl font-bold text-primary-foreground">
-                FreshCuts
+                {c.companyName}
               </span>
               <span className="font-heading text-xl text-gold">, Daily</span>
             </div>
             <p className="font-body text-sm text-primary-foreground/70 leading-relaxed">
-              Premium quality meats delivered fresh to your doorstep. 
-              Sourced from trusted farms, cut with precision, delivered with care.
+              {c.tagline}
             </p>
           </div>
 
@@ -53,17 +65,16 @@ export function Footer() {
             <ul className="space-y-3">
               <li className="flex items-center gap-3">
                 <Phone className="h-4 w-4 text-gold" />
-                <span className="font-body text-sm text-primary-foreground/70">(555) 123-4567</span>
+                <span className="font-body text-sm text-primary-foreground/70">{c.phone}</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-4 w-4 text-gold" />
-                <span className="font-body text-sm text-primary-foreground/70">orders@freshcutsdaily.com</span>
+                <span className="font-body text-sm text-primary-foreground/70">{c.email}</span>
               </li>
               <li className="flex items-start gap-3">
                 <MapPin className="h-4 w-4 text-gold mt-0.5" />
                 <span className="font-body text-sm text-primary-foreground/70">
-                  123 Butcher Street<br />
-                  Fresh City, FC 12345
+                  {c.address}
                 </span>
               </li>
             </ul>
@@ -76,13 +87,12 @@ export function Footer() {
               <li className="flex items-center gap-3">
                 <Clock className="h-4 w-4 text-gold" />
                 <div className="font-body text-sm text-primary-foreground/70">
-                  <p>Mon - Fri: 7am - 8pm</p>
-                  <p>Sat - Sun: 8am - 6pm</p>
+                  <p>{c.workingHours}</p>
                 </div>
               </li>
             </ul>
             <p className="font-body text-xs text-primary-foreground/50 mt-4">
-              Free delivery on orders over $75
+              Free delivery on orders over ₹2000
             </p>
           </div>
         </div>
@@ -90,7 +100,7 @@ export function Footer() {
         <div className="border-t border-primary-foreground/10 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="font-body text-sm text-primary-foreground/50">
-              © 2024 FreshCuts, Daily. All rights reserved.
+              © 2024 {c.companyName}, Daily. All rights reserved.
             </p>
             <div className="flex gap-6">
               <Link to="#" className="font-body text-xs text-primary-foreground/50 hover:text-gold transition-colors">

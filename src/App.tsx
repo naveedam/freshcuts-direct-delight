@@ -15,6 +15,7 @@ import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/admin/Dashboard";
 import ProductsAdmin from "./pages/admin/ProductsAdmin";
 import OrdersAdmin from "./pages/admin/OrdersAdmin";
+import ContentAdmin from "./pages/admin/ContentAdmin";
 import OrderHistory from "./pages/account/OrderHistory";
 import ProfileSettings from "./pages/account/ProfileSettings";
 
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/products" element={<ProductsAdmin />} />
               <Route path="/admin/orders" element={<OrdersAdmin />} />
+              <Route path="/admin/content" element={<ContentAdmin />} />
               
               {/* Account Routes */}
               <Route path="/account/orders" element={<OrderHistory />} />

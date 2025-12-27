@@ -1,8 +1,20 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Truck, Award, Clock } from 'lucide-react';
+import { usePageContent, HeroContent } from '@/hooks/usePageContent';
+
+const defaultContent: HeroContent = {
+  title: 'Premium Quality Meats',
+  subtitle: 'Delivered Fresh to Your Doorstep',
+  description: 'Experience the finest selection of halal-certified lamb, poultry, and seafood. Farm-fresh quality you can trust.',
+  primaryButtonText: 'Shop Now',
+  secondaryButtonText: 'View Categories',
+};
 
 export function HeroSection() {
+  const { data: content } = usePageContent<HeroContent>('hero');
+  const c = content || defaultContent;
+
   return (
     <section className="relative overflow-hidden">
       {/* Background with gradient overlay */}
@@ -32,9 +44,9 @@ export function HeroSection() {
             className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-primary-foreground leading-tight mb-6 animate-fade-in"
             style={{ animationDelay: '100ms' }}
           >
-            Fresh Premium Meats,
+            {c.title}
             <br />
-            <span className="text-gold">Delivered Daily</span>
+            <span className="text-gold">{c.subtitle}</span>
           </h1>
 
           {/* Description */}
@@ -42,8 +54,7 @@ export function HeroSection() {
             className="font-body text-lg md:text-xl text-primary-foreground/80 mb-8 max-w-xl leading-relaxed animate-fade-in"
             style={{ animationDelay: '200ms' }}
           >
-            From farm to table, we deliver the finest cuts of lamb, poultry, and seafood 
-            right to your doorstep. Experience the difference of truly fresh meat.
+            {c.description}
           </p>
 
           {/* CTA Buttons */}
@@ -53,13 +64,13 @@ export function HeroSection() {
           >
             <Link to="/category/lamb">
               <Button variant="gold" size="xl" className="group">
-                Shop Now
+                {c.primaryButtonText}
                 <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
             <Link to="#categories">
               <Button variant="outline-light" size="xl">
-                View Categories
+                {c.secondaryButtonText}
               </Button>
             </Link>
           </div>
@@ -75,7 +86,7 @@ export function HeroSection() {
               </div>
               <div>
                 <p className="font-body text-sm font-semibold text-primary-foreground">Free Delivery</p>
-                <p className="font-body text-xs text-primary-foreground/60">On orders over $75</p>
+                <p className="font-body text-xs text-primary-foreground/60">On orders over ₹2000</p>
               </div>
             </div>
             <div className="flex items-center gap-3">

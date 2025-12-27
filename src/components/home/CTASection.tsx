@@ -1,8 +1,23 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
+import { usePageContent, CTAContent } from '@/hooks/usePageContent';
+
+const defaultContent: CTAContent = {
+  title: 'Ready to Experience Premium Quality?',
+  description: 'Join thousands of satisfied customers who trust us for their daily meat needs.',
+  buttonText: 'Start Shopping',
+  stats: [
+    { value: '10,000+', label: 'Happy Customers' },
+    { value: '500+', label: 'Products' },
+    { value: '99%', label: 'Satisfaction Rate' },
+  ],
+};
 
 export function CTASection() {
+  const { data: content } = usePageContent<CTAContent>('cta');
+  const c = content || defaultContent;
+
   return (
     <section className="relative py-16 md:py-24 overflow-hidden">
       {/* Background */}
@@ -20,23 +35,16 @@ export function CTASection() {
 
       <div className="relative container mx-auto px-4 text-center">
         <h2 className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-primary-foreground mb-6">
-          Ready to Experience 
-          <span className="text-gold"> Premium Quality?</span>
+          {c.title}
         </h2>
         <p className="font-body text-lg text-primary-foreground/80 max-w-2xl mx-auto mb-8">
-          Join thousands of satisfied customers who trust FreshCuts for their 
-          daily meat needs. Sign up today and get 15% off your first order.
+          {c.description}
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link to="/auth">
-            <Button variant="gold" size="xl" className="group">
-              Create Account
-              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-            </Button>
-          </Link>
           <Link to="/category/lamb">
-            <Button variant="outline-light" size="xl">
-              Start Shopping
+            <Button variant="gold" size="xl" className="group">
+              {c.buttonText}
+              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
             </Button>
           </Link>
         </div>
