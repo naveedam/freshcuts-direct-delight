@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ShoppingCart, User, Menu, X, LogOut, Settings, Package, Shield } from 'lucide-react';
+import logo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
@@ -23,11 +24,12 @@ export function Header() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <span className="font-heading text-xl md:text-2xl font-bold text-primary">
-              FreshCuts
-            </span>
-            <span className="font-heading text-lg md:text-xl text-gold">, Daily</span>
+          <Link to="/" className="flex items-center">
+            <img 
+              src={logo} 
+              alt="Fresh Cuts Daily" 
+              className="h-12 md:h-14 w-auto"
+            />
           </Link>
 
           {/* Desktop Navigation */}
