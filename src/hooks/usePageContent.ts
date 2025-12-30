@@ -43,7 +43,21 @@ export interface FooterContent {
   workingHours: string;
 }
 
-type SectionKey = 'hero' | 'why_choose_us' | 'cta' | 'footer';
+export interface GoogleReview {
+  author: string;
+  rating: number;
+  date: string;
+  text: string;
+  avatar: string;
+}
+
+export interface GoogleReviewsContent {
+  overallRating: number;
+  totalReviews: number;
+  reviews: GoogleReview[];
+}
+
+type SectionKey = 'hero' | 'why_choose_us' | 'cta' | 'footer' | 'google_reviews';
 
 export function usePageContent<T>(sectionKey: SectionKey) {
   return useQuery({
