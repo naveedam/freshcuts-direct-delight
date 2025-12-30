@@ -14,6 +14,8 @@ import {
   WhyChooseUsContent,
   CTAContent,
   FooterContent,
+  GoogleReviewsContent,
+  GoogleReview,
 } from '@/hooks/usePageContent';
 
 function HeroEditor() {
@@ -402,6 +404,148 @@ function FooterEditor() {
   );
 }
 
+function GoogleReviewsEditor() {
+  const { data: content, isLoading } = usePageContent<GoogleReviewsContent>('google_reviews');
+  const updateMutation = useUpdatePageContent<GoogleReviewsContent>('google_reviews');
+  const [form, setForm] = useState<GoogleReviewsContent>({
+    overallRating: 4.8,
+    totalReviews: 156,
+    reviews: [],
+  });
+
+  useEffect(() => {
+    if (content) setForm(content);
+  }, [content]);
+
+  const updateReview = (index: number, field: keyof GoogleReview, value: string | number) => {
+    const updated = [...form.reviews];
+    updated[index] = { ...updated[index], [field]: value };
+    setForm({ ...form, reviews: updated });
+  };
+
+  const addReview = () => {
+    setForm({
+      ...form,
+      reviews: [...form.reviews, { author: '', rating: 5, date: '', text: '', avatar: '' }],
+    });
+  };
+
+  const removeReview = (index: number) => {
+    const updated = form.reviews.filter((_, i) => i !== index);
+    setForm({ ...form, reviews: updated });
+  };
+
+  if (isLoading) return <Loader2 className="h-6 w-6 animate-spin mx-auto" />;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="overall-rating">Overall Rating</Label>
+          <Input
+            id="overall-rating"
+            type="number"
+            step="0.1"
+            min="0"
+            max="5"
+            value={form.overallRating}
+            onChange={(e) => setForm({ ...form, overallRating: parseFloat(e.target.value) || 0 })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="total-reviews">Total Reviews Count</Label>
+          <Input
+            id="total-reviews"
+            type="number"
+            value={form.totalReviews}
+            onChange={(e) => setForm({ ...form, totalReviews: parseInt(e.target.value) || 0 })}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-base font-semibold">Reviews</Label>
+          <Button variant="outline" size="sm" onClick={addReview}>
+            <Plus className="h-4 w-4 mr-1" /> Add Review
+          </Button>
+        </div>
+        {form.reviews.map((review, index) => (
+          <Card key={index} className="p-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="font-medium">Review {index + 1}</Label>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeReview(index)}
+                  className="h-8 w-8 text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Author Name</Label>
+                  <Input
+                    value={review.author}
+                    onChange={(e) => updateReview(index, 'author', e.target.value)}
+                    placeholder="e.g., Priya Sharma"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Avatar Initials</Label>
+                  <Input
+                    value={review.avatar}
+                    onChange={(e) => updateReview(index, 'avatar', e.target.value)}
+                    placeholder="e.g., PS"
+                    maxLength={2}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Rating (1-5)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="5"
+                    value={review.rating}
+                    onChange={(e) => updateReview(index, 'rating', parseInt(e.target.value) || 5)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Date (e.g., "2 weeks ago")</Label>
+                <Input
+                  value={review.date}
+                  onChange={(e) => updateReview(index, 'date', e.target.value)}
+                  placeholder="e.g., 2 weeks ago"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Review Text</Label>
+                <Textarea
+                  value={review.text}
+                  onChange={(e) => updateReview(index, 'text', e.target.value)}
+                  rows={2}
+                  placeholder="Customer review text..."
+                />
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <Button
+        onClick={() => updateMutation.mutate(form)}
+        disabled={updateMutation.isPending}
+      >
+        {updateMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+        Save Changes
+      </Button>
+    </div>
+  );
+}
+
 export default function ContentAdmin() {
   return (
     <AdminLayout>
@@ -412,9 +556,10 @@ export default function ContentAdmin() {
         </div>
 
         <Tabs defaultValue="hero" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="hero">Hero</TabsTrigger>
             <TabsTrigger value="why">Why Choose Us</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews</TabsTrigger>
             <TabsTrigger value="cta">CTA Section</TabsTrigger>
             <TabsTrigger value="footer">Footer</TabsTrigger>
           </TabsList>
@@ -437,6 +582,17 @@ export default function ContentAdmin() {
               </CardHeader>
               <CardContent>
                 <WhyChooseUsEditor />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="reviews">
+            <Card>
+              <CardHeader>
+                <CardTitle>Google Reviews</CardTitle>
+                <CardDescription>Manage customer reviews displayed on the homepage</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <GoogleReviewsEditor />
               </CardContent>
             </Card>
           </TabsContent>
