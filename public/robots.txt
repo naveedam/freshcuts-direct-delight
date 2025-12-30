@@ -1,8 +1,13 @@
+# FreshCuts Daily - Fresh Meat Delivery Bangalore
+# Keywords: Chicken, Mutton, Seafood, Fish, Fresh, Bangalore
+
 User-agent: Googlebot
 Allow: /
+Crawl-delay: 1
 
 User-agent: Bingbot
 Allow: /
+Crawl-delay: 1
 
 User-agent: Twitterbot
 Allow: /
@@ -10,5 +15,30 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
+# AI Crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Anthropic-AI
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
 User-agent: *
 Allow: /
+
+# Sitemap location
+Sitemap: https://freshcutsdaily.com/sitemap.xml
+
+# Host
+Host: https://freshcutsdaily.com
