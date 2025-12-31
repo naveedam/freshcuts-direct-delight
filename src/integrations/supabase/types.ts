@@ -173,10 +173,14 @@ export type Database = {
       profiles: {
         Row: {
           address: string | null
+          apartment_name: string | null
           city: string | null
           created_at: string
+          flat_number: string | null
           full_name: string | null
           id: string
+          latitude: number | null
+          longitude: number | null
           phone: string | null
           postal_code: string | null
           updated_at: string
@@ -184,10 +188,14 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          apartment_name?: string | null
           city?: string | null
           created_at?: string
+          flat_number?: string | null
           full_name?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           phone?: string | null
           postal_code?: string | null
           updated_at?: string
@@ -195,10 +203,14 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          apartment_name?: string | null
           city?: string | null
           created_at?: string
+          flat_number?: string | null
           full_name?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           phone?: string | null
           postal_code?: string | null
           updated_at?: string
