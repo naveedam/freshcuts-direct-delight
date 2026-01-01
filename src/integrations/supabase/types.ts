@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      business_settings: {
+        Row: {
+          address: string | null
+          business_name: string
+          city: string | null
+          created_at: string
+          email: string | null
+          gstin: string | null
+          id: string
+          logo_url: string | null
+          phone: string | null
+          postal_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          business_name?: string
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          gstin?: string | null
+          id?: string
+          logo_url?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          business_name?: string
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          gstin?: string | null
+          id?: string
+          logo_url?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
@@ -64,12 +106,17 @@ export type Database = {
       }
       orders: {
         Row: {
+          converted_to_sale: boolean | null
           created_at: string
+          customer_email: string | null
           id: string
+          invoice_number: string | null
           notes: string | null
           phone: string | null
+          sale_converted_at: string | null
           shipping_address: string | null
           shipping_city: string | null
+          shipping_label_generated: boolean | null
           shipping_postal_code: string | null
           status: string
           total_amount: number
@@ -77,12 +124,17 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          converted_to_sale?: boolean | null
           created_at?: string
+          customer_email?: string | null
           id?: string
+          invoice_number?: string | null
           notes?: string | null
           phone?: string | null
+          sale_converted_at?: string | null
           shipping_address?: string | null
           shipping_city?: string | null
+          shipping_label_generated?: boolean | null
           shipping_postal_code?: string | null
           status?: string
           total_amount: number
@@ -90,12 +142,17 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          converted_to_sale?: boolean | null
           created_at?: string
+          customer_email?: string | null
           id?: string
+          invoice_number?: string | null
           notes?: string | null
           phone?: string | null
+          sale_converted_at?: string | null
           shipping_address?: string | null
           shipping_city?: string | null
+          shipping_label_generated?: boolean | null
           shipping_postal_code?: string | null
           status?: string
           total_amount?: number
@@ -218,6 +275,44 @@ export type Database = {
         }
         Relationships: []
       }
+      sales: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_number: string
+          notes: string | null
+          order_id: string
+          payment_status: string
+          sale_date: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_number: string
+          notes?: string | null
+          order_id: string
+          payment_status?: string
+          sale_date?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_number?: string
+          notes?: string | null
+          order_id?: string
+          payment_status?: string
+          sale_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -244,6 +339,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_invoice_number: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
