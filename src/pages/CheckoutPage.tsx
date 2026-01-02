@@ -149,7 +149,8 @@ const CheckoutPage = () => {
           shipping_city: sanitizedData.city,
           shipping_postal_code: sanitizedData.zipCode,
           phone: sanitizedData.phone,
-          notes: `${sanitizedData.firstName} ${sanitizedData.lastName} - ${sanitizedData.email}`
+          customer_email: sanitizedData.email,
+          notes: `${sanitizedData.firstName} ${sanitizedData.lastName}`
         })
         .select()
         .single();
