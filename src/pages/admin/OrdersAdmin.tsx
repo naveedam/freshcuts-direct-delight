@@ -6,15 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye } from 'lucide-react';
+import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
 export default function OrdersAdmin() {
   const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [processingAction, setProcessingAction] = useState<string | null>(null);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['admin', 'orders'],
@@ -56,6 +58,106 @@ export default function OrdersAdmin() {
     }
   });
 
+  const convertToSaleMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      // Generate invoice number using database function
+      const { data: invoiceNumber, error: invoiceError } = await supabase
+        .rpc('generate_invoice_number');
+      
+      if (invoiceError) throw invoiceError;
+
+      // Update order with invoice number and conversion status
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({
+          converted_to_sale: true,
+          sale_converted_at: new Date().toISOString(),
+          invoice_number: invoiceNumber,
+          status: 'processing'
+        })
+        .eq('id', orderId);
+
+      if (updateError) throw updateError;
+
+      // Create sales record
+      const { error: salesError } = await supabase
+        .from('sales')
+        .insert({
+          order_id: orderId,
+          invoice_number: invoiceNumber,
+          payment_status: 'confirmed'
+        });
+
+      if (salesError) throw salesError;
+
+      return invoiceNumber;
+    },
+    onSuccess: (invoiceNumber) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
+      toast.success(`Order converted to sale. Invoice: ${invoiceNumber}`);
+      setProcessingAction(null);
+    },
+    onError: (error) => {
+      toast.error('Failed to convert to sale: ' + error.message);
+      setProcessingAction(null);
+    }
+  });
+
+  const handleConvertToSale = async (orderId: string) => {
+    setProcessingAction(`convert-${orderId}`);
+    convertToSaleMutation.mutate(orderId);
+  };
+
+  const handleGenerateInvoice = async (orderId: string) => {
+    setProcessingAction(`invoice-${orderId}`);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-invoice', {
+        body: { orderId }
+      });
+
+      if (error) throw error;
+
+      // Open invoice in new tab
+      const blob = new Blob([data], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      toast.success('Invoice generated');
+    } catch (error: any) {
+      toast.error('Failed to generate invoice: ' + error.message);
+    } finally {
+      setProcessingAction(null);
+    }
+  };
+
+  const handleGenerateShippingLabel = async (orderId: string) => {
+    setProcessingAction(`label-${orderId}`);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-shipping-label', {
+        body: { orderId }
+      });
+
+      if (error) throw error;
+
+      // Mark shipping label as generated
+      await supabase
+        .from('orders')
+        .update({ shipping_label_generated: true })
+        .eq('id', orderId);
+
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
+
+      // Open label in new tab
+      const blob = new Blob([data], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      toast.success('Shipping label generated');
+    } catch (error: any) {
+      toast.error('Failed to generate shipping label: ' + error.message);
+    } finally {
+      setProcessingAction(null);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
@@ -85,6 +187,7 @@ export default function OrdersAdmin() {
                 <TableHead>Customer</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Sale</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -97,18 +200,26 @@ export default function OrdersAdmin() {
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
                   </TableRow>
                 ))
               ) : orders && orders.length > 0 ? (
                 orders.map((order) => (
                   <TableRow key={order.id}>
-                    <TableCell className="font-mono text-sm">#{order.id.slice(0, 8)}</TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-mono text-sm">#{order.id.slice(0, 8)}</p>
+                        {order.invoice_number && (
+                          <p className="text-xs text-primary font-medium">{order.invoice_number}</p>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <div>
                         <p className="font-medium">{order.shipping_city || 'N/A'}</p>
-                        <p className="text-xs text-muted-foreground">{order.phone || 'No phone'}</p>
+                        <p className="text-xs text-muted-foreground">{order.customer_email || order.phone || 'No contact'}</p>
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">₹{Number(order.total_amount).toFixed(0)}</TableCell>
@@ -129,17 +240,81 @@ export default function OrdersAdmin() {
                         </SelectContent>
                       </Select>
                     </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        {order.converted_to_sale ? (
+                          <Badge variant="default" className="bg-green-600 text-xs">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Converted
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs">Pending</Badge>
+                        )}
+                        {order.shipping_label_generated && (
+                          <Badge variant="secondary" className="text-xs">
+                            <Truck className="h-3 w-3" />
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" variant="ghost" onClick={() => setSelectedOrder(order)}>
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => setSelectedOrder(order)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        
+                        {!order.converted_to_sale && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleConvertToSale(order.id)}
+                            disabled={processingAction === `convert-${order.id}`}
+                            title="Convert to Sale"
+                          >
+                            {processingAction === `convert-${order.id}` ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Receipt className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                        
+                        {order.converted_to_sale && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleGenerateInvoice(order.id)}
+                            disabled={processingAction === `invoice-${order.id}`}
+                            title="Generate Invoice"
+                          >
+                            {processingAction === `invoice-${order.id}` ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <FileText className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                        
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleGenerateShippingLabel(order.id)}
+                          disabled={processingAction === `label-${order.id}`}
+                          title="Generate Shipping Label"
+                        >
+                          {processingAction === `label-${order.id}` ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Truck className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No orders yet
                   </TableCell>
                 </TableRow>
@@ -175,14 +350,27 @@ export default function OrdersAdmin() {
                     <p className="text-muted-foreground">Total</p>
                     <p className="font-bold">₹{Number(selectedOrder.total_amount).toFixed(0)}</p>
                   </div>
+                  {selectedOrder.invoice_number && (
+                    <div className="col-span-2">
+                      <p className="text-muted-foreground">Invoice Number</p>
+                      <p className="font-mono text-primary">{selectedOrder.invoice_number}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t pt-4">
+                  <p className="font-medium mb-2">Customer Contact</p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedOrder.customer_email && <span className="block">{selectedOrder.customer_email}</span>}
+                    {selectedOrder.phone && <span className="block">Phone: {selectedOrder.phone}</span>}
+                  </p>
                 </div>
 
                 <div className="border-t pt-4">
                   <p className="font-medium mb-2">Shipping Address</p>
                   <p className="text-sm text-muted-foreground">
                     {selectedOrder.shipping_address || 'N/A'}<br />
-                    {selectedOrder.shipping_city}, {selectedOrder.shipping_postal_code}<br />
-                    Phone: {selectedOrder.phone || 'N/A'}
+                    {selectedOrder.shipping_city}, {selectedOrder.shipping_postal_code}
                   </p>
                 </div>
 
@@ -209,6 +397,53 @@ export default function OrdersAdmin() {
                   ) : (
                     <p className="text-sm text-muted-foreground">Loading items...</p>
                   )}
+                </div>
+
+                <div className="border-t pt-4 flex gap-2">
+                  {!selectedOrder.converted_to_sale && (
+                    <Button 
+                      onClick={() => handleConvertToSale(selectedOrder.id)}
+                      disabled={processingAction === `convert-${selectedOrder.id}`}
+                      className="flex-1"
+                    >
+                      {processingAction === `convert-${selectedOrder.id}` ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Receipt className="h-4 w-4 mr-2" />
+                      )}
+                      Convert to Sale
+                    </Button>
+                  )}
+                  
+                  {selectedOrder.converted_to_sale && (
+                    <Button 
+                      variant="outline"
+                      onClick={() => handleGenerateInvoice(selectedOrder.id)}
+                      disabled={processingAction === `invoice-${selectedOrder.id}`}
+                      className="flex-1"
+                    >
+                      {processingAction === `invoice-${selectedOrder.id}` ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <FileText className="h-4 w-4 mr-2" />
+                      )}
+                      Invoice
+                    </Button>
+                  )}
+                  
+                  <Button 
+                    variant="outline"
+                    onClick={() => handleGenerateShippingLabel(selectedOrder.id)}
+                    disabled={processingAction === `label-${selectedOrder.id}`}
+                    className="flex-1"
+                  >
+                    {processingAction === `label-${selectedOrder.id}` ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Truck className="h-4 w-4 mr-2" />
+                    )}
+                    Label
+                  </Button>
                 </div>
               </div>
             )}
