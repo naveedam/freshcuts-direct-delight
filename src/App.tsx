@@ -18,6 +18,7 @@ import OrdersAdmin from "./pages/admin/OrdersAdmin";
 import ContentAdmin from "./pages/admin/ContentAdmin";
 import BusinessSettings from "./pages/admin/BusinessSettings";
 import OrderHistory from "./pages/account/OrderHistory";
+import OrderDetails from "./pages/account/OrderDetails";
 import ProfileSettings from "./pages/account/ProfileSettings";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => (
               
               {/* Account Routes */}
               <Route path="/account/orders" element={<OrderHistory />} />
+              <Route path="/account/orders/:orderId" element={<OrderDetails />} />
               <Route path="/account/profile" element={<ProfileSettings />} />
               
               <Route path="*" element={<NotFound />} />
