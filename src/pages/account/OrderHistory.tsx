@@ -74,37 +74,39 @@ export default function OrderHistory() {
         ) : orders && orders.length > 0 ? (
           <div className="space-y-4">
             {orders.map((order) => (
-              <Card key={order.id}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-mono">
-                      Order #{order.id.slice(0, 8)}
-                    </CardTitle>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                      {order.status}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(order.created_at).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {order.shipping_city && `Shipping to: ${order.shipping_city}`}
+              <Link key={order.id} to={`/account/orders/${order.id}`}>
+                <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg font-mono">
+                        Order #{order.id.slice(0, 8)}
+                      </CardTitle>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                        {order.status}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(order.created_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {order.shipping_city && `Shipping to: ${order.shipping_city}`}
+                        </p>
+                      </div>
+                      <p className="font-heading text-xl font-bold text-primary">
+                        ${Number(order.total_amount).toFixed(2)}
                       </p>
                     </div>
-                    <p className="font-heading text-xl font-bold text-primary">
-                      ${Number(order.total_amount).toFixed(2)}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
           </div>
         ) : (
