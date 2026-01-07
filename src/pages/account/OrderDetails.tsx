@@ -18,6 +18,7 @@ import {
   Phone,
   Mail
 } from 'lucide-react';
+import { ShipmentTimeline } from '@/components/tracking/ShipmentTimeline';
 
 interface OrderItem {
   id: string;
@@ -246,11 +247,11 @@ export default function OrderDetails() {
                       <div>
                         <p className="font-medium text-foreground">{item.product_name}</p>
                         <p className="text-sm text-muted-foreground">
-                          Qty: {item.quantity} × ${Number(item.unit_price).toFixed(2)}
+                          Qty: {item.quantity} × ₹{Number(item.unit_price).toFixed(2)}
                         </p>
                       </div>
                       <p className="font-semibold text-foreground">
-                        ${Number(item.total_price).toFixed(2)}
+                        ₹{Number(item.total_price).toFixed(2)}
                       </p>
                     </div>
                   ))}
@@ -258,7 +259,7 @@ export default function OrderDetails() {
                   <div className="flex justify-between items-center">
                     <p className="font-heading font-bold text-lg">Total</p>
                     <p className="font-heading font-bold text-xl text-primary">
-                      ${Number(order.total_amount).toFixed(2)}
+                      ₹{Number(order.total_amount).toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -268,64 +269,67 @@ export default function OrderDetails() {
             </CardContent>
           </Card>
 
-          {/* Shipping & Contact Info */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Shipping Address
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-1 text-foreground">
-                  {order.shipping_address && <p>{order.shipping_address}</p>}
-                  {order.shipping_city && <p>{order.shipping_city}</p>}
-                  {order.shipping_postal_code && <p>{order.shipping_postal_code}</p>}
-                  {!order.shipping_address && !order.shipping_city && (
-                    <p className="text-muted-foreground">No shipping address provided</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Contact Information</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {order.customer_email && (
-                    <div className="flex items-center gap-3 text-foreground">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span>{order.customer_email}</span>
-                    </div>
-                  )}
-                  {order.phone && (
-                    <div className="flex items-center gap-3 text-foreground">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>{order.phone}</span>
-                    </div>
-                  )}
-                  {!order.customer_email && !order.phone && (
-                    <p className="text-muted-foreground">No contact information provided</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {order.notes && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Order Notes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-foreground">{order.notes}</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          {/* Shipment Tracking */}
+          <ShipmentTimeline orderId={orderId!} />
         </div>
+
+        {/* Shipping & Contact Info */}
+        <div className="grid md:grid-cols-2 gap-8 mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Shipping Address
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1 text-foreground">
+                {order.shipping_address && <p>{order.shipping_address}</p>}
+                {order.shipping_city && <p>{order.shipping_city}</p>}
+                {order.shipping_postal_code && <p>{order.shipping_postal_code}</p>}
+                {!order.shipping_address && !order.shipping_city && (
+                  <p className="text-muted-foreground">No shipping address provided</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Contact Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {order.customer_email && (
+                  <div className="flex items-center gap-3 text-foreground">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span>{order.customer_email}</span>
+                  </div>
+                )}
+                {order.phone && (
+                  <div className="flex items-center gap-3 text-foreground">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span>{order.phone}</span>
+                  </div>
+                )}
+                {!order.customer_email && !order.phone && (
+                  <p className="text-muted-foreground">No contact information provided</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {order.notes && (
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="text-lg">Order Notes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-foreground">{order.notes}</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </Layout>
   );

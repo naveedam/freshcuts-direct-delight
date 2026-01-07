@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle } from 'lucide-react';
+import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { ShipmentTrackingModal } from '@/components/admin/ShipmentTrackingModal';
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
@@ -17,6 +18,7 @@ export default function OrdersAdmin() {
   const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [processingAction, setProcessingAction] = useState<string | null>(null);
+  const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['admin', 'orders'],
@@ -187,6 +189,7 @@ export default function OrdersAdmin() {
                 <TableHead>Customer</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Delivery</TableHead>
                 <TableHead>Sale</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -199,6 +202,7 @@ export default function OrdersAdmin() {
                     <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
@@ -239,6 +243,17 @@ export default function OrdersAdmin() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 gap-1 text-xs"
+                        onClick={() => setTrackingOrderId(order.id)}
+                      >
+                        <MapPin className="h-3 w-3" />
+                        Track
+                      </Button>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
@@ -314,7 +329,7 @@ export default function OrdersAdmin() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     No orders yet
                   </TableCell>
                 </TableRow>
@@ -449,6 +464,15 @@ export default function OrdersAdmin() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Shipment Tracking Modal */}
+        {trackingOrderId && (
+          <ShipmentTrackingModal
+            open={!!trackingOrderId}
+            onOpenChange={(open) => !open && setTrackingOrderId(null)}
+            orderId={trackingOrderId}
+          />
+        )}
       </div>
     </AdminLayout>
   );

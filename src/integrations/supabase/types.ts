@@ -313,6 +313,161 @@ export type Database = {
           },
         ]
       }
+      shipment_events: {
+        Row: {
+          created_at: string
+          description: string | null
+          event_timestamp: string
+          id: string
+          location: string | null
+          raw_data: Json | null
+          shipment_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          event_timestamp?: string
+          id?: string
+          location?: string | null
+          raw_data?: Json | null
+          shipment_id: string
+          status: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          event_timestamp?: string
+          id?: string
+          location?: string | null
+          raw_data?: Json | null
+          shipment_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipment_events_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipments: {
+        Row: {
+          awb_number: string | null
+          created_at: string
+          delivered_at: string | null
+          delivery_proof_url: string | null
+          estimated_delivery: string | null
+          id: string
+          order_id: string
+          picked_up_at: string | null
+          pickup_scheduled_at: string | null
+          provider_id: string | null
+          raw_response: Json | null
+          rider_name: string | null
+          rider_phone: string | null
+          shipping_cost: number | null
+          status: string
+          tracking_number: string | null
+          tracking_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          awb_number?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivery_proof_url?: string | null
+          estimated_delivery?: string | null
+          id?: string
+          order_id: string
+          picked_up_at?: string | null
+          pickup_scheduled_at?: string | null
+          provider_id?: string | null
+          raw_response?: Json | null
+          rider_name?: string | null
+          rider_phone?: string | null
+          shipping_cost?: number | null
+          status?: string
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          awb_number?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivery_proof_url?: string | null
+          estimated_delivery?: string | null
+          id?: string
+          order_id?: string
+          picked_up_at?: string | null
+          pickup_scheduled_at?: string | null
+          provider_id?: string | null
+          raw_response?: Json | null
+          rider_name?: string | null
+          rider_phone?: string | null
+          shipping_cost?: number | null
+          status?: string
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "shipping_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipping_providers: {
+        Row: {
+          api_base_url: string | null
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+          supported_cities: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          api_base_url?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name: string
+          supported_cities?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          api_base_url?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          supported_cities?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
