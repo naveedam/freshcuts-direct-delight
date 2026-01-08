@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Loader2, Package, Truck, MapPin, Phone, User, ExternalLink, Clock } from 'lucide-react';
+import { Loader2, Package, Truck, MapPin, Phone, User, ExternalLink, Clock, Scale } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { ShippingRateComparison, ShippingRate } from './ShippingRateComparison';
 
 interface ShipmentTrackingModalProps {
   open: boolean;
@@ -62,6 +63,7 @@ const SHIPMENT_STATUSES = [
 export function ShipmentTrackingModal({ open, onOpenChange, orderId }: ShipmentTrackingModalProps) {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
+  const [showRateComparison, setShowRateComparison] = useState(false);
 
   // Form state
   const [providerId, setProviderId] = useState<string>('');
@@ -87,6 +89,21 @@ export function ShipmentTrackingModal({ open, onOpenChange, orderId }: ShipmentT
       if (error) throw error;
       return data as ShippingProvider[];
     }
+  });
+
+  // Fetch order details for rate comparison
+  const { data: orderDetails } = useQuery({
+    queryKey: ['order-details', orderId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('shipping_city, shipping_postal_code, total_amount')
+        .eq('id', orderId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: open
   });
 
   // Fetch existing shipment
@@ -237,6 +254,15 @@ export function ShipmentTrackingModal({ open, onOpenChange, orderId }: ShipmentT
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  const handleRateSelected = (selectedProviderId: string, rate: ShippingRate) => {
+    setProviderId(selectedProviderId);
+    setShippingCost(rate.baseRate.toString());
+    setEstimatedDelivery(rate.estimatedDelivery.toISOString().split('T')[0]);
+    setShowRateComparison(false);
+    setIsEditing(true);
+    toast.success(`Selected ${rate.providerName} at ₹${rate.baseRate}`);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -251,15 +277,31 @@ export function ShipmentTrackingModal({ open, onOpenChange, orderId }: ShipmentT
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
+        ) : showRateComparison ? (
+          // Rate comparison view
+          <ShippingRateComparison
+            orderId={orderId}
+            destinationCity={orderDetails?.shipping_city || null}
+            destinationPincode={orderDetails?.shipping_postal_code || null}
+            orderTotal={orderDetails?.total_amount || 0}
+            onSelectRate={handleRateSelected}
+            onClose={() => setShowRateComparison(false)}
+          />
         ) : !shipment && !isEditing ? (
-          // No shipment yet - show create button
+          // No shipment yet - show create options
           <div className="text-center py-8">
             <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
             <p className="text-muted-foreground mb-4">No shipment created for this order yet</p>
-            <Button onClick={() => setIsEditing(true)}>
-              <Truck className="h-4 w-4 mr-2" />
-              Create Shipment
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button variant="outline" onClick={() => setShowRateComparison(true)}>
+                <Scale className="h-4 w-4 mr-2" />
+                Compare Rates
+              </Button>
+              <Button onClick={() => setIsEditing(true)}>
+                <Truck className="h-4 w-4 mr-2" />
+                Create Manually
+              </Button>
+            </div>
           </div>
         ) : isEditing ? (
           // Edit/Create form
