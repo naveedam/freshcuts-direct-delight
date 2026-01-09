@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, FileText, LogOut, Home, Building2, Truck } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, FileText, LogOut, Home, Building2, Truck, Receipt } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -21,6 +21,7 @@ const menuItems = [
   { title: 'Products', url: '/admin/products', icon: Package },
   { title: 'Orders', url: '/admin/orders', icon: ShoppingCart },
   { title: 'Shipping', url: '/admin/shipping', icon: Truck },
+  { title: 'GST Config', url: '/admin/gst', icon: Receipt },
   { title: 'Page Content', url: '/admin/content', icon: FileText },
   { title: 'Business Settings', url: '/admin/settings', icon: Building2 },
 ];
