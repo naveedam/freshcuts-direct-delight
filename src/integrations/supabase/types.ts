@@ -26,6 +26,8 @@ export type Database = {
           logo_url: string | null
           phone: string | null
           postal_code: string | null
+          state_code: string | null
+          state_name: string | null
           updated_at: string
         }
         Insert: {
@@ -39,6 +41,8 @@ export type Database = {
           logo_url?: string | null
           phone?: string | null
           postal_code?: string | null
+          state_code?: string | null
+          state_name?: string | null
           updated_at?: string
         }
         Update: {
@@ -52,38 +56,100 @@ export type Database = {
           logo_url?: string | null
           phone?: string | null
           postal_code?: string | null
+          state_code?: string | null
+          state_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gst_config: {
+        Row: {
+          category: string
+          created_at: string
+          default_gst_rate: number
+          default_gst_type: string
+          description: string | null
+          hsn_code: string
+          id: string
+          is_configurable: boolean
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          default_gst_rate?: number
+          default_gst_type?: string
+          description?: string | null
+          hsn_code: string
+          id?: string
+          is_configurable?: boolean
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          default_gst_rate?: number
+          default_gst_type?: string
+          description?: string | null
+          hsn_code?: string
+          id?: string
+          is_configurable?: boolean
+          notes?: string | null
           updated_at?: string
         }
         Relationships: []
       }
       order_items: {
         Row: {
+          cgst_amount: number
           created_at: string
+          gst_rate: number
+          gst_type: string
+          hsn_code: string | null
           id: string
+          igst_amount: number
           order_id: string
           product_id: string | null
           product_name: string
           quantity: number
+          sgst_amount: number
+          taxable_value: number
           total_price: number
           unit_price: number
         }
         Insert: {
+          cgst_amount?: number
           created_at?: string
+          gst_rate?: number
+          gst_type?: string
+          hsn_code?: string | null
           id?: string
+          igst_amount?: number
           order_id: string
           product_id?: string | null
           product_name: string
           quantity: number
+          sgst_amount?: number
+          taxable_value?: number
           total_price: number
           unit_price: number
         }
         Update: {
+          cgst_amount?: number
           created_at?: string
+          gst_rate?: number
+          gst_type?: string
+          hsn_code?: string | null
           id?: string
+          igst_amount?: number
           order_id?: string
           product_id?: string | null
           product_name?: string
           quantity?: number
+          sgst_amount?: number
+          taxable_value?: number
           total_price?: number
           unit_price?: number
         }
@@ -111,8 +177,10 @@ export type Database = {
           customer_email: string | null
           id: string
           invoice_number: string | null
+          is_igst: boolean
           notes: string | null
           phone: string | null
+          place_of_supply: string | null
           sale_converted_at: string | null
           shipping_address: string | null
           shipping_city: string | null
@@ -129,8 +197,10 @@ export type Database = {
           customer_email?: string | null
           id?: string
           invoice_number?: string | null
+          is_igst?: boolean
           notes?: string | null
           phone?: string | null
+          place_of_supply?: string | null
           sale_converted_at?: string | null
           shipping_address?: string | null
           shipping_city?: string | null
@@ -147,8 +217,10 @@ export type Database = {
           customer_email?: string | null
           id?: string
           invoice_number?: string | null
+          is_igst?: boolean
           notes?: string | null
           phone?: string | null
+          place_of_supply?: string | null
           sale_converted_at?: string | null
           shipping_address?: string | null
           shipping_city?: string | null
@@ -190,6 +262,9 @@ export type Database = {
           category: string
           created_at: string
           description: string | null
+          gst_rate: number
+          gst_type: string
+          hsn_code: string | null
           id: string
           image_url: string | null
           in_stock: boolean | null
@@ -203,6 +278,9 @@ export type Database = {
           category: string
           created_at?: string
           description?: string | null
+          gst_rate?: number
+          gst_type?: string
+          hsn_code?: string | null
           id?: string
           image_url?: string | null
           in_stock?: boolean | null
@@ -216,6 +294,9 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          gst_rate?: number
+          gst_type?: string
+          hsn_code?: string | null
           id?: string
           image_url?: string | null
           in_stock?: boolean | null

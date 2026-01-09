@@ -5,14 +5,199 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+interface OrderItem {
+  id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  hsn_code: string | null;
+  gst_type: string;
+  gst_rate: number;
+  taxable_value: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+}
+
+interface Order {
+  id: string;
+  invoice_number: string | null;
+  status: string;
+  total_amount: number;
+  customer_email: string | null;
+  phone: string | null;
+  shipping_address: string | null;
+  shipping_city: string | null;
+  shipping_postal_code: string | null;
+  place_of_supply: string | null;
+  is_igst: boolean;
+  notes: string | null;
+  created_at: string;
+}
+
+interface Business {
+  business_name: string;
+  address: string | null;
+  city: string | null;
+  postal_code: string | null;
+  phone: string | null;
+  email: string | null;
+  gstin: string | null;
+  state_code: string | null;
+  state_name: string | null;
+}
+
+interface HSNSummary {
+  hsn_code: string;
+  description: string;
+  quantity: number;
+  taxable_value: number;
+  cgst_rate: number;
+  cgst_amount: number;
+  sgst_rate: number;
+  sgst_amount: number;
+  igst_rate: number;
+  igst_amount: number;
+  total_tax: number;
+}
+
+interface GSTSummary {
+  total_taxable_value: number;
+  total_exempt_value: number;
+  total_nil_rated_value: number;
+  total_cgst: number;
+  total_sgst: number;
+  total_igst: number;
+  total_tax: number;
+  grand_total: number;
+}
+
+// Calculate GST for a line item
+function calculateLineItemGST(
+  quantity: number,
+  unitPrice: number,
+  gstType: string,
+  gstRate: number,
+  isIGST: boolean
+): { taxableValue: number; cgst: number; sgst: number; igst: number } {
+  const lineValue = quantity * unitPrice;
+  
+  if (gstType === 'exempt' || gstType === 'nil' || gstRate === 0) {
+    return { taxableValue: 0, cgst: 0, sgst: 0, igst: 0 };
+  }
+  
+  // For taxable items, calculate GST
+  const taxableValue = lineValue;
+  const totalGST = (taxableValue * gstRate) / 100;
+  
+  if (isIGST) {
+    return { taxableValue, cgst: 0, sgst: 0, igst: totalGST };
+  } else {
+    const halfGST = totalGST / 2;
+    return { taxableValue, cgst: halfGST, sgst: halfGST, igst: 0 };
+  }
+}
+
+// Build HSN summary table
+function buildHSNSummary(items: OrderItem[], isIGST: boolean): HSNSummary[] {
+  const hsnMap = new Map<string, HSNSummary>();
+  
+  items.forEach(item => {
+    const hsnCode = item.hsn_code || 'N/A';
+    const existing = hsnMap.get(hsnCode);
+    
+    if (existing) {
+      existing.quantity += Number(item.quantity);
+      existing.taxable_value += Number(item.taxable_value);
+      existing.cgst_amount += Number(item.cgst_amount);
+      existing.sgst_amount += Number(item.sgst_amount);
+      existing.igst_amount += Number(item.igst_amount);
+      existing.total_tax = existing.cgst_amount + existing.sgst_amount + existing.igst_amount;
+    } else {
+      const gstRate = Number(item.gst_rate);
+      hsnMap.set(hsnCode, {
+        hsn_code: hsnCode,
+        description: item.product_name,
+        quantity: Number(item.quantity),
+        taxable_value: Number(item.taxable_value),
+        cgst_rate: isIGST ? 0 : gstRate / 2,
+        cgst_amount: Number(item.cgst_amount),
+        sgst_rate: isIGST ? 0 : gstRate / 2,
+        sgst_amount: Number(item.sgst_amount),
+        igst_rate: isIGST ? gstRate : 0,
+        igst_amount: Number(item.igst_amount),
+        total_tax: Number(item.cgst_amount) + Number(item.sgst_amount) + Number(item.igst_amount),
+      });
+    }
+  });
+  
+  return Array.from(hsnMap.values());
+}
+
+// Calculate GST summary
+function calculateGSTSummary(items: OrderItem[]): GSTSummary {
+  let totalTaxableValue = 0;
+  let totalExemptValue = 0;
+  let totalNilRatedValue = 0;
+  let totalCGST = 0;
+  let totalSGST = 0;
+  let totalIGST = 0;
+  
+  items.forEach(item => {
+    const lineValue = Number(item.quantity) * Number(item.unit_price);
+    
+    if (item.gst_type === 'exempt') {
+      totalExemptValue += lineValue;
+    } else if (item.gst_type === 'nil') {
+      totalNilRatedValue += lineValue;
+    } else if (item.gst_type === 'taxable') {
+      totalTaxableValue += Number(item.taxable_value);
+    }
+    
+    totalCGST += Number(item.cgst_amount);
+    totalSGST += Number(item.sgst_amount);
+    totalIGST += Number(item.igst_amount);
+  });
+  
+  const totalTax = totalCGST + totalSGST + totalIGST;
+  const grandTotal = totalTaxableValue + totalExemptValue + totalNilRatedValue + totalTax;
+  
+  return {
+    total_taxable_value: totalTaxableValue,
+    total_exempt_value: totalExemptValue,
+    total_nil_rated_value: totalNilRatedValue,
+    total_cgst: totalCGST,
+    total_sgst: totalSGST,
+    total_igst: totalIGST,
+    total_tax: totalTax,
+    grand_total: grandTotal,
+  };
+}
+
+// Format currency
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2,
+  }).format(amount);
+}
+
+// Get GST type label
+function getGSTTypeLabel(gstType: string, gstRate: number): string {
+  if (gstType === 'exempt') return 'Exempt';
+  if (gstType === 'nil') return 'NIL (0%)';
+  return `${gstRate}%`;
+}
+
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { orderId } = await req.json();
+    const { orderId, recalculate = false } = await req.json();
     
     if (!orderId) {
       return new Response(JSON.stringify({ error: 'Order ID is required' }), {
@@ -21,7 +206,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log('Generating invoice for order:', orderId);
+    console.log('Generating GST invoice for order:', orderId);
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -43,14 +228,45 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch order items
-    const { data: orderItems, error: itemsError } = await supabase
+    // Fetch order items with GST data
+    let { data: orderItems, error: itemsError } = await supabase
       .from('order_items')
       .select('*')
       .eq('order_id', orderId);
 
     if (itemsError) {
       console.error('Failed to fetch order items:', itemsError);
+      orderItems = [];
+    }
+
+    // If recalculate flag is set, recalculate GST for all items
+    if (recalculate && orderItems && orderItems.length > 0) {
+      for (const item of orderItems) {
+        const gst = calculateLineItemGST(
+          Number(item.quantity),
+          Number(item.unit_price),
+          item.gst_type || 'exempt',
+          Number(item.gst_rate) || 0,
+          order.is_igst
+        );
+        
+        // Update the item in database
+        await supabase
+          .from('order_items')
+          .update({
+            taxable_value: gst.taxableValue,
+            cgst_amount: gst.cgst,
+            sgst_amount: gst.sgst,
+            igst_amount: gst.igst,
+          })
+          .eq('id', item.id);
+        
+        // Update local item for HTML generation
+        item.taxable_value = gst.taxableValue;
+        item.cgst_amount = gst.cgst;
+        item.sgst_amount = gst.sgst;
+        item.igst_amount = gst.igst;
+      }
     }
 
     // Fetch business settings
@@ -60,24 +276,28 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const business = businessSettings || {
+    const business: Business = businessSettings || {
       business_name: 'My Business',
-      address: '',
-      city: '',
-      postal_code: '',
-      phone: '',
-      email: '',
-      gstin: ''
+      address: null,
+      city: null,
+      postal_code: null,
+      phone: null,
+      email: null,
+      gstin: null,
+      state_code: null,
+      state_name: null,
     };
 
-    const invoiceDate = new Date().toLocaleDateString('en-IN', {
+    const items = (orderItems || []) as OrderItem[];
+    const isIGST = order.is_igst;
+    const hsnSummary = buildHSNSummary(items, isIGST);
+    const gstSummary = calculateGSTSummary(items);
+
+    const invoiceDate = new Date(order.created_at).toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
-
-    const items = orderItems || [];
-    const subtotal = items.reduce((sum, item) => sum + Number(item.total_price), 0);
 
     const html = `
 <!DOCTYPE html>
@@ -85,38 +305,51 @@ Deno.serve(async (req) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Invoice ${order.invoice_number || order.id.slice(0, 8)}</title>
+  <title>Tax Invoice ${order.invoice_number || order.id.slice(0, 8)}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: #f5f5f5; }
-    .invoice { max-width: 800px; margin: 0 auto; background: white; padding: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .header { display: flex; justify-content: space-between; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 2px solid #16a34a; }
-    .logo h1 { color: #16a34a; font-size: 28px; margin-bottom: 5px; }
-    .logo p { color: #666; font-size: 12px; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: #f5f5f5; font-size: 12px; }
+    .invoice { max-width: 800px; margin: 0 auto; background: white; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .header { display: flex; justify-content: space-between; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #16a34a; }
+    .logo h1 { color: #16a34a; font-size: 22px; margin-bottom: 5px; }
+    .logo p { color: #666; font-size: 11px; line-height: 1.5; }
+    .invoice-title { text-align: center; margin-bottom: 20px; }
+    .invoice-title h2 { color: #333; font-size: 18px; border: 2px solid #333; display: inline-block; padding: 5px 20px; }
     .invoice-info { text-align: right; }
-    .invoice-info h2 { color: #333; font-size: 24px; margin-bottom: 10px; }
-    .invoice-info p { color: #666; font-size: 14px; margin: 3px 0; }
-    .addresses { display: flex; justify-content: space-between; margin-bottom: 30px; }
-    .address-block { width: 48%; }
-    .address-block h3 { color: #16a34a; font-size: 12px; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px; }
-    .address-block p { color: #333; font-size: 14px; line-height: 1.6; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-    th { background: #16a34a; color: white; padding: 12px; text-align: left; font-size: 12px; text-transform: uppercase; }
-    td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+    .invoice-info p { color: #666; font-size: 11px; margin: 2px 0; }
+    .invoice-info strong { color: #333; }
+    .addresses { display: flex; justify-content: space-between; margin-bottom: 20px; gap: 20px; }
+    .address-block { flex: 1; padding: 10px; background: #f9f9f9; border-radius: 4px; }
+    .address-block h3 { color: #16a34a; font-size: 10px; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px; }
+    .address-block p { color: #333; font-size: 11px; line-height: 1.5; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+    th { background: #16a34a; color: white; padding: 8px 6px; text-align: left; font-size: 10px; text-transform: uppercase; }
+    td { padding: 8px 6px; border-bottom: 1px solid #eee; font-size: 11px; }
     tr:hover { background: #f9f9f9; }
     .text-right { text-align: right; }
-    .totals { margin-left: auto; width: 300px; }
-    .totals-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
-    .totals-row.total { border-top: 2px solid #16a34a; border-bottom: none; font-weight: bold; font-size: 18px; color: #16a34a; padding-top: 15px; }
-    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 12px; }
-    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
-    .status-pending { background: #fef3c7; color: #92400e; }
-    .status-processing { background: #dbeafe; color: #1e40af; }
-    .status-shipped { background: #e9d5ff; color: #7c3aed; }
-    .status-delivered { background: #dcfce7; color: #166534; }
+    .text-center { text-align: center; }
+    .section-title { background: #f0f0f0; padding: 8px; font-weight: bold; font-size: 11px; margin: 15px 0 10px 0; border-left: 3px solid #16a34a; }
+    .summary-grid { display: flex; justify-content: space-between; gap: 20px; margin-top: 20px; }
+    .summary-box { flex: 1; padding: 15px; background: #f9f9f9; border-radius: 4px; }
+    .summary-box h4 { color: #16a34a; font-size: 11px; text-transform: uppercase; margin-bottom: 10px; }
+    .summary-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px; }
+    .summary-row.total { border-top: 2px solid #16a34a; margin-top: 8px; padding-top: 8px; font-weight: bold; font-size: 14px; color: #16a34a; }
+    .gst-tag { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: 600; }
+    .gst-exempt { background: #fef3c7; color: #92400e; }
+    .gst-nil { background: #e0e7ff; color: #3730a3; }
+    .gst-taxable { background: #dcfce7; color: #166534; }
+    .declaration { margin-top: 20px; padding: 15px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 4px; font-size: 10px; color: #92400e; }
+    .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee; }
+    .footer-grid { display: flex; justify-content: space-between; }
+    .footer-section { flex: 1; }
+    .footer-section h4 { font-size: 10px; color: #16a34a; text-transform: uppercase; margin-bottom: 8px; }
+    .footer-section p { font-size: 10px; color: #666; line-height: 1.6; }
+    .signature-box { text-align: right; }
+    .signature-line { margin-top: 40px; border-top: 1px solid #333; width: 150px; margin-left: auto; }
+    .signature-label { font-size: 10px; color: #666; margin-top: 5px; }
     @media print { 
       body { padding: 0; background: white; }
-      .invoice { box-shadow: none; }
+      .invoice { box-shadow: none; padding: 20px; }
     }
   </style>
 </head>
@@ -128,82 +361,172 @@ Deno.serve(async (req) => {
         <p>${business.address || ''}</p>
         <p>${business.city || ''}${business.postal_code ? ', ' + business.postal_code : ''}</p>
         ${business.phone ? `<p>Phone: ${business.phone}</p>` : ''}
-        ${business.gstin ? `<p>GSTIN: ${business.gstin}</p>` : ''}
+        ${business.email ? `<p>Email: ${business.email}</p>` : ''}
+        ${business.gstin ? `<p><strong>GSTIN: ${business.gstin}</strong></p>` : ''}
+        ${business.state_name ? `<p>State: ${business.state_name}${business.state_code ? ' (' + business.state_code + ')' : ''}</p>` : ''}
       </div>
       <div class="invoice-info">
-        <h2>INVOICE</h2>
-        <p><strong>${order.invoice_number || 'N/A'}</strong></p>
-        <p>Date: ${invoiceDate}</p>
-        <p>Order: #${order.id.slice(0, 8).toUpperCase()}</p>
-        <p style="margin-top: 10px;"><span class="status-badge status-${order.status}">${order.status}</span></p>
+        <p><strong>Invoice No:</strong> ${order.invoice_number || 'DRAFT'}</p>
+        <p><strong>Date:</strong> ${invoiceDate}</p>
+        <p><strong>Order ID:</strong> #${order.id.slice(0, 8).toUpperCase()}</p>
+        ${order.place_of_supply ? `<p><strong>Place of Supply:</strong> ${order.place_of_supply}</p>` : ''}
+        <p style="margin-top: 8px;"><strong>Supply Type:</strong> ${isIGST ? 'Inter-State (IGST)' : 'Intra-State (CGST+SGST)'}</p>
       </div>
+    </div>
+
+    <div class="invoice-title">
+      <h2>TAX INVOICE</h2>
     </div>
 
     <div class="addresses">
       <div class="address-block">
-        <h3>From</h3>
+        <h3>Sold By</h3>
         <p><strong>${business.business_name}</strong></p>
         <p>${business.address || 'N/A'}</p>
         <p>${business.city || ''}${business.postal_code ? ', ' + business.postal_code : ''}</p>
-        ${business.email ? `<p>${business.email}</p>` : ''}
+        ${business.gstin ? `<p>GSTIN: ${business.gstin}</p>` : ''}
       </div>
       <div class="address-block">
-        <h3>Bill To</h3>
+        <h3>Bill To / Ship To</h3>
         <p>${order.shipping_address || 'N/A'}</p>
         <p>${order.shipping_city || ''}${order.shipping_postal_code ? ', ' + order.shipping_postal_code : ''}</p>
         ${order.phone ? `<p>Phone: ${order.phone}</p>` : ''}
-        ${order.customer_email ? `<p>${order.customer_email}</p>` : ''}
+        ${order.customer_email ? `<p>Email: ${order.customer_email}</p>` : ''}
       </div>
     </div>
 
+    <div class="section-title">Invoice Details</div>
     <table>
       <thead>
         <tr>
-          <th>Item</th>
-          <th class="text-right">Qty</th>
-          <th class="text-right">Unit Price</th>
-          <th class="text-right">Total</th>
+          <th style="width: 5%">#</th>
+          <th style="width: 25%">Product</th>
+          <th style="width: 10%">HSN</th>
+          <th class="text-center" style="width: 8%">Qty</th>
+          <th class="text-right" style="width: 10%">Rate</th>
+          <th class="text-right" style="width: 12%">Value</th>
+          <th class="text-center" style="width: 10%">GST</th>
+          <th class="text-right" style="width: 10%">Tax Amt</th>
+          <th class="text-right" style="width: 10%">Total</th>
         </tr>
       </thead>
       <tbody>
-        ${items.map(item => `
+        ${items.map((item, index) => {
+          const lineValue = Number(item.quantity) * Number(item.unit_price);
+          const taxAmount = Number(item.cgst_amount) + Number(item.sgst_amount) + Number(item.igst_amount);
+          const total = lineValue + taxAmount;
+          const gstLabel = getGSTTypeLabel(item.gst_type, Number(item.gst_rate));
+          const gstClass = item.gst_type === 'exempt' ? 'gst-exempt' : item.gst_type === 'nil' ? 'gst-nil' : 'gst-taxable';
+          
+          return `
           <tr>
+            <td>${index + 1}</td>
             <td>${item.product_name}</td>
-            <td class="text-right">${Number(item.quantity)}</td>
-            <td class="text-right">₹${Number(item.unit_price).toFixed(2)}</td>
-            <td class="text-right">₹${Number(item.total_price).toFixed(2)}</td>
+            <td>${item.hsn_code || '-'}</td>
+            <td class="text-center">${Number(item.quantity)}</td>
+            <td class="text-right">${formatCurrency(Number(item.unit_price))}</td>
+            <td class="text-right">${formatCurrency(lineValue)}</td>
+            <td class="text-center"><span class="gst-tag ${gstClass}">${gstLabel}</span></td>
+            <td class="text-right">${formatCurrency(taxAmount)}</td>
+            <td class="text-right">${formatCurrency(total)}</td>
+          </tr>
+        `}).join('')}
+      </tbody>
+    </table>
+
+    <div class="section-title">HSN Summary</div>
+    <table>
+      <thead>
+        <tr>
+          <th>HSN Code</th>
+          <th class="text-right">Taxable Value</th>
+          ${isIGST ? `
+            <th class="text-center">IGST Rate</th>
+            <th class="text-right">IGST Amount</th>
+          ` : `
+            <th class="text-center">CGST Rate</th>
+            <th class="text-right">CGST Amount</th>
+            <th class="text-center">SGST Rate</th>
+            <th class="text-right">SGST Amount</th>
+          `}
+          <th class="text-right">Total Tax</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${hsnSummary.map(hsn => `
+          <tr>
+            <td>${hsn.hsn_code}</td>
+            <td class="text-right">${formatCurrency(hsn.taxable_value)}</td>
+            ${isIGST ? `
+              <td class="text-center">${hsn.igst_rate}%</td>
+              <td class="text-right">${formatCurrency(hsn.igst_amount)}</td>
+            ` : `
+              <td class="text-center">${hsn.cgst_rate}%</td>
+              <td class="text-right">${formatCurrency(hsn.cgst_amount)}</td>
+              <td class="text-center">${hsn.sgst_rate}%</td>
+              <td class="text-right">${formatCurrency(hsn.sgst_amount)}</td>
+            `}
+            <td class="text-right">${formatCurrency(hsn.total_tax)}</td>
           </tr>
         `).join('')}
       </tbody>
     </table>
 
-    <div class="totals">
-      <div class="totals-row">
-        <span>Subtotal</span>
-        <span>₹${subtotal.toFixed(2)}</span>
+    <div class="summary-grid">
+      <div class="summary-box">
+        <h4>Supply Breakdown</h4>
+        ${gstSummary.total_exempt_value > 0 ? `<div class="summary-row"><span>Exempt Supply</span><span>${formatCurrency(gstSummary.total_exempt_value)}</span></div>` : ''}
+        ${gstSummary.total_nil_rated_value > 0 ? `<div class="summary-row"><span>NIL Rated Supply (0%)</span><span>${formatCurrency(gstSummary.total_nil_rated_value)}</span></div>` : ''}
+        ${gstSummary.total_taxable_value > 0 ? `<div class="summary-row"><span>Taxable Supply</span><span>${formatCurrency(gstSummary.total_taxable_value)}</span></div>` : ''}
       </div>
-      <div class="totals-row">
-        <span>Shipping</span>
-        <span>₹${(Number(order.total_amount) - subtotal).toFixed(2)}</span>
+      <div class="summary-box">
+        <h4>Tax Summary</h4>
+        ${isIGST ? `
+          <div class="summary-row"><span>IGST</span><span>${formatCurrency(gstSummary.total_igst)}</span></div>
+        ` : `
+          <div class="summary-row"><span>CGST</span><span>${formatCurrency(gstSummary.total_cgst)}</span></div>
+          <div class="summary-row"><span>SGST</span><span>${formatCurrency(gstSummary.total_sgst)}</span></div>
+        `}
+        <div class="summary-row" style="border-top: 1px solid #ddd; margin-top: 5px; padding-top: 5px;"><span><strong>Total Tax</strong></span><span><strong>${formatCurrency(gstSummary.total_tax)}</strong></span></div>
       </div>
-      <div class="totals-row total">
-        <span>Total</span>
-        <span>₹${Number(order.total_amount).toFixed(2)}</span>
+      <div class="summary-box">
+        <h4>Invoice Total</h4>
+        <div class="summary-row"><span>Subtotal</span><span>${formatCurrency(gstSummary.total_exempt_value + gstSummary.total_nil_rated_value + gstSummary.total_taxable_value)}</span></div>
+        <div class="summary-row"><span>Total Tax</span><span>${formatCurrency(gstSummary.total_tax)}</span></div>
+        <div class="summary-row total"><span>Grand Total</span><span>${formatCurrency(gstSummary.grand_total)}</span></div>
       </div>
     </div>
 
-    ${order.notes ? `<p style="margin-top: 20px; color: #666; font-size: 14px;"><strong>Notes:</strong> ${order.notes}</p>` : ''}
+    <div class="declaration">
+      <strong>Declaration:</strong> Fresh unbranded food items – supplied loose where applicable. 
+      ${gstSummary.total_exempt_value > 0 ? 'This invoice includes exempt supplies. ' : ''}
+      ${gstSummary.total_nil_rated_value > 0 ? 'This invoice includes NIL rated supplies (GST @ 0%). ' : ''}
+      We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
+    </div>
+
+    ${order.notes ? `<p style="margin-top: 15px; color: #666; font-size: 11px;"><strong>Notes:</strong> ${order.notes}</p>` : ''}
 
     <div class="footer">
-      <p>Thank you for your business!</p>
-      <p style="margin-top: 5px;">${business.email || ''} | ${business.phone || ''}</p>
+      <div class="footer-grid">
+        <div class="footer-section">
+          <h4>Terms & Conditions</h4>
+          <p>1. Goods once sold will not be taken back.</p>
+          <p>2. Subject to local jurisdiction only.</p>
+          <p>3. E. & O.E.</p>
+        </div>
+        <div class="footer-section signature-box">
+          <p><strong>For ${business.business_name}</strong></p>
+          <div class="signature-line"></div>
+          <p class="signature-label">Authorized Signatory</p>
+        </div>
+      </div>
     </div>
   </div>
 </body>
 </html>
     `;
 
-    console.log('Invoice generated successfully');
+    console.log('GST Invoice generated successfully');
 
     return new Response(html, {
       headers: { ...corsHeaders, 'Content-Type': 'text/html' }
