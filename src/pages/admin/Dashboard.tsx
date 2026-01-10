@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ShoppingCart, DollarSign, TrendingUp } from 'lucide-react';
+import { Package, ShoppingCart, IndianRupee, TrendingUp } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatCurrency } from '@/lib/currency';
 
 export default function AdminDashboard() {
   const { data: stats, isLoading } = useQuery({
@@ -83,13 +84,13 @@ export default function AdminDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <IndianRupee className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <Skeleton className="h-8 w-24" />
               ) : (
-                <p className="text-2xl font-bold">${stats?.totalRevenue.toFixed(2)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(stats?.totalRevenue || 0)}</p>
               )}
             </CardContent>
           </Card>
@@ -132,7 +133,7 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium">${Number(order.total_amount).toFixed(2)}</p>
+                      <p className="font-medium">{formatCurrency(Number(order.total_amount))}</p>
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
                         order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                         order.status === 'processing' ? 'bg-blue-100 text-blue-800' :

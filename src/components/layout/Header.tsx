@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ShoppingCart, User, Menu, X, LogOut, Settings, Package, Shield } from 'lucide-react';
+import { ShoppingCart, User, Menu, X, LogOut, Settings, Package, Shield, LayoutDashboard } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';
@@ -78,6 +78,12 @@ export function Header() {
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
+                    <Link to="/account" className="cursor-pointer">
+                      <LayoutDashboard className="h-4 w-4 mr-2" />
+                      Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
                     <Link to="/account/orders" className="cursor-pointer">
                       <Package className="h-4 w-4 mr-2" />
                       Order History
@@ -154,6 +160,12 @@ export function Header() {
                   <div className="border-t border-border pt-4 mt-2">
                     <p className="text-xs text-muted-foreground mb-2">{user.email}</p>
                     <div className="flex flex-col gap-2">
+                      <Link to="/account" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                          <LayoutDashboard className="h-4 w-4" />
+                          Dashboard
+                        </Button>
+                      </Link>
                       <Link to="/account/orders" onClick={() => setMobileMenuOpen(false)}>
                         <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
                           <Package className="h-4 w-4" />
