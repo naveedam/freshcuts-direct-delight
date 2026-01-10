@@ -19,6 +19,7 @@ import ContentAdmin from "./pages/admin/ContentAdmin";
 import BusinessSettings from "./pages/admin/BusinessSettings";
 import ShippingSettings from "./pages/admin/ShippingSettings";
 import GSTConfigAdmin from "./pages/admin/GSTConfigAdmin";
+import GSTReportsAdmin from "./pages/admin/GSTReportsAdmin";
 import OrderHistory from "./pages/account/OrderHistory";
 import OrderDetails from "./pages/account/OrderDetails";
 import ProfileSettings from "./pages/account/ProfileSettings";
@@ -48,6 +49,7 @@ const App = () => (
               <Route path="/admin/orders" element={<OrdersAdmin />} />
               <Route path="/admin/shipping" element={<ShippingSettings />} />
               <Route path="/admin/gst" element={<GSTConfigAdmin />} />
+              <Route path="/admin/gst-reports" element={<GSTReportsAdmin />} />
               <Route path="/admin/content" element={<ContentAdmin />} />
               <Route path="/admin/settings" element={<BusinessSettings />} />
               
