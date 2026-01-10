@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Package, ArrowLeft } from 'lucide-react';
+import { formatCurrency } from '@/lib/currency';
 
 export default function OrderHistory() {
   const { user, loading: authLoading } = useAuth();
@@ -58,9 +59,9 @@ export default function OrderHistory() {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 md:py-12">
-        <Link to="/" className="inline-flex items-center gap-2 font-body text-muted-foreground hover:text-primary transition-colors mb-8">
+        <Link to="/account" className="inline-flex items-center gap-2 font-body text-muted-foreground hover:text-primary transition-colors mb-8">
           <ArrowLeft className="h-4 w-4" />
-          Back to Store
+          Back to Dashboard
         </Link>
 
         <h1 className="font-heading text-3xl font-bold text-foreground mb-8">Order History</h1>
@@ -90,7 +91,7 @@ export default function OrderHistory() {
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <p className="text-sm text-muted-foreground">
-                          {new Date(order.created_at).toLocaleDateString('en-US', {
+                          {new Date(order.created_at).toLocaleDateString('en-IN', {
                             year: 'numeric',
                             month: 'long',
                             day: 'numeric'
@@ -101,7 +102,7 @@ export default function OrderHistory() {
                         </p>
                       </div>
                       <p className="font-heading text-xl font-bold text-primary">
-                        ${Number(order.total_amount).toFixed(2)}
+                        {formatCurrency(Number(order.total_amount))}
                       </p>
                     </div>
                   </CardContent>
