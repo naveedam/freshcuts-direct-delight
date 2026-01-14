@@ -21,6 +21,7 @@ import ShippingSettings from "./pages/admin/ShippingSettings";
 import GSTConfigAdmin from "./pages/admin/GSTConfigAdmin";
 import GSTReportsAdmin from "./pages/admin/GSTReportsAdmin";
 import VendorsAdmin from "./pages/admin/VendorsAdmin";
+import PurchaseOrdersAdmin from "./pages/admin/PurchaseOrdersAdmin";
 import OrderHistory from "./pages/account/OrderHistory";
 import OrderDetails from "./pages/account/OrderDetails";
 import ProfileSettings from "./pages/account/ProfileSettings";
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="/admin/products" element={<ProductsAdmin />} />
               <Route path="/admin/orders" element={<OrdersAdmin />} />
               <Route path="/admin/vendors" element={<VendorsAdmin />} />
+              <Route path="/admin/purchase-orders" element={<PurchaseOrdersAdmin />} />
               <Route path="/admin/shipping" element={<ShippingSettings />} />
               <Route path="/admin/gst" element={<GSTConfigAdmin />} />
               <Route path="/admin/gst-reports" element={<GSTReportsAdmin />} />
