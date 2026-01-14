@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, FileText, LogOut, Home, Building2, Truck, Receipt, BarChart3, Users, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, FileText, LogOut, Home, Building2, Truck, Receipt, BarChart3, Users, ClipboardList, FolderOpen } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -22,6 +22,7 @@ const menuItems = [
   { title: 'Orders', url: '/admin/orders', icon: ShoppingCart },
   { title: 'Vendors', url: '/admin/vendors', icon: Users },
   { title: 'Purchase Orders', url: '/admin/purchase-orders', icon: ClipboardList },
+  { title: 'Documents', url: '/admin/documents', icon: FolderOpen },
   { title: 'Shipping', url: '/admin/shipping', icon: Truck },
   { title: 'GST Config', url: '/admin/gst', icon: Receipt },
   { title: 'GST Reports', url: '/admin/gst-reports', icon: BarChart3 },
