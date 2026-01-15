@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin } from 'lucide-react';
+import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { ShipmentTrackingModal } from '@/components/admin/ShipmentTrackingModal';
+import { NewOrderDialog } from '@/components/admin/NewOrderDialog';
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
@@ -19,6 +20,7 @@ export default function OrdersAdmin() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [processingAction, setProcessingAction] = useState<string | null>(null);
   const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
+  const [newOrderOpen, setNewOrderOpen] = useState(false);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['admin', 'orders'],
@@ -174,10 +176,19 @@ export default function OrdersAdmin() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="font-heading text-3xl font-bold text-foreground">Orders</h1>
-          <p className="font-body text-muted-foreground">View and manage customer orders</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="font-heading text-3xl font-bold text-foreground">Orders</h1>
+            <p className="font-body text-muted-foreground">View and manage customer orders</p>
+          </div>
+          <Button onClick={() => setNewOrderOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Order
+          </Button>
         </div>
+
+        {/* New Order Dialog */}
+        <NewOrderDialog open={newOrderOpen} onOpenChange={setNewOrderOpen} />
 
         {/* Orders Table */}
         <div className="bg-card border border-border rounded-lg overflow-hidden">
