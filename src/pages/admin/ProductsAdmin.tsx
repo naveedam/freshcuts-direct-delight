@@ -10,10 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Pencil, Trash2, Loader2, Upload, Image as ImageIcon, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-
 interface ProductForm {
   name: string;
   description: string;
@@ -23,6 +23,7 @@ interface ProductForm {
   in_stock: boolean;
   stock_quantity: string;
   image_url: string;
+  hsn_code: string;
 }
 
 const defaultForm: ProductForm = {
@@ -33,7 +34,8 @@ const defaultForm: ProductForm = {
   unit: 'per lb',
   in_stock: true,
   stock_quantity: '0',
-  image_url: ''
+  image_url: '',
+  hsn_code: ''
 };
 
 export default function ProductsAdmin() {
@@ -119,7 +121,8 @@ export default function ProductsAdmin() {
         unit: data.unit,
         in_stock: data.in_stock,
         stock_quantity: parseInt(data.stock_quantity) || 0,
-        image_url: data.image_url || null
+        image_url: data.image_url || null,
+        hsn_code: data.hsn_code || null
       });
       if (error) throw error;
     },
@@ -144,7 +147,8 @@ export default function ProductsAdmin() {
         unit: data.unit,
         in_stock: data.in_stock,
         stock_quantity: parseInt(data.stock_quantity) || 0,
-        image_url: data.image_url || null
+        image_url: data.image_url || null,
+        hsn_code: data.hsn_code || null
       }).eq('id', id);
       if (error) throw error;
     },
@@ -200,7 +204,8 @@ export default function ProductsAdmin() {
       unit: product.unit,
       in_stock: product.in_stock,
       stock_quantity: (product.stock_quantity || 0).toString(),
-      image_url: product.image_url || ''
+      image_url: product.image_url || '',
+      hsn_code: product.hsn_code || ''
     });
     setEditingId(product.id);
     setIsOpen(true);
@@ -240,20 +245,21 @@ export default function ProductsAdmin() {
                 Add Product
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
               <DialogHeader>
                 <DialogTitle>{editingId ? 'Edit Product' : 'Add New Product'}</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name *</Label>
-                  <Input
-                    id="name"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    required
-                  />
-                </div>
+              <ScrollArea className="flex-1 pr-4">
+                <form onSubmit={handleSubmit} className="space-y-4 pb-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name *</Label>
+                    <Input
+                      id="name"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      required
+                    />
+                  </div>
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
                   <Textarea
@@ -292,123 +298,136 @@ export default function ProductsAdmin() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="category">Category</Label>
-                    <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="lamb">Lamb & Mutton</SelectItem>
-                        <SelectItem value="poultry">Poultry</SelectItem>
-                        <SelectItem value="seafood">Seafood & Fish</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="category">Category</Label>
+                      <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="lamb">Lamb & Mutton</SelectItem>
+                          <SelectItem value="poultry">Poultry</SelectItem>
+                          <SelectItem value="seafood">Seafood & Fish</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="stock_quantity">Stock Qty</Label>
+                      <Input
+                        id="stock_quantity"
+                        type="number"
+                        min="0"
+                        value={form.stock_quantity}
+                        onChange={(e) => setForm({ ...form, stock_quantity: e.target.value })}
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="stock_quantity">Stock Qty</Label>
+                    <Label htmlFor="hsn_code">HSN Code</Label>
                     <Input
-                      id="stock_quantity"
-                      type="number"
-                      min="0"
-                      value={form.stock_quantity}
-                      onChange={(e) => setForm({ ...form, stock_quantity: e.target.value })}
+                      id="hsn_code"
+                      value={form.hsn_code}
+                      onChange={(e) => setForm({ ...form, hsn_code: e.target.value })}
+                      placeholder="e.g., 0201, 0204, 0303"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Harmonized System of Nomenclature code for GST classification
+                    </p>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Product Image</Label>
-                  
-                  {/* Image Preview */}
-                  {form.image_url && (
-                    <div className="relative w-full h-32 rounded-lg overflow-hidden border bg-muted">
-                      <img 
-                        src={form.image_url} 
-                        alt="Product preview" 
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/placeholder.svg';
-                        }}
+                  <div className="space-y-2">
+                    <Label>Product Image</Label>
+                    
+                    {/* Image Preview */}
+                    {form.image_url && (
+                      <div className="relative w-full h-32 rounded-lg overflow-hidden border bg-muted">
+                        <img 
+                          src={form.image_url} 
+                          alt="Product preview" 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/placeholder.svg';
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 right-2 h-6 w-6"
+                          onClick={clearImage}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {/* Upload Button */}
+                    <div className="flex gap-2">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImageUpload}
+                        accept="image/*"
+                        className="hidden"
                       />
                       <Button
                         type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-2 right-2 h-6 w-6"
-                        onClick={clearImage}
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
                       >
-                        <X className="h-3 w-3" />
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4 mr-2" />
+                            Upload Image
+                          </>
+                        )}
                       </Button>
                     </div>
-                  )}
-                  
-                  {/* Upload Button */}
-                  <div className="flex gap-2">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleImageUpload}
-                      accept="image/*"
-                      className="hidden"
+                    
+                    {/* Or enter URL manually */}
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">Or enter URL</span>
+                      </div>
+                    </div>
+                    <Input
+                      value={form.image_url}
+                      onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+                      placeholder="https://example.com/image.jpg"
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploading}
-                    >
-                      {isUploading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-4 w-4 mr-2" />
-                          Upload Image
-                        </>
-                      )}
+                    <p className="text-xs text-muted-foreground">
+                      <ImageIcon className="h-3 w-3 inline mr-1" />
+                      Upload an image or paste a direct image URL (not Google Drive links)
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={form.in_stock}
+                      onCheckedChange={(checked) => setForm({ ...form, in_stock: checked })}
+                    />
+                    <Label>In Stock</Label>
+                  </div>
+                  <div className="flex gap-2 pt-4">
+                    <Button type="button" variant="outline" onClick={resetForm} className="flex-1">
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting} className="flex-1">
+                      {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      {editingId ? 'Update' : 'Create'}
                     </Button>
                   </div>
-                  
-                  {/* Or enter URL manually */}
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-background px-2 text-muted-foreground">Or enter URL</span>
-                    </div>
-                  </div>
-                  <Input
-                    value={form.image_url}
-                    onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                    placeholder="https://example.com/image.jpg"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    <ImageIcon className="h-3 w-3 inline mr-1" />
-                    Upload an image or paste a direct image URL (not Google Drive links)
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={form.in_stock}
-                    onCheckedChange={(checked) => setForm({ ...form, in_stock: checked })}
-                  />
-                  <Label>In Stock</Label>
-                </div>
-                <div className="flex gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={resetForm} className="flex-1">
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting} className="flex-1">
-                    {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    {editingId ? 'Update' : 'Create'}
-                  </Button>
-                </div>
-              </form>
+                </form>
+              </ScrollArea>
             </DialogContent>
           </Dialog>
         </div>
