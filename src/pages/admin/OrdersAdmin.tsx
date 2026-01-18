@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus } from 'lucide-react';
+import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { ShipmentTrackingModal } from '@/components/admin/ShipmentTrackingModal';
 import { NewOrderDialog } from '@/components/admin/NewOrderDialog';
+import { WeightAdjustmentDialog } from '@/components/admin/WeightAdjustmentDialog';
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
@@ -21,6 +22,7 @@ export default function OrdersAdmin() {
   const [processingAction, setProcessingAction] = useState<string | null>(null);
   const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
+  const [weightAdjustOrder, setWeightAdjustOrder] = useState<any>(null);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['admin', 'orders'],
@@ -46,6 +48,20 @@ export default function OrdersAdmin() {
       return data;
     },
     enabled: !!selectedOrder
+  });
+
+  const { data: weightAdjustItems } = useQuery({
+    queryKey: ['admin', 'orderItems', weightAdjustOrder?.id],
+    queryFn: async () => {
+      if (!weightAdjustOrder) return [];
+      const { data, error } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', weightAdjustOrder.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!weightAdjustOrder
   });
 
   const updateStatusMutation = useMutation({
@@ -200,6 +216,7 @@ export default function OrdersAdmin() {
                 <TableHead>Customer</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Weight</TableHead>
                 <TableHead>Delivery</TableHead>
                 <TableHead>Sale</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -213,6 +230,7 @@ export default function OrdersAdmin() {
                     <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-20" /></TableCell>
@@ -254,6 +272,24 @@ export default function OrdersAdmin() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell>
+                      {order.weight_finalized ? (
+                        <Badge variant="default" className="bg-green-600 text-xs">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Finalized
+                        </Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 gap-1 text-xs"
+                          onClick={() => setWeightAdjustOrder(order)}
+                        >
+                          <Scale className="h-3 w-3" />
+                          Adjust
+                        </Button>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Button
@@ -340,7 +376,7 @@ export default function OrdersAdmin() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     No orders yet
                   </TableCell>
                 </TableRow>
@@ -484,6 +520,14 @@ export default function OrdersAdmin() {
             orderId={trackingOrderId}
           />
         )}
+
+        {/* Weight Adjustment Dialog */}
+        <WeightAdjustmentDialog
+          open={!!weightAdjustOrder}
+          onOpenChange={(open) => !open && setWeightAdjustOrder(null)}
+          order={weightAdjustOrder}
+          orderItems={weightAdjustItems || []}
+        />
       </div>
     </AdminLayout>
   );
