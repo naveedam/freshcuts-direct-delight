@@ -103,6 +103,7 @@ export type Database = {
       }
       order_items: {
         Row: {
+          actual_weight: number | null
           cgst_amount: number
           created_at: string
           gst_rate: number
@@ -118,8 +119,10 @@ export type Database = {
           taxable_value: number
           total_price: number
           unit_price: number
+          weight_adjusted_at: string | null
         }
         Insert: {
+          actual_weight?: number | null
           cgst_amount?: number
           created_at?: string
           gst_rate?: number
@@ -135,8 +138,10 @@ export type Database = {
           taxable_value?: number
           total_price: number
           unit_price: number
+          weight_adjusted_at?: string | null
         }
         Update: {
+          actual_weight?: number | null
           cgst_amount?: number
           created_at?: string
           gst_rate?: number
@@ -152,6 +157,7 @@ export type Database = {
           taxable_value?: number
           total_price?: number
           unit_price?: number
+          weight_adjusted_at?: string | null
         }
         Relationships: [
           {
@@ -190,6 +196,8 @@ export type Database = {
           total_amount: number
           updated_at: string
           user_id: string | null
+          weight_finalized: boolean | null
+          weight_finalized_at: string | null
         }
         Insert: {
           converted_to_sale?: boolean | null
@@ -210,6 +218,8 @@ export type Database = {
           total_amount: number
           updated_at?: string
           user_id?: string | null
+          weight_finalized?: boolean | null
+          weight_finalized_at?: string | null
         }
         Update: {
           converted_to_sale?: boolean | null
@@ -230,6 +240,8 @@ export type Database = {
           total_amount?: number
           updated_at?: string
           user_id?: string | null
+          weight_finalized?: boolean | null
+          weight_finalized_at?: string | null
         }
         Relationships: []
       }
