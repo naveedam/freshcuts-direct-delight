@@ -5,6 +5,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// HTML escape function to prevent XSS
+function escapeHtml(unsafe: string | null | undefined): string {
+  if (!unsafe) return '';
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -12,6 +23,44 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 1. Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 2. Create client with user's auth token
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid or expired token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 3. Verify admin role
+    const { data: isAdmin, error: roleError } = await supabaseAuth.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'admin'
+    });
+
+    if (roleError || !isAdmin) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: Admin access required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 4. Validate input
     const { orderId } = await req.json();
     
     if (!orderId) {
@@ -21,8 +70,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Validate UUID format
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId)) {
+      return new Response(JSON.stringify({ error: 'Invalid order ID format' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     console.log('Generating shipping label for order:', orderId);
 
+    // 5. Now safe to use service role for document generation
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -66,7 +124,7 @@ Deno.serve(async (req) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shipping Label - ${orderRef}</title>
+  <title>Shipping Label - ${escapeHtml(orderRef)}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Courier New', monospace; padding: 20px; background: #f5f5f5; }
@@ -149,30 +207,30 @@ Deno.serve(async (req) => {
   <div class="label">
     <div class="header">
       <h1>Shipping Label</h1>
-      <p>${business.business_name}</p>
+      <p>${escapeHtml(business.business_name)}</p>
     </div>
 
     <div class="section">
       <div class="section-header">From</div>
       <div class="address">
-        <strong>${business.business_name}</strong><br>
-        ${business.address || 'Address not set'}<br>
-        ${business.city || ''}${business.postal_code ? ' - ' + business.postal_code : ''}<br>
-        ${business.phone ? 'Tel: ' + business.phone : ''}
+        <strong>${escapeHtml(business.business_name)}</strong><br>
+        ${escapeHtml(business.address) || 'Address not set'}<br>
+        ${escapeHtml(business.city)}${business.postal_code ? ' - ' + escapeHtml(business.postal_code) : ''}<br>
+        ${business.phone ? 'Tel: ' + escapeHtml(business.phone) : ''}
       </div>
     </div>
 
     <div class="section" style="flex: 1;">
       <div class="section-header">Ship To</div>
       <div class="address to">
-        ${order.shipping_address || 'N/A'}<br>
-        ${order.shipping_city || ''}${order.shipping_postal_code ? ' - ' + order.shipping_postal_code : ''}<br>
-        ${order.phone ? 'Tel: ' + order.phone : ''}
+        ${escapeHtml(order.shipping_address) || 'N/A'}<br>
+        ${escapeHtml(order.shipping_city)}${order.shipping_postal_code ? ' - ' + escapeHtml(order.shipping_postal_code) : ''}<br>
+        ${order.phone ? 'Tel: ' + escapeHtml(order.phone) : ''}
       </div>
     </div>
 
     <div class="order-info">
-      <div class="order-ref">${orderRef}</div>
+      <div class="order-ref">${escapeHtml(orderRef)}</div>
       <div class="barcode">*${order.id.slice(0, 12).toUpperCase()}*</div>
       <div class="barcode-text">${order.id.toUpperCase()}</div>
       <div class="date">Generated: ${new Date().toLocaleDateString('en-IN')}</div>
