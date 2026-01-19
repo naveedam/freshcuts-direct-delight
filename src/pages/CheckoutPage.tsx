@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Truck, CheckCircle, Loader2, Scale, Banknote } from 'lucide-react';
 import { z } from 'zod';
 import { formatCurrency } from '@/lib/currency';
-import { formatWeight, getTotalWeightKg } from '@/lib/weight-utils';
+import { formatWeight, getTotalWeightKg, calculatePrice } from '@/lib/weight-utils';
 
 // Validation schema for shipping
 const shippingSchema = z.object({
@@ -128,8 +128,8 @@ const CheckoutPage = () => {
         product_id: product.id,
         product_name: product.name,
         quantity: getTotalWeightKg(quantity), // Store actual weight in kg
-        unit_price: product.price * 2, // Convert price per 500g to price per kg
-        total_price: product.price * quantity // Total based on 500g units
+        unit_price: product.price, // Price per kg
+        total_price: calculatePrice(product.price, quantity) // Total based on weight
       }));
 
       const { error: itemsError } = await supabase
@@ -380,7 +380,7 @@ const CheckoutPage = () => {
                         Weight: {formatWeight(quantity)}
                       </p>
                       <p className="font-body text-sm font-medium text-primary">
-                        {formatCurrency(product.price * quantity)}
+                        {formatCurrency(calculatePrice(product.price, quantity))}
                       </p>
                     </div>
                   </div>
