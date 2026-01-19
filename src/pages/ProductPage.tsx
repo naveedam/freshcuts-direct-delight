@@ -7,6 +7,7 @@ import { ShoppingCart, Minus, Plus, ArrowLeft, Truck, Shield, Clock } from 'luci
 import { useState } from 'react';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatWeight, getPriceUnitLabel } from '@/lib/weight-utils';
 
 const ProductPage = () => {
   const { productId } = useParams<{ productId: string }>();
@@ -122,7 +123,7 @@ const ProductPage = () => {
                 ₹{product.price.toFixed(0)}
               </span>
               <span className="font-body text-muted-foreground">
-                {product.unit}
+                {getPriceUnitLabel()}
               </span>
             </div>
 
@@ -146,9 +147,9 @@ const ProductPage = () => {
               )}
             </div>
 
-            {/* Quantity Selector */}
+            {/* Quantity Selector - in multiples of 500g */}
             <div className="flex items-center gap-4 mb-6">
-              <span className="font-body font-medium text-foreground">Quantity:</span>
+              <span className="font-body font-medium text-foreground">Weight:</span>
               <div className="flex items-center border border-border rounded-lg">
                 <Button
                   variant="ghost"
@@ -158,7 +159,7 @@ const ProductPage = () => {
                 >
                   <Minus className="h-4 w-4" />
                 </Button>
-                <span className="font-body font-medium w-12 text-center">{quantity}</span>
+                <span className="font-body font-medium w-16 text-center">{formatWeight(quantity)}</span>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -167,6 +168,9 @@ const ProductPage = () => {
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
+              <span className="font-body text-sm text-muted-foreground">
+                (multiples of 500g)
+              </span>
             </div>
 
             {/* Add to Cart */}

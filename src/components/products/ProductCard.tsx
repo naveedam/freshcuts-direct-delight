@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';
 import { ShoppingCart, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
+import { getPriceUnitLabel } from '@/lib/weight-utils';
 interface ProductCardProps {
   product: Product;
 }
@@ -89,7 +89,7 @@ export function ProductCard({ product }: ProductCardProps) {
               ₹{product.price.toFixed(0)}
             </span>
             <span className="font-body text-sm text-muted-foreground ml-1">
-              {product.unit}
+              {getPriceUnitLabel()}
             </span>
           </div>
           
