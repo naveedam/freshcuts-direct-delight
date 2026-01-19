@@ -159,23 +159,35 @@ export default function DocumentsAdmin() {
   const viewInvoice = async (orderId: string) => {
     setLoadingDoc(orderId);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Please log in to view invoices');
+        return;
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-invoice`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
           body: JSON.stringify({ orderId }),
         }
       );
 
-      if (!response.ok) throw new Error('Failed to generate invoice');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to generate invoice');
+      }
 
       const html = await response.text();
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
-    } catch (error) {
-      toast.error('Failed to load invoice');
+    } catch (error: any) {
+      toast.error('Failed to load invoice: ' + error.message);
       console.error(error);
     } finally {
       setLoadingDoc(null);
@@ -185,23 +197,35 @@ export default function DocumentsAdmin() {
   const viewPurchaseOrder = async (poId: string) => {
     setLoadingDoc(poId);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Please log in to view purchase orders');
+        return;
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-purchase-order`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
           body: JSON.stringify({ purchaseOrderId: poId }),
         }
       );
 
-      if (!response.ok) throw new Error('Failed to generate PO document');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to generate PO document');
+      }
 
       const html = await response.text();
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
-    } catch (error) {
-      toast.error('Failed to load purchase order');
+    } catch (error: any) {
+      toast.error('Failed to load purchase order: ' + error.message);
       console.error(error);
     } finally {
       setLoadingDoc(null);
