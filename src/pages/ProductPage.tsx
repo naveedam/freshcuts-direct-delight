@@ -7,7 +7,7 @@ import { ShoppingCart, Minus, Plus, ArrowLeft, Truck, Shield, Clock } from 'luci
 import { useState } from 'react';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatWeight, getPriceUnitLabel } from '@/lib/weight-utils';
+import { formatWeight, getPriceUnitLabel, calculatePrice } from '@/lib/weight-utils';
 
 const ProductPage = () => {
   const { productId } = useParams<{ productId: string }>();
@@ -182,7 +182,7 @@ const ProductPage = () => {
               disabled={!product.inStock}
             >
               <ShoppingCart className="h-5 w-5" />
-              Add to Cart - ₹{(product.price * quantity).toFixed(0)}
+              Add to Cart - ₹{calculatePrice(product.price, quantity).toFixed(0)}
             </Button>
 
             {/* Features */}

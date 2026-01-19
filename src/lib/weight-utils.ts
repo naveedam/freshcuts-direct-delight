@@ -22,10 +22,10 @@ export function formatWeight(quantity: number): string {
 }
 
 /**
- * Get unit label for price display
+ * Get unit label for price display (per kg)
  */
 export function getPriceUnitLabel(): string {
-  return 'per 500g';
+  return 'per kg';
 }
 
 /**
@@ -33,4 +33,12 @@ export function getPriceUnitLabel(): string {
  */
 export function getTotalWeightKg(quantity: number): number {
   return (quantity * WEIGHT_UNIT_GRAMS) / 1000;
+}
+
+/**
+ * Calculate price for given quantity (price is per kg, quantity is in 500g units)
+ */
+export function calculatePrice(pricePerKg: number, quantity: number): number {
+  const weightInKg = getTotalWeightKg(quantity);
+  return pricePerKg * weightInKg;
 }
