@@ -5,6 +5,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// HTML escape function to prevent XSS
+function escapeHtml(unsafe: string | null | undefined): string {
+  if (!unsafe) return '';
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 interface PurchaseOrderItem {
   id: string;
   product_name: string;
@@ -98,6 +109,44 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 1. Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 2. Create client with user's auth token
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid or expired token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 3. Verify admin role
+    const { data: isAdmin, error: roleError } = await supabaseAuth.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'admin'
+    });
+
+    if (roleError || !isAdmin) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: Admin access required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 4. Validate input
     const { purchaseOrderId } = await req.json();
     
     if (!purchaseOrderId) {
@@ -107,8 +156,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Validate UUID format
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(purchaseOrderId)) {
+      return new Response(JSON.stringify({ error: 'Invalid purchase order ID format' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     console.log('Generating PO document for:', purchaseOrderId);
 
+    // 5. Now safe to use service role for document generation
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -170,7 +228,7 @@ Deno.serve(async (req) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Purchase Order ${po.po_number}</title>
+  <title>Purchase Order ${escapeHtml(po.po_number)}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: #f5f5f5; font-size: 12px; }
@@ -220,15 +278,15 @@ Deno.serve(async (req) => {
   <div class="document">
     <div class="header">
       <div class="logo">
-        <h1>${business.business_name}</h1>
-        <p>${business.address || ''}</p>
-        <p>${business.city || ''}${business.postal_code ? ', ' + business.postal_code : ''}</p>
-        ${business.phone ? `<p>Phone: ${business.phone}</p>` : ''}
-        ${business.email ? `<p>Email: ${business.email}</p>` : ''}
-        ${business.gstin ? `<p><strong>GSTIN: ${business.gstin}</strong></p>` : ''}
+        <h1>${escapeHtml(business.business_name)}</h1>
+        <p>${escapeHtml(business.address)}</p>
+        <p>${escapeHtml(business.city)}${business.postal_code ? ', ' + escapeHtml(business.postal_code) : ''}</p>
+        ${business.phone ? `<p>Phone: ${escapeHtml(business.phone)}</p>` : ''}
+        ${business.email ? `<p>Email: ${escapeHtml(business.email)}</p>` : ''}
+        ${business.gstin ? `<p><strong>GSTIN: ${escapeHtml(business.gstin)}</strong></p>` : ''}
       </div>
       <div class="doc-info">
-        <p><strong>PO Number:</strong> ${po.po_number}</p>
+        <p><strong>PO Number:</strong> ${escapeHtml(po.po_number)}</p>
         <p><strong>Order Date:</strong> ${formatDate(po.order_date)}</p>
         ${po.expected_delivery_date ? `<p><strong>Expected Delivery:</strong> ${formatDate(po.expected_delivery_date)}</p>` : ''}
         ${po.received_date ? `<p><strong>Received Date:</strong> ${formatDate(po.received_date)}</p>` : ''}
@@ -243,21 +301,21 @@ Deno.serve(async (req) => {
     <div class="addresses">
       <div class="address-block">
         <h3>From (Buyer)</h3>
-        <p><strong>${business.business_name}</strong></p>
-        <p>${business.address || 'N/A'}</p>
-        <p>${business.city || ''}${business.postal_code ? ', ' + business.postal_code : ''}</p>
-        ${business.gstin ? `<p>GSTIN: ${business.gstin}</p>` : ''}
+        <p><strong>${escapeHtml(business.business_name)}</strong></p>
+        <p>${escapeHtml(business.address) || 'N/A'}</p>
+        <p>${escapeHtml(business.city)}${business.postal_code ? ', ' + escapeHtml(business.postal_code) : ''}</p>
+        ${business.gstin ? `<p>GSTIN: ${escapeHtml(business.gstin)}</p>` : ''}
       </div>
       <div class="address-block">
         <h3>To (Vendor/Supplier)</h3>
         ${vendorInfo ? `
-          <p><strong>${vendorInfo.name}</strong></p>
-          ${vendorInfo.contact_person ? `<p>Attn: ${vendorInfo.contact_person}</p>` : ''}
-          <p>${vendorInfo.address || ''}</p>
-          <p>${vendorInfo.city || ''}${vendorInfo.state ? ', ' + vendorInfo.state : ''}${vendorInfo.postal_code ? ' ' + vendorInfo.postal_code : ''}</p>
-          ${vendorInfo.phone ? `<p>Phone: ${vendorInfo.phone}</p>` : ''}
-          ${vendorInfo.email ? `<p>Email: ${vendorInfo.email}</p>` : ''}
-          ${vendorInfo.gstin ? `<p>GSTIN: ${vendorInfo.gstin}</p>` : ''}
+          <p><strong>${escapeHtml(vendorInfo.name)}</strong></p>
+          ${vendorInfo.contact_person ? `<p>Attn: ${escapeHtml(vendorInfo.contact_person)}</p>` : ''}
+          <p>${escapeHtml(vendorInfo.address)}</p>
+          <p>${escapeHtml(vendorInfo.city)}${vendorInfo.state ? ', ' + escapeHtml(vendorInfo.state) : ''}${vendorInfo.postal_code ? ' ' + escapeHtml(vendorInfo.postal_code) : ''}</p>
+          ${vendorInfo.phone ? `<p>Phone: ${escapeHtml(vendorInfo.phone)}</p>` : ''}
+          ${vendorInfo.email ? `<p>Email: ${escapeHtml(vendorInfo.email)}</p>` : ''}
+          ${vendorInfo.gstin ? `<p>GSTIN: ${escapeHtml(vendorInfo.gstin)}</p>` : ''}
         ` : '<p>Vendor information not available</p>'}
       </div>
     </div>
@@ -280,7 +338,7 @@ Deno.serve(async (req) => {
           return `
           <tr>
             <td>${index + 1}</td>
-            <td>${item.product_name}</td>
+            <td>${escapeHtml(item.product_name)}</td>
             <td class="text-center">${item.quantity}</td>
             <td class="text-center">
               ${item.received_quantity > 0 
@@ -320,13 +378,13 @@ Deno.serve(async (req) => {
     ${po.notes ? `
     <div class="notes">
       <h4>Notes / Terms</h4>
-      <p>${po.notes}</p>
+      <p>${escapeHtml(po.notes)}</p>
     </div>
     ` : ''}
 
     <div class="footer">
       <div class="footer-section">
-        <h4>Terms & Conditions</h4>
+        <h4>Terms &amp; Conditions</h4>
         <p>1. Please confirm receipt of this order.</p>
         <p>2. Delivery as per expected delivery date.</p>
         <p>3. Quality must meet agreed specifications.</p>
@@ -335,7 +393,7 @@ Deno.serve(async (req) => {
       <div class="signature-box">
         <div class="signature-line"></div>
         <p class="signature-label">Authorized Signature</p>
-        <p style="font-size: 10px; color: #666; margin-top: 5px;">${business.business_name}</p>
+        <p style="font-size: 10px; color: #666; margin-top: 5px;">${escapeHtml(business.business_name)}</p>
       </div>
     </div>
   </div>

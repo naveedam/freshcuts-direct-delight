@@ -5,6 +5,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// HTML escape function to prevent XSS
+function escapeHtml(unsafe: string | null | undefined): string {
+  if (!unsafe) return '';
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 interface OrderItem {
   id: string;
   product_name: string;
@@ -197,6 +208,44 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 1. Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 2. Create client with user's auth token
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid or expired token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 3. Verify admin role
+    const { data: isAdmin, error: roleError } = await supabaseAuth.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'admin'
+    });
+
+    if (roleError || !isAdmin) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: Admin access required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 4. Validate input
     const { orderId, recalculate = false } = await req.json();
     
     if (!orderId) {
@@ -206,8 +255,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Validate UUID format
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId)) {
+      return new Response(JSON.stringify({ error: 'Invalid order ID format' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     console.log('Generating GST invoice for order:', orderId);
 
+    // 5. Now safe to use service role for document generation
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -305,7 +363,7 @@ Deno.serve(async (req) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tax Invoice ${order.invoice_number || order.id.slice(0, 8)}</title>
+  <title>Tax Invoice ${escapeHtml(order.invoice_number) || order.id.slice(0, 8)}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: #f5f5f5; font-size: 12px; }
@@ -357,19 +415,19 @@ Deno.serve(async (req) => {
   <div class="invoice">
     <div class="header">
       <div class="logo">
-        <h1>${business.business_name}</h1>
-        <p>${business.address || ''}</p>
-        <p>${business.city || ''}${business.postal_code ? ', ' + business.postal_code : ''}</p>
-        ${business.phone ? `<p>Phone: ${business.phone}</p>` : ''}
-        ${business.email ? `<p>Email: ${business.email}</p>` : ''}
-        ${business.gstin ? `<p><strong>GSTIN: ${business.gstin}</strong></p>` : ''}
-        ${business.state_name ? `<p>State: ${business.state_name}${business.state_code ? ' (' + business.state_code + ')' : ''}</p>` : ''}
+        <h1>${escapeHtml(business.business_name)}</h1>
+        <p>${escapeHtml(business.address)}</p>
+        <p>${escapeHtml(business.city)}${business.postal_code ? ', ' + escapeHtml(business.postal_code) : ''}</p>
+        ${business.phone ? `<p>Phone: ${escapeHtml(business.phone)}</p>` : ''}
+        ${business.email ? `<p>Email: ${escapeHtml(business.email)}</p>` : ''}
+        ${business.gstin ? `<p><strong>GSTIN: ${escapeHtml(business.gstin)}</strong></p>` : ''}
+        ${business.state_name ? `<p>State: ${escapeHtml(business.state_name)}${business.state_code ? ' (' + escapeHtml(business.state_code) + ')' : ''}</p>` : ''}
       </div>
       <div class="invoice-info">
-        <p><strong>Invoice No:</strong> ${order.invoice_number || 'DRAFT'}</p>
+        <p><strong>Invoice No:</strong> ${escapeHtml(order.invoice_number) || 'DRAFT'}</p>
         <p><strong>Date:</strong> ${invoiceDate}</p>
         <p><strong>Order ID:</strong> #${order.id.slice(0, 8).toUpperCase()}</p>
-        ${order.place_of_supply ? `<p><strong>Place of Supply:</strong> ${order.place_of_supply}</p>` : ''}
+        ${order.place_of_supply ? `<p><strong>Place of Supply:</strong> ${escapeHtml(order.place_of_supply)}</p>` : ''}
         <p style="margin-top: 8px;"><strong>Supply Type:</strong> ${isIGST ? 'Inter-State (IGST)' : 'Intra-State (CGST+SGST)'}</p>
       </div>
     </div>
@@ -381,17 +439,17 @@ Deno.serve(async (req) => {
     <div class="addresses">
       <div class="address-block">
         <h3>Sold By</h3>
-        <p><strong>${business.business_name}</strong></p>
-        <p>${business.address || 'N/A'}</p>
-        <p>${business.city || ''}${business.postal_code ? ', ' + business.postal_code : ''}</p>
-        ${business.gstin ? `<p>GSTIN: ${business.gstin}</p>` : ''}
+        <p><strong>${escapeHtml(business.business_name)}</strong></p>
+        <p>${escapeHtml(business.address) || 'N/A'}</p>
+        <p>${escapeHtml(business.city)}${business.postal_code ? ', ' + escapeHtml(business.postal_code) : ''}</p>
+        ${business.gstin ? `<p>GSTIN: ${escapeHtml(business.gstin)}</p>` : ''}
       </div>
       <div class="address-block">
         <h3>Bill To / Ship To</h3>
-        <p>${order.shipping_address || 'N/A'}</p>
-        <p>${order.shipping_city || ''}${order.shipping_postal_code ? ', ' + order.shipping_postal_code : ''}</p>
-        ${order.phone ? `<p>Phone: ${order.phone}</p>` : ''}
-        ${order.customer_email ? `<p>Email: ${order.customer_email}</p>` : ''}
+        <p>${escapeHtml(order.shipping_address) || 'N/A'}</p>
+        <p>${escapeHtml(order.shipping_city)}${order.shipping_postal_code ? ', ' + escapeHtml(order.shipping_postal_code) : ''}</p>
+        ${order.phone ? `<p>Phone: ${escapeHtml(order.phone)}</p>` : ''}
+        ${order.customer_email ? `<p>Email: ${escapeHtml(order.customer_email)}</p>` : ''}
       </div>
     </div>
 
@@ -421,8 +479,8 @@ Deno.serve(async (req) => {
           return `
           <tr>
             <td>${index + 1}</td>
-            <td>${item.product_name}</td>
-            <td>${item.hsn_code || '-'}</td>
+            <td>${escapeHtml(item.product_name)}</td>
+            <td>${escapeHtml(item.hsn_code) || '-'}</td>
             <td class="text-center">${Number(item.quantity)}</td>
             <td class="text-right">${formatCurrency(Number(item.unit_price))}</td>
             <td class="text-right">${formatCurrency(lineValue)}</td>
@@ -455,7 +513,7 @@ Deno.serve(async (req) => {
       <tbody>
         ${hsnSummary.map(hsn => `
           <tr>
-            <td>${hsn.hsn_code}</td>
+            <td>${escapeHtml(hsn.hsn_code)}</td>
             <td class="text-right">${formatCurrency(hsn.taxable_value)}</td>
             ${isIGST ? `
               <td class="text-center">${hsn.igst_rate}%</td>
@@ -504,18 +562,18 @@ Deno.serve(async (req) => {
       We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
     </div>
 
-    ${order.notes ? `<p style="margin-top: 15px; color: #666; font-size: 11px;"><strong>Notes:</strong> ${order.notes}</p>` : ''}
+    ${order.notes ? `<p style="margin-top: 15px; color: #666; font-size: 11px;"><strong>Notes:</strong> ${escapeHtml(order.notes)}</p>` : ''}
 
     <div class="footer">
       <div class="footer-grid">
         <div class="footer-section">
-          <h4>Terms & Conditions</h4>
+          <h4>Terms &amp; Conditions</h4>
           <p>1. Goods once sold will not be taken back.</p>
           <p>2. Subject to local jurisdiction only.</p>
-          <p>3. E. & O.E.</p>
+          <p>3. E. &amp; O.E.</p>
         </div>
         <div class="footer-section signature-box">
-          <p><strong>For ${business.business_name}</strong></p>
+          <p><strong>For ${escapeHtml(business.business_name)}</strong></p>
           <div class="signature-line"></div>
           <p class="signature-label">Authorized Signatory</p>
         </div>
