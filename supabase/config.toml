@@ -1,7 +1,10 @@
 project_id = "jifwwnuenblbnttxynbb"
 
 [functions.generate-invoice]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-shipping-label]
-verify_jwt = false
+verify_jwt = true
+
+[functions.generate-purchase-order]
+verify_jwt = true
