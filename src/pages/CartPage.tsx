@@ -3,7 +3,7 @@ import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
-import { formatWeight, getPriceUnitLabel } from '@/lib/weight-utils';
+import { formatWeight, getPriceUnitLabel, calculatePrice } from '@/lib/weight-utils';
 
 const CartPage = () => {
   const { items, updateQuantity, removeFromCart, totalPrice, clearCart } = useCart();
@@ -94,8 +94,11 @@ const CartPage = () => {
                   <p className="font-body text-sm text-muted-foreground capitalize">
                     {product.subCategory || product.category}
                   </p>
-                  <p className="font-heading text-lg font-bold text-primary mt-2">
-                    ₹{product.price.toFixed(0)} <span className="font-body text-sm text-muted-foreground font-normal">{getPriceUnitLabel()}</span>
+                  <p className="font-body text-sm text-muted-foreground mt-1">
+                    ₹{product.price.toFixed(0)} {getPriceUnitLabel()}
+                  </p>
+                  <p className="font-heading text-lg font-bold text-primary mt-1">
+                    {formatWeight(quantity)}: ₹{calculatePrice(product.price, quantity).toFixed(0)}
                   </p>
                 </div>
 

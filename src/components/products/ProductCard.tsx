@@ -91,6 +91,9 @@ export function ProductCard({ product }: ProductCardProps) {
             <span className="font-body text-sm text-muted-foreground ml-1">
               {getPriceUnitLabel()}
             </span>
+            <p className="font-body text-xs text-muted-foreground mt-1">
+              Order in 500g steps
+            </p>
           </div>
           
           <Button 
