@@ -22,6 +22,7 @@ import GSTConfigAdmin from "./pages/admin/GSTConfigAdmin";
 import GSTReportsAdmin from "./pages/admin/GSTReportsAdmin";
 import VendorsAdmin from "./pages/admin/VendorsAdmin";
 import PurchaseOrdersAdmin from "./pages/admin/PurchaseOrdersAdmin";
+import CategoriesAdmin from "./pages/admin/CategoriesAdmin";
 import DocumentsAdmin from "./pages/admin/DocumentsAdmin";
 import OrderHistory from "./pages/account/OrderHistory";
 import OrderDetails from "./pages/account/OrderDetails";
@@ -49,6 +50,7 @@ const App = () => (
               {/* Admin Routes */}
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/products" element={<ProductsAdmin />} />
+              <Route path="/admin/categories" element={<CategoriesAdmin />} />
               <Route path="/admin/orders" element={<OrdersAdmin />} />
               <Route path="/admin/vendors" element={<VendorsAdmin />} />
               <Route path="/admin/purchase-orders" element={<PurchaseOrdersAdmin />} />

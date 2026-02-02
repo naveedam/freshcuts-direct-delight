@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useState } from 'react';
-import { categories } from '@/hooks/useProducts';
+import { useCategories } from '@/hooks/useCategories';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,11 +13,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function Header() {
   const { totalItems } = useCart();
   const { user, signOut, isAdmin } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { data: categories, isLoading: categoriesLoading } = useCategories();
+
+  // Only show fresh categories in nav
+  const navCategories = categories?.filter(c => c.categoryType === 'fresh') || [];
 
   return (
     <header className="sticky top-0 z-50 bg-card/95 backdrop-blur-md border-b border-border shadow-card">
@@ -40,15 +45,23 @@ export function Header() {
             >
               Home
             </Link>
-            {categories.map(cat => (
-              <Link
-                key={cat.id}
-                to={`/category/${cat.id}`}
-                className="font-body text-sm font-medium text-foreground hover:text-primary transition-colors"
-              >
-                {cat.name}
-              </Link>
-            ))}
+            {categoriesLoading ? (
+              <>
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-24" />
+              </>
+            ) : (
+              navCategories.map(cat => (
+                <Link
+                  key={cat.id}
+                  to={`/category/${cat.slug}`}
+                  className="font-body text-sm font-medium text-foreground hover:text-primary transition-colors"
+                >
+                  {cat.name}
+                </Link>
+              ))
+            )}
           </nav>
 
           {/* Actions */}
@@ -144,10 +157,10 @@ export function Header() {
               >
                 Home
               </Link>
-              {categories.map(cat => (
+              {navCategories.map(cat => (
                 <Link
                   key={cat.id}
-                  to={`/category/${cat.id}`}
+                  to={`/category/${cat.slug}`}
                   className="font-body text-sm font-medium text-foreground hover:text-primary transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
