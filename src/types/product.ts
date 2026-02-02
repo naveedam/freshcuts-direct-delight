@@ -1,4 +1,5 @@
-export type Category = 'lamb' | 'poultry' | 'seafood';
+// Category is now dynamic from database - using string type
+export type Category = string;
 
 export interface Product {
   id: string;

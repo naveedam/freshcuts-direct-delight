@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Pencil, Trash2, Loader2, Upload, Image as ImageIcon, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Category } from '@/types/category';
 interface ProductForm {
   name: string;
   description: string;
@@ -108,6 +109,20 @@ export default function ProductsAdmin() {
         .order('name');
       if (error) throw error;
       return data;
+    }
+  });
+
+  // Fetch categories from database
+  const { data: categories } = useQuery({
+    queryKey: ['admin', 'categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order');
+      if (error) throw error;
+      return data as Category[];
     }
   });
 
@@ -303,12 +318,14 @@ export default function ProductsAdmin() {
                       <Label htmlFor="category">Category</Label>
                       <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="lamb">Lamb & Mutton</SelectItem>
-                          <SelectItem value="poultry">Poultry</SelectItem>
-                          <SelectItem value="seafood">Seafood & Fish</SelectItem>
+                          {categories?.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.slug}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>

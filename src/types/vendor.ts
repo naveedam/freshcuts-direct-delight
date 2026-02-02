@@ -68,6 +68,10 @@ export interface PurchaseOrderItem {
   received_quantity: number;
   total_cost: number;
   created_at: string;
+  // GRN fields
+  actual_received_weight: number | null;
+  received_remarks: string | null;
+  received_at: string | null;
 }
 
 export interface VendorPayment {

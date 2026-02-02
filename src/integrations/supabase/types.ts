@@ -62,6 +62,45 @@ export type Database = {
         }
         Relationships: []
       }
+      categories: {
+        Row: {
+          category_type: Database["public"]["Enums"]["category_type"]
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category_type?: Database["public"]["Enums"]["category_type"]
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category_type?: Database["public"]["Enums"]["category_type"]
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       gst_config: {
         Row: {
           category: string
@@ -272,6 +311,7 @@ export type Database = {
       products: {
         Row: {
           category: string
+          category_id: string | null
           created_at: string
           description: string | null
           gst_rate: number
@@ -288,6 +328,7 @@ export type Database = {
         }
         Insert: {
           category: string
+          category_id?: string | null
           created_at?: string
           description?: string | null
           gst_rate?: number
@@ -304,6 +345,7 @@ export type Database = {
         }
         Update: {
           category?: string
+          category_id?: string | null
           created_at?: string
           description?: string | null
           gst_rate?: number
@@ -318,7 +360,15 @@ export type Database = {
           unit?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -370,35 +420,44 @@ export type Database = {
       }
       purchase_order_items: {
         Row: {
+          actual_received_weight: number | null
           created_at: string
           id: string
           product_id: string | null
           product_name: string
           purchase_order_id: string
           quantity: number
+          received_at: string | null
           received_quantity: number | null
+          received_remarks: string | null
           total_cost: number
           unit_cost: number
         }
         Insert: {
+          actual_received_weight?: number | null
           created_at?: string
           id?: string
           product_id?: string | null
           product_name: string
           purchase_order_id: string
           quantity: number
+          received_at?: string | null
           received_quantity?: number | null
+          received_remarks?: string | null
           total_cost: number
           unit_cost: number
         }
         Update: {
+          actual_received_weight?: number | null
           created_at?: string
           id?: string
           product_id?: string | null
           product_name?: string
           purchase_order_id?: string
           quantity?: number
+          received_at?: string | null
           received_quantity?: number | null
+          received_remarks?: string | null
           total_cost?: number
           unit_cost?: number
         }
@@ -886,6 +945,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      category_type: "fresh" | "packaged" | "gourmet"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1014,6 +1074,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      category_type: ["fresh", "packaged", "gourmet"],
     },
   },
 } as const

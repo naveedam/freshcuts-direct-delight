@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Product, CategoryInfo } from '@/types/product';
+import { Product } from '@/types/product';
 
 // Map database products to frontend Product type
 const mapDbProduct = (dbProduct: any): Product => ({
@@ -15,30 +15,6 @@ const mapDbProduct = (dbProduct: any): Product => ({
   inStock: dbProduct.in_stock ?? true,
   featured: false // Could add this field to DB later
 });
-
-export const categories: CategoryInfo[] = [
-  {
-    id: 'lamb',
-    name: 'Lamb & Mutton',
-    description: 'Premium cuts of tender lamb and rich mutton, sourced from trusted farms',
-    image: '/placeholder.svg',
-    subCategories: ['Lamb Chops', 'Leg of Lamb', 'Lamb Shoulder', 'Ground Lamb', 'Lamb Ribs']
-  },
-  {
-    id: 'poultry',
-    name: 'Poultry',
-    description: 'Fresh chicken, duck, turkey, and quail - farm-raised and hormone-free',
-    image: '/placeholder.svg',
-    subCategories: ['Chicken', 'Duck', 'Turkey', 'Quail']
-  },
-  {
-    id: 'seafood',
-    name: 'Seafood & Fish',
-    description: 'Ocean-fresh seafood and fish, delivered to your doorstep daily',
-    image: '/placeholder.svg',
-    subCategories: ['Fish Fillets', 'Whole Fish', 'Shrimp', 'Crab', 'Lobster', 'Shellfish']
-  }
-];
 
 export function useProducts() {
   return useQuery({
@@ -55,20 +31,20 @@ export function useProducts() {
   });
 }
 
-export function useProductsByCategory(categoryId: string) {
+export function useProductsByCategory(categorySlug: string) {
   return useQuery({
-    queryKey: ['products', 'category', categoryId],
+    queryKey: ['products', 'category', categorySlug],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .eq('category', categoryId)
+        .eq('category', categorySlug)
         .order('name');
       
       if (error) throw error;
       return data.map(mapDbProduct);
     },
-    enabled: !!categoryId
+    enabled: !!categorySlug
   });
 }
 

@@ -1,13 +1,46 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
-import { categories } from '@/data/products';
+import { ArrowRight, Beef, Bird, Fish, Package, ChefHat, UtensilsCrossed, ShoppingBasket } from 'lucide-react';
+import { useCategories } from '@/hooks/useCategories';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function CategorySection() {
-  const categoryImages: Record<string, string> = {
-    lamb: '🐑',
-    poultry: '🐔',
-    seafood: '🦐'
+  const { data: categories, isLoading } = useCategories();
+
+  // Map category slugs to emojis/icons
+  const getCategoryIcon = (slug: string, type: string) => {
+    const iconMap: Record<string, string> = {
+      lamb: '🐑',
+      poultry: '🐔',
+      seafood: '🦐',
+      'gourmet-international': '🍽️',
+      'packaged-ready-to-eat': '📦',
+      'sauces-jams-condiments': '🍯',
+      'pantry-essentials': '🛒',
+    };
+    
+    return iconMap[slug] || (type === 'fresh' ? '🥩' : type === 'gourmet' ? '✨' : '📦');
   };
+
+  if (isLoading) {
+    return (
+      <section className="py-16 md:py-24 bg-background">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <Skeleton className="h-10 w-64 mx-auto mb-4" />
+            <Skeleton className="h-6 w-96 mx-auto" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map(i => (
+              <Skeleton key={i} className="h-64 rounded-2xl" />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Filter to show only 'fresh' categories on homepage for now, or show all
+  const displayCategories = categories?.filter(c => c.categoryType === 'fresh') || [];
 
   return (
     <section id="categories" className="py-16 md:py-24 bg-background">
@@ -25,10 +58,10 @@ export function CategorySection() {
 
         {/* Category Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-          {categories.map((category, index) => (
+          {displayCategories.map((category, index) => (
             <Link
               key={category.id}
-              to={`/category/${category.id}`}
+              to={`/category/${category.slug}`}
               className="group relative overflow-hidden rounded-2xl bg-card border border-border shadow-card card-hover animate-fade-in"
               style={{ animationDelay: `${index * 100}ms` }}
             >
@@ -38,7 +71,7 @@ export function CategorySection() {
               <div className="relative p-8 md:p-10">
                 {/* Icon */}
                 <div className="text-6xl mb-6">
-                  {categoryImages[category.id]}
+                  {getCategoryIcon(category.slug, category.categoryType)}
                 </div>
 
                 {/* Content */}
@@ -54,31 +87,19 @@ export function CategorySection() {
                   <span>Browse {category.name}</span>
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-2" />
                 </div>
-
-                {/* Subcategories */}
-                {category.subCategories && (
-                  <div className="mt-6 pt-6 border-t border-border">
-                    <div className="flex flex-wrap gap-2">
-                      {category.subCategories.slice(0, 4).map(sub => (
-                        <span 
-                          key={sub}
-                          className="font-body text-xs bg-secondary text-secondary-foreground px-3 py-1 rounded-full"
-                        >
-                          {sub}
-                        </span>
-                      ))}
-                      {category.subCategories.length > 4 && (
-                        <span className="font-body text-xs text-muted-foreground px-2 py-1">
-                          +{category.subCategories.length - 4} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             </Link>
           ))}
         </div>
+
+        {/* Show more categories link if there are more */}
+        {categories && categories.length > displayCategories.length && (
+          <div className="text-center mt-8">
+            <p className="text-muted-foreground">
+              Plus {categories.length - displayCategories.length} more categories coming soon!
+            </p>
+          </div>
+        )}
       </div>
     </section>
   );
