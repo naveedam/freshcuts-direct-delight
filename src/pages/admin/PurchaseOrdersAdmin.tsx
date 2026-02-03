@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Loader2, Eye, Package, Trash2, FileText, PackageCheck, Calendar } from 'lucide-react';
+import { Plus, Loader2, Eye, Package, Trash2, FileText, PackageCheck, Calendar, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -20,6 +20,7 @@ import { format } from 'date-fns';
 import { PurchaseOrderDialog } from '@/components/admin/PurchaseOrderDialog';
 import { PurchaseOrderDetailsDialog } from '@/components/admin/PurchaseOrderDetailsDialog';
 import { ReceiveOrderDialog } from '@/components/admin/ReceiveOrderDialog';
+import * as XLSX from 'xlsx';
 
 type POStatus = 'draft' | 'sent' | 'confirmed' | 'partially_received' | 'received' | 'cancelled';
 type PaymentStatus = 'pending' | 'partial' | 'paid';
@@ -95,6 +96,42 @@ export default function PurchaseOrdersAdmin() {
     }
   });
 
+  const exportToExcel = () => {
+    if (!purchaseOrders?.length) {
+      toast.error('No purchase orders to export');
+      return;
+    }
+
+    const exportData = purchaseOrders.map(po => ({
+      'PO Number': po.po_number,
+      'Vendor': po.vendor?.name || 'Unknown',
+      'Order Date': format(new Date(po.order_date), 'dd MMM yyyy'),
+      'Expected Delivery': po.expected_delivery_date 
+        ? format(new Date(po.expected_delivery_date), 'dd MMM yyyy') 
+        : '-',
+      'Status': po.status.replace('_', ' ').toUpperCase(),
+      'Payment Status': po.payment_status.toUpperCase(),
+      'Subtotal': po.subtotal,
+      'Tax Amount': po.tax_amount,
+      'Total Amount': po.total_amount,
+      'Paid Amount': po.paid_amount || 0,
+      'Notes': po.notes || '',
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Purchase Orders');
+
+    // Auto-size columns
+    const colWidths = Object.keys(exportData[0]).map(key => ({
+      wch: Math.max(key.length, ...exportData.map(row => String(row[key as keyof typeof row]).length))
+    }));
+    worksheet['!cols'] = colWidths;
+
+    XLSX.writeFile(workbook, `Purchase_Orders_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    toast.success('Purchase orders exported successfully');
+  };
+
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
       draft: 'bg-gray-100 text-gray-800 hover:bg-gray-100',
@@ -132,10 +169,16 @@ export default function PurchaseOrdersAdmin() {
             <h1 className="font-heading text-3xl font-bold text-foreground">Purchase Orders</h1>
             <p className="font-body text-muted-foreground">Manage orders to your vendors</p>
           </div>
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create PO
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={exportToExcel} disabled={!purchaseOrders?.length}>
+              <Download className="h-4 w-4 mr-2" />
+              Export Excel
+            </Button>
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create PO
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
