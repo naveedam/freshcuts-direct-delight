@@ -17,9 +17,9 @@ import { format } from 'date-fns';
 interface POLineItem {
   product_id: string | null;
   product_name: string;
-  quantity: number;
-  unit_cost: number;
-  total_cost: number;
+  ordered_quantity_kg: number; // Ordered quantity in kg (decimals allowed)
+  unit_cost: number; // Cost per kg
+  total_cost: number; // ordered_quantity_kg × unit_cost
 }
 
 interface PurchaseOrderDialogProps {
@@ -86,7 +86,7 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
         setItems(purchaseOrder.items.map(item => ({
           product_id: item.product_id,
           product_name: item.product_name,
-          quantity: item.quantity,
+          ordered_quantity_kg: item.quantity, // Map from DB field
           unit_cost: item.unit_cost,
           total_cost: item.total_cost,
         })));
@@ -108,7 +108,7 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
     setItems([...items, {
       product_id: null,
       product_name: '',
-      quantity: 1,
+      ordered_quantity_kg: 1, // Default 1 kg
       unit_cost: 0,
       total_cost: 0,
     }]);
@@ -117,8 +117,8 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
   const updateItem = (index: number, updates: Partial<POLineItem>) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], ...updates };
-    // Recalculate total
-    newItems[index].total_cost = newItems[index].quantity * newItems[index].unit_cost;
+    // Recalculate total: ordered_quantity_kg × unit_cost
+    newItems[index].total_cost = newItems[index].ordered_quantity_kg * newItems[index].unit_cost;
     setItems(newItems);
   };
 
@@ -175,7 +175,7 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
             purchase_order_id: po.id,
             product_id: item.product_id,
             product_name: item.product_name,
-            quantity: item.quantity,
+            quantity: item.ordered_quantity_kg, // Map to DB field
             unit_cost: item.unit_cost,
             total_cost: item.total_cost,
           })));
@@ -226,7 +226,7 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
             purchase_order_id: purchaseOrder.id,
             product_id: item.product_id,
             product_name: item.product_name,
-            quantity: item.quantity,
+            quantity: item.ordered_quantity_kg, // Map to DB field
             unit_cost: item.unit_cost,
             total_cost: item.total_cost,
           })));
@@ -318,8 +318,8 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40%]">Product</TableHead>
-                    <TableHead className="w-[15%]">Quantity</TableHead>
-                    <TableHead className="w-[20%]">Unit Cost</TableHead>
+                    <TableHead className="w-[15%]">Ordered Qty (kg)</TableHead>
+                    <TableHead className="w-[20%]">Cost/kg</TableHead>
                     <TableHead className="w-[20%] text-right">Total</TableHead>
                     <TableHead className="w-[5%]"></TableHead>
                   </TableRow>
@@ -359,9 +359,11 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
                         <TableCell>
                           <Input
                             type="number"
-                            min="1"
-                            value={item.quantity}
-                            onChange={(e) => updateItem(index, { quantity: parseInt(e.target.value) || 0 })}
+                            min="0.01"
+                            step="0.01"
+                            value={item.ordered_quantity_kg}
+                            onChange={(e) => updateItem(index, { ordered_quantity_kg: parseFloat(e.target.value) || 0 })}
+                            placeholder="0.00"
                           />
                         </TableCell>
                         <TableCell>
