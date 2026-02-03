@@ -224,9 +224,9 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[200px]">Product</TableHead>
-                      <TableHead className="text-right w-[100px]">Ordered (kg)</TableHead>
-                      <TableHead className="text-right w-[100px]">Prev. Received</TableHead>
-                      <TableHead className="text-right w-[100px]">Remaining</TableHead>
+                      <TableHead className="text-right w-[100px]">Ordered Qty (kg)</TableHead>
+                      <TableHead className="text-right w-[100px]">Prev. Received (kg)</TableHead>
+                      <TableHead className="text-right w-[100px]">Remaining (kg)</TableHead>
                       <TableHead className="text-right w-[120px]">Receiving Now (kg)</TableHead>
                       <TableHead className="w-[150px]">Remarks</TableHead>
                     </TableRow>
@@ -241,7 +241,7 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
                       return (
                         <TableRow key={item.id} className={isComplete ? 'bg-muted/50' : ''}>
                           <TableCell className="font-medium">{item.product_name}</TableCell>
-                          <TableCell className="text-right">{item.quantity}</TableCell>
+                          <TableCell className="text-right">{Number(item.quantity).toFixed(2)}</TableCell>
                           <TableCell className="text-right">
                             {previousActual > 0 ? previousActual.toFixed(2) : '-'}
                           </TableCell>

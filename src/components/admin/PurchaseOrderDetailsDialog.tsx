@@ -142,10 +142,10 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
-                      <TableHead className="text-right">Ordered (kg)</TableHead>
-                      <TableHead className="text-right">Actual Received</TableHead>
+                      <TableHead className="text-right">Ordered Qty (kg)</TableHead>
+                      <TableHead className="text-right">Actual Received (kg)</TableHead>
                       <TableHead className="text-right">Variance</TableHead>
-                      <TableHead className="text-right">Unit Cost</TableHead>
+                      <TableHead className="text-right">Cost/kg</TableHead>
                       <TableHead className="text-right">Ordered Value</TableHead>
                       <TableHead className="text-right">Actual Value</TableHead>
                       <TableHead>Remarks</TableHead>
@@ -161,7 +161,7 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
                       return (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">{item.product_name}</TableCell>
-                          <TableCell className="text-right">{item.quantity}</TableCell>
+                          <TableCell className="text-right">{Number(item.quantity).toFixed(2)}</TableCell>
                           <TableCell className="text-right">
                             {actualWeight > 0 ? (
                               <span className="font-medium">{actualWeight.toFixed(2)} kg</span>
