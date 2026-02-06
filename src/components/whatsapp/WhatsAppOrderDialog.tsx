@@ -395,7 +395,7 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
                   </Button>
                 </div>
 
-                {orderItems.length > 0 && (
+                {orderItems.length > 0 ? (
                   <div className="rounded-md border">
                     <div className="divide-y">
                       {orderItems.map((item, index) => (
@@ -423,6 +423,10 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
                       </div>
                     </div>
                   </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded-md">
+                    Select a product above and click + to add it to your order
+                  </p>
                 )}
               </div>
 
@@ -448,7 +452,7 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
 
               <Button 
                 type="submit" 
-                className="w-full bg-[#25D366] hover:bg-[#20BA5A]"
+                className="w-full bg-[#25D366] hover:bg-[#20BA5A] disabled:bg-muted disabled:text-muted-foreground"
                 disabled={isSubmitting || orderItems.length === 0}
               >
                 {isSubmitting ? (
@@ -456,10 +460,10 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Creating Order...
                   </>
+                ) : orderItems.length === 0 ? (
+                  'Add products to continue'
                 ) : (
-                  <>
-                    Continue to WhatsApp
-                  </>
+                  'Continue to WhatsApp'
                 )}
               </Button>
             </form>
