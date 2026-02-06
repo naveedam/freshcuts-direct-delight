@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale } from 'lucide-react';
+import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -189,6 +189,22 @@ export default function OrdersAdmin() {
     }
   };
 
+  const getOrderSourceBadge = (source: string | null) => {
+    if (source === 'whatsapp-website') {
+      return (
+        <Badge variant="outline" className="bg-[#25D366]/10 text-[#25D366] border-[#25D366]/30 text-xs gap-1">
+          <MessageCircle className="h-3 w-3" />
+          WhatsApp
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline" className="text-xs">
+        Website
+      </Badge>
+    );
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -213,6 +229,7 @@ export default function OrdersAdmin() {
               <TableRow>
                 <TableHead>Order ID</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>Source</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Status</TableHead>
@@ -228,6 +245,7 @@ export default function OrdersAdmin() {
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-20" /></TableCell>
@@ -249,6 +267,9 @@ export default function OrdersAdmin() {
                       </div>
                     </TableCell>
                     <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {getOrderSourceBadge(order.order_source)}
+                    </TableCell>
                     <TableCell>
                       <div>
                         <p className="font-medium">{order.shipping_city || 'N/A'}</p>
@@ -376,7 +397,7 @@ export default function OrdersAdmin() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     No orders yet
                   </TableCell>
                 </TableRow>
@@ -403,6 +424,10 @@ export default function OrdersAdmin() {
                     <p>{new Date(selectedOrder.created_at).toLocaleString()}</p>
                   </div>
                   <div>
+                    <p className="text-muted-foreground">Source</p>
+                    {getOrderSourceBadge(selectedOrder.order_source)}
+                  </div>
+                  <div>
                     <p className="text-muted-foreground">Status</p>
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(selectedOrder.status)}`}>
                       {selectedOrder.status}
@@ -413,7 +438,7 @@ export default function OrdersAdmin() {
                     <p className="font-bold">₹{Number(selectedOrder.total_amount).toFixed(0)}</p>
                   </div>
                   {selectedOrder.invoice_number && (
-                    <div className="col-span-2">
+                    <div>
                       <p className="text-muted-foreground">Invoice Number</p>
                       <p className="font-mono text-primary">{selectedOrder.invoice_number}</p>
                     </div>

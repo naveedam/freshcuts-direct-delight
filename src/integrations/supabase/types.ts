@@ -224,6 +224,7 @@ export type Database = {
           invoice_number: string | null
           is_igst: boolean
           notes: string | null
+          order_source: string | null
           phone: string | null
           place_of_supply: string | null
           sale_converted_at: string | null
@@ -246,6 +247,7 @@ export type Database = {
           invoice_number?: string | null
           is_igst?: boolean
           notes?: string | null
+          order_source?: string | null
           phone?: string | null
           place_of_supply?: string | null
           sale_converted_at?: string | null
@@ -268,6 +270,7 @@ export type Database = {
           invoice_number?: string | null
           is_igst?: boolean
           notes?: string | null
+          order_source?: string | null
           phone?: string | null
           place_of_supply?: string | null
           sale_converted_at?: string | null
