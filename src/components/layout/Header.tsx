@@ -21,8 +21,7 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { data: categories, isLoading: categoriesLoading } = useCategories();
 
-  // Only show fresh categories in nav
-  const navCategories = categories?.filter(c => c.categoryType === 'fresh') || [];
+  const navCategories = categories || [];
 
   return (
     <header className="sticky top-0 z-50 bg-card/95 backdrop-blur-md border-b border-border shadow-card">
