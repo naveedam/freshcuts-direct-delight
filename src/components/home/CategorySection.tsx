@@ -39,8 +39,7 @@ export function CategorySection() {
     );
   }
 
-  // Filter to show only 'fresh' categories on homepage for now, or show all
-  const displayCategories = categories?.filter(c => c.categoryType === 'fresh') || [];
+  const displayCategories = categories || [];
 
   return (
     <section id="categories" className="py-16 md:py-24 bg-background">
