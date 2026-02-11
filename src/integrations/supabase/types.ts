@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      bulk_import_logs: {
+        Row: {
+          admin_user_id: string
+          column_mapping: Json | null
+          created_at: string
+          error_report: Json | null
+          failed_count: number
+          file_name: string
+          id: string
+          status: string
+          success_count: number
+          total_rows: number
+        }
+        Insert: {
+          admin_user_id: string
+          column_mapping?: Json | null
+          created_at?: string
+          error_report?: Json | null
+          failed_count?: number
+          file_name: string
+          id?: string
+          status?: string
+          success_count?: number
+          total_rows?: number
+        }
+        Update: {
+          admin_user_id?: string
+          column_mapping?: Json | null
+          created_at?: string
+          error_report?: Json | null
+          failed_count?: number
+          file_name?: string
+          id?: string
+          status?: string
+          success_count?: number
+          total_rows?: number
+        }
+        Relationships: []
+      }
       business_settings: {
         Row: {
           address: string | null
@@ -313,6 +352,7 @@ export type Database = {
       }
       products: {
         Row: {
+          brand: string | null
           category: string
           category_id: string | null
           created_at: string
@@ -323,13 +363,17 @@ export type Database = {
           id: string
           image_url: string | null
           in_stock: boolean | null
+          is_published: boolean
+          mrp: number | null
           name: string
           price: number
+          sku: string | null
           stock_quantity: number | null
           unit: string
           updated_at: string
         }
         Insert: {
+          brand?: string | null
           category: string
           category_id?: string | null
           created_at?: string
@@ -340,13 +384,17 @@ export type Database = {
           id?: string
           image_url?: string | null
           in_stock?: boolean | null
+          is_published?: boolean
+          mrp?: number | null
           name: string
           price: number
+          sku?: string | null
           stock_quantity?: number | null
           unit?: string
           updated_at?: string
         }
         Update: {
+          brand?: string | null
           category?: string
           category_id?: string | null
           created_at?: string
@@ -357,8 +405,11 @@ export type Database = {
           id?: string
           image_url?: string | null
           in_stock?: boolean | null
+          is_published?: boolean
+          mrp?: number | null
           name?: string
           price?: number
+          sku?: string | null
           stock_quantity?: number | null
           unit?: string
           updated_at?: string

@@ -24,6 +24,7 @@ import VendorsAdmin from "./pages/admin/VendorsAdmin";
 import PurchaseOrdersAdmin from "./pages/admin/PurchaseOrdersAdmin";
 import CategoriesAdmin from "./pages/admin/CategoriesAdmin";
 import DocumentsAdmin from "./pages/admin/DocumentsAdmin";
+import BulkUploadAdmin from "./pages/admin/BulkUploadAdmin";
 import OrderHistory from "./pages/account/OrderHistory";
 import OrderDetails from "./pages/account/OrderDetails";
 import ProfileSettings from "./pages/account/ProfileSettings";
@@ -50,6 +51,7 @@ const App = () => (
               {/* Admin Routes */}
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/products" element={<ProductsAdmin />} />
+              <Route path="/admin/products/bulk-upload" element={<BulkUploadAdmin />} />
               <Route path="/admin/categories" element={<CategoriesAdmin />} />
               <Route path="/admin/orders" element={<OrdersAdmin />} />
               <Route path="/admin/vendors" element={<VendorsAdmin />} />
