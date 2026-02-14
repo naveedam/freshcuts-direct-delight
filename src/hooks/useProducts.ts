@@ -9,11 +9,12 @@ const mapDbProduct = (dbProduct: any): Product => ({
   description: dbProduct.description || '',
   price: Number(dbProduct.price),
   category: dbProduct.category as Product['category'],
-  subCategory: undefined, // We'll derive this from name patterns
+  subCategory: undefined,
   image: dbProduct.image_url || '/placeholder.svg',
   unit: dbProduct.unit,
   inStock: dbProduct.in_stock ?? true,
-  featured: false // Could add this field to DB later
+  featured: false,
+  pricingModel: dbProduct.pricing_model || 'weight_based',
 });
 
 export function useProducts() {
