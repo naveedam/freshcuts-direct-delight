@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { derivePricingModel } from '@/lib/weight-utils';
 import { Progress } from '@/components/ui/progress';
 import { Upload, ArrowRight, ArrowLeft, Check, AlertTriangle, FileSpreadsheet, Download } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -104,7 +105,8 @@ export default function BulkUploadAdmin() {
           gst_rate: Number(row.gst_rate) || 0,
           sku: row.sku ? String(row.sku) : null,
           brand: row.brand ? String(row.brand) : null,
-          is_published: false, // Draft state
+          is_published: false,
+          pricing_model: derivePricingModel(String(row.unit_type || 'kg')),
         };
       });
 

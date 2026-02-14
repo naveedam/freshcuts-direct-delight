@@ -367,6 +367,7 @@ export type Database = {
           mrp: number | null
           name: string
           price: number
+          pricing_model: string
           sku: string | null
           stock_quantity: number | null
           unit: string
@@ -388,6 +389,7 @@ export type Database = {
           mrp?: number | null
           name: string
           price: number
+          pricing_model?: string
           sku?: string | null
           stock_quantity?: number | null
           unit?: string
@@ -409,6 +411,7 @@ export type Database = {
           mrp?: number | null
           name?: string
           price?: number
+          pricing_model?: string
           sku?: string | null
           stock_quantity?: number | null
           unit?: string

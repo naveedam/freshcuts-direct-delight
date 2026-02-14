@@ -1,6 +1,8 @@
 // Category is now dynamic from database - using string type
 export type Category = string;
 
+export type PricingModel = 'weight_based' | 'unit_based';
+
 export interface Product {
   id: string;
   name: string;
@@ -12,6 +14,7 @@ export interface Product {
   unit: string;
   inStock: boolean;
   featured?: boolean;
+  pricingModel?: PricingModel;
 }
 
 export interface CartItem {

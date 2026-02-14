@@ -3,7 +3,7 @@ import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
-import { formatWeight, getPriceUnitLabel, calculatePrice } from '@/lib/weight-utils';
+import { formatQuantityDisplay, getPriceUnitLabel, calculatePrice, isWeightBased } from '@/lib/weight-utils';
 
 const CartPage = () => {
   const { items, updateQuantity, removeFromCart, totalPrice, clearCart } = useCart();
@@ -95,10 +95,10 @@ const CartPage = () => {
                     {product.subCategory || product.category}
                   </p>
                   <p className="font-body text-sm text-muted-foreground mt-1">
-                    ₹{product.price.toFixed(0)} {getPriceUnitLabel()}
+                    ₹{product.price.toFixed(0)} {getPriceUnitLabel(product.pricingModel || 'weight_based')}
                   </p>
                   <p className="font-heading text-lg font-bold text-primary mt-1">
-                    {formatWeight(quantity)}: ₹{calculatePrice(product.price, quantity).toFixed(0)}
+                    {formatQuantityDisplay(quantity, product.pricingModel || 'weight_based')}: ₹{calculatePrice(product.price, quantity, product.pricingModel || 'weight_based').toFixed(0)}
                   </p>
                 </div>
 
@@ -122,7 +122,7 @@ const CartPage = () => {
                     >
                       <Minus className="h-3 w-3" />
                     </Button>
-                    <span className="font-body font-medium w-12 text-center text-sm">{formatWeight(quantity)}</span>
+                    <span className="font-body font-medium w-12 text-center text-sm">{formatQuantityDisplay(quantity, product.pricingModel || 'weight_based')}</span>
                     <Button
                       variant="ghost"
                       size="icon"

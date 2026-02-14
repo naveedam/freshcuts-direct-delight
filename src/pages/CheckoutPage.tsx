@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Truck, CheckCircle, Loader2, Scale, Banknote } from 'lucide-react';
 import { z } from 'zod';
 import { formatCurrency } from '@/lib/currency';
-import { formatWeight, getTotalWeightKg, calculatePrice } from '@/lib/weight-utils';
+import { formatQuantityDisplay, getTotalWeightKg, calculatePrice, isWeightBased } from '@/lib/weight-utils';
 
 // Validation schema for shipping
 const shippingSchema = z.object({
@@ -123,14 +123,17 @@ const CheckoutPage = () => {
       if (orderError) throw orderError;
 
       // Create order items - store weight in kg for database
-      const orderItems = items.map(({ product, quantity }) => ({
-        order_id: order.id,
-        product_id: product.id,
-        product_name: product.name,
-        quantity: getTotalWeightKg(quantity), // Store actual weight in kg
-        unit_price: product.price, // Price per kg
-        total_price: calculatePrice(product.price, quantity) // Total based on weight
-      }));
+      const orderItems = items.map(({ product, quantity }) => {
+        const pm = product.pricingModel || 'weight_based';
+        return {
+          order_id: order.id,
+          product_id: product.id,
+          product_name: product.name,
+          quantity: pm === 'weight_based' ? getTotalWeightKg(quantity) : quantity,
+          unit_price: product.price,
+          total_price: calculatePrice(product.price, quantity, pm),
+        };
+      });
 
       const { error: itemsError } = await supabase
         .from('order_items')
@@ -377,10 +380,10 @@ const CheckoutPage = () => {
                         {product.name}
                       </p>
                       <p className="font-body text-xs text-muted-foreground">
-                        Weight: {formatWeight(quantity)}
+                        {isWeightBased(product.pricingModel || 'weight_based') ? 'Weight' : 'Qty'}: {formatQuantityDisplay(quantity, product.pricingModel || 'weight_based')}
                       </p>
                       <p className="font-body text-sm font-medium text-primary">
-                        {formatCurrency(calculatePrice(product.price, quantity))}
+                        {formatCurrency(calculatePrice(product.price, quantity, product.pricingModel || 'weight_based'))}
                       </p>
                     </div>
                   </div>

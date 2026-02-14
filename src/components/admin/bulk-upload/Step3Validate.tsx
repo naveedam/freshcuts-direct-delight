@@ -15,7 +15,7 @@ interface Step3Props {
 }
 
 const VALID_GST_TYPES = ['exempt', 'nil', 'taxable'];
-const VALID_UNITS = ['kg', 'g', 'unit', 'pack', 'piece', 'pcs', 'litre', 'ml'];
+const VALID_UNITS = ['kg', 'g', 'unit', 'pack', 'piece', 'pcs', 'litre', 'ml', 'bottle', 'jar', 'can', 'box'];
 
 function validateRow(
   row: Record<string, unknown>,
