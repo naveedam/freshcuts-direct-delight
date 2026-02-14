@@ -36,10 +36,20 @@ export function useProductsByCategory(categorySlug: string) {
   return useQuery({
     queryKey: ['products', 'category', categorySlug],
     queryFn: async () => {
+      // First get the category id from the slug
+      const { data: category, error: catError } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('slug', categorySlug)
+        .single();
+
+      if (catError) throw catError;
+
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .eq('category', categorySlug)
+        .eq('category_id', category.id)
+        .eq('is_published', true)
         .order('name');
       
       if (error) throw error;
