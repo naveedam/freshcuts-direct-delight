@@ -11,7 +11,8 @@ import { toast } from 'sonner';
 import { ArrowLeft, Truck, CheckCircle, Loader2, Scale, Banknote } from 'lucide-react';
 import { z } from 'zod';
 import { formatCurrency } from '@/lib/currency';
-import { formatQuantityDisplay, getTotalWeightKg, calculatePrice, isWeightBased } from '@/lib/weight-utils';
+import { formatQuantityDisplay, calculatePrice, isWeightBased } from '@/lib/weight-utils';
+import { buildOrderItems } from '@/lib/order-utils';
 
 // Validation schema for shipping
 const shippingSchema = z.object({
@@ -122,18 +123,8 @@ const CheckoutPage = () => {
 
       if (orderError) throw orderError;
 
-      // Create order items - store weight in kg for database
-      const orderItems = items.map(({ product, quantity }) => {
-        const pm = product.pricingModel || 'weight_based';
-        return {
-          order_id: order.id,
-          product_id: product.id,
-          product_name: product.name,
-          quantity: pm === 'weight_based' ? getTotalWeightKg(quantity) : quantity,
-          unit_price: product.price,
-          total_price: calculatePrice(product.price, quantity, pm),
-        };
-      });
+      // Create order items using shared utility
+      const orderItems = buildOrderItems(order.id, items);
 
       const { error: itemsError } = await supabase
         .from('order_items')
