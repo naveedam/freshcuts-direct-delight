@@ -60,7 +60,11 @@ const INDIAN_STATES = [
   { code: '37', name: 'Andhra Pradesh' },
 ];
 
-const parseQuantity = (value: string): number => {
+const parseQuantity = (value: string, isUnitBased: boolean): number => {
+  if (isUnitBased) {
+    const parsed = parseInt(value, 10);
+    return isNaN(parsed) || parsed < 1 ? 1 : parsed;
+  }
   const parsed = parseFloat(value);
   if (isNaN(parsed) || parsed < 0.0001) return 0.0001;
   return Math.round(parsed * 10000) / 10000;
@@ -390,14 +394,20 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                           </Select>
                         </TableCell>
                         <TableCell>
-                          <Input
-                            type="number"
-                            min="0.0001"
-                            step="0.0001"
-                            value={item.quantity}
-                            onChange={(e) => updateLineItem(index, 'quantity', parseQuantity(e.target.value))}
-                            className="w-20"
-                          />
+                          {(() => {
+                            const selectedProduct = products?.find(p => p.id === item.product_id);
+                            const isUnitBased = selectedProduct?.pricing_model === 'unit_based';
+                            return (
+                              <Input
+                                type="number"
+                                min={isUnitBased ? "1" : "0.0001"}
+                                step={isUnitBased ? "1" : "0.0001"}
+                                value={item.quantity}
+                                onChange={(e) => updateLineItem(index, 'quantity', parseQuantity(e.target.value, isUnitBased))}
+                                className="w-20"
+                              />
+                            );
+                          })()}
                         </TableCell>
                         <TableCell>
                           <Input
