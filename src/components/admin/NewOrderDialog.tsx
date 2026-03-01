@@ -60,6 +60,12 @@ const INDIAN_STATES = [
   { code: '37', name: 'Andhra Pradesh' },
 ];
 
+const parseQuantity = (value: string): number => {
+  const parsed = parseFloat(value);
+  if (isNaN(parsed) || parsed < 0.0001) return 0.0001;
+  return Math.round(parsed * 10000) / 10000;
+};
+
 export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   const queryClient = useQueryClient();
   
@@ -386,9 +392,10 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                         <TableCell>
                           <Input
                             type="number"
-                            min="1"
+                            min="0.0001"
+                            step="0.0001"
                             value={item.quantity}
-                            onChange={(e) => updateLineItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                            onChange={(e) => updateLineItem(index, 'quantity', parseQuantity(e.target.value))}
                             className="w-20"
                           />
                         </TableCell>
