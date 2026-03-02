@@ -125,17 +125,19 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
-    if (authError || !user) {
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: authError } = await supabaseAuth.auth.getClaims(token);
+    if (authError || !claimsData?.claims) {
       return new Response(
         JSON.stringify({ error: 'Invalid or expired token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    const userId = claimsData.claims.sub as string;
 
     // 3. Verify admin role
     const { data: isAdmin, error: roleError } = await supabaseAuth.rpc('has_role', {
-      _user_id: user.id,
+      _user_id: userId,
       _role: 'admin'
     });
 
