@@ -294,6 +294,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
 
       // Save custom items to catalog if requested
       const itemsToSave = lineItems.filter(item => item.is_custom && item.save_to_catalog && item.product_name);
+      const gstTypeToDb = (t: string) => t === 'Nil-rated' ? 'nil' : t.toLowerCase();
       for (const item of itemsToSave) {
         const { data: newProduct, error: productError } = await supabase
           .from('products')
@@ -304,7 +305,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
             unit: item.unit_type === 'unit_based' ? 'piece' : 'kg',
             pricing_model: item.unit_type || 'weight_based',
             hsn_code: item.hsn_code || null,
-            gst_type: item.gst_type,
+            gst_type: gstTypeToDb(item.gst_type),
             gst_rate: item.gst_rate,
             sku: item.sku || null,
             is_published: false, // Draft status
