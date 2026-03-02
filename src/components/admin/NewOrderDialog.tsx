@@ -8,8 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, Trash2, Loader2, PackagePlus } from 'lucide-react';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
 
 interface OrderLineItem {
   product_id: string | null;
@@ -19,6 +21,11 @@ interface OrderLineItem {
   hsn_code: string;
   gst_type: string;
   gst_rate: number;
+  is_custom?: boolean;
+  unit_type?: 'weight_based' | 'unit_based';
+  category?: string;
+  sku?: string;
+  save_to_catalog?: boolean;
 }
 
 interface NewOrderDialogProps {
@@ -70,6 +77,21 @@ const parseQuantity = (value: string, isUnitBased: boolean): number => {
   return Math.round(parsed * 10000) / 10000;
 };
 
+const defaultCustomItem: Omit<OrderLineItem, 'product_id'> & { product_id: null } = {
+  product_id: null,
+  product_name: '',
+  quantity: 1,
+  unit_price: 0,
+  hsn_code: '',
+  gst_type: 'Exempt',
+  gst_rate: 0,
+  is_custom: true,
+  unit_type: 'weight_based',
+  category: '',
+  sku: '',
+  save_to_catalog: false,
+};
+
 export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   const queryClient = useQueryClient();
   
@@ -79,13 +101,17 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   const [shippingAddress, setShippingAddress] = useState('');
   const [shippingCity, setShippingCity] = useState('');
   const [shippingPostalCode, setShippingPostalCode] = useState('');
-  const [placeOfSupply, setPlaceOfSupply] = useState('29'); // Default: Karnataka
+  const [placeOfSupply, setPlaceOfSupply] = useState('29');
   const [notes, setNotes] = useState('');
   
   // Line items
   const [lineItems, setLineItems] = useState<OrderLineItem[]>([
     { product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0 }
   ]);
+
+  // Custom item dialog
+  const [customItemOpen, setCustomItemOpen] = useState(false);
+  const [customItemData, setCustomItemData] = useState<OrderLineItem>({ ...defaultCustomItem });
 
   // Fetch products
   const { data: products } = useQuery({
@@ -100,7 +126,21 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
     }
   });
 
-  // Fetch business settings to determine if IGST applies
+  // Fetch categories for custom item
+  const { data: categories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch business settings
   const { data: businessSettings } = useQuery({
     queryKey: ['business-settings'],
     queryFn: async () => {
@@ -158,7 +198,61 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
     }
   };
 
-  // Calculate if IGST applies (different state from business)
+  // Custom item handlers
+  const openCustomItemDialog = () => {
+    setCustomItemData({ ...defaultCustomItem });
+    setCustomItemOpen(true);
+  };
+
+  const validateCustomItem = (): string | null => {
+    if (!customItemData.product_name.trim()) return 'Product name is required';
+    if (customItemData.unit_price < 0) return 'Unit price cannot be negative';
+    if (customItemData.gst_type === 'Taxable' && (customItemData.gst_rate < 0 || customItemData.gst_rate > 28)) {
+      return 'GST rate must be between 0 and 28';
+    }
+    if (customItemData.save_to_catalog && !customItemData.category) {
+      return 'Category is required when saving to catalog';
+    }
+    return null;
+  };
+
+  const addCustomItem = () => {
+    const error = validateCustomItem();
+    if (error) {
+      toast.error(error);
+      return;
+    }
+
+    const newItem: OrderLineItem = {
+      product_id: null,
+      product_name: customItemData.product_name.trim(),
+      quantity: customItemData.quantity,
+      unit_price: customItemData.unit_price,
+      hsn_code: customItemData.hsn_code,
+      gst_type: customItemData.gst_type,
+      gst_rate: customItemData.gst_type === 'Taxable' ? customItemData.gst_rate : 0,
+      is_custom: true,
+      unit_type: customItemData.unit_type,
+      category: customItemData.category,
+      sku: customItemData.sku,
+      save_to_catalog: customItemData.save_to_catalog,
+    };
+
+    // Replace the first empty line item or append
+    const firstEmptyIndex = lineItems.findIndex(li => !li.product_name && !li.product_id);
+    if (firstEmptyIndex >= 0) {
+      const updated = [...lineItems];
+      updated[firstEmptyIndex] = newItem;
+      setLineItems(updated);
+    } else {
+      setLineItems([...lineItems, newItem]);
+    }
+
+    setCustomItemOpen(false);
+    toast.success('Custom item added');
+  };
+
+  // Calculate if IGST applies
   const isIGST = businessSettings?.state_code !== placeOfSupply;
 
   // Calculate GST for each line item
@@ -198,6 +292,36 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
         throw new Error('Please add at least one item');
       }
 
+      // Save custom items to catalog if requested
+      const itemsToSave = lineItems.filter(item => item.is_custom && item.save_to_catalog && item.product_name);
+      for (const item of itemsToSave) {
+        const { data: newProduct, error: productError } = await supabase
+          .from('products')
+          .insert({
+            name: item.product_name,
+            category: item.category || 'Uncategorized',
+            price: item.unit_price,
+            unit: item.unit_type === 'unit_based' ? 'piece' : 'kg',
+            pricing_model: item.unit_type || 'weight_based',
+            hsn_code: item.hsn_code || null,
+            gst_type: item.gst_type,
+            gst_rate: item.gst_rate,
+            sku: item.sku || null,
+            is_published: false, // Draft status
+            in_stock: true,
+          })
+          .select()
+          .single();
+
+        if (productError) {
+          console.error('Failed to save custom item to catalog:', productError);
+          toast.error(`Failed to save "${item.product_name}" to catalog`);
+        } else if (newProduct) {
+          // Link the product_id so order_item references it
+          item.product_id = newProduct.id;
+        }
+      }
+
       // Create order
       const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -225,7 +349,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
           const gst = calculateLineGST(item);
           return {
             order_id: order.id,
-            product_id: item.product_id,
+            product_id: item.product_id || null,
             product_name: item.product_name,
             quantity: item.quantity,
             unit_price: item.unit_price,
@@ -250,6 +374,8 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       toast.success('Order created successfully');
       resetForm();
       onOpenChange(false);
@@ -264,6 +390,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(isOpen) => {
       if (!isOpen) resetForm();
       onOpenChange(isOpen);
@@ -352,9 +479,14 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-medium">Order Items</h3>
-              <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
-                <Plus className="h-4 w-4 mr-1" /> Add Item
-              </Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={openCustomItemDialog}>
+                  <PackagePlus className="h-4 w-4 mr-1" /> Add Custom Item
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
+                  <Plus className="h-4 w-4 mr-1" /> Add Item
+                </Button>
+              </div>
             </div>
 
             <div className="border rounded-lg overflow-hidden">
@@ -374,36 +506,45 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                 <TableBody>
                   {lineItems.map((item, index) => {
                     const lineTotal = calculateLineGST(item).total;
+                    const isCustom = item.is_custom;
                     return (
                       <TableRow key={index}>
                         <TableCell>
-                          <Select
-                            value={item.product_id || ''}
-                            onValueChange={(value) => selectProduct(index, value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select product" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {products?.map((product) => (
-                                <SelectItem key={product.id} value={product.id}>
-                                  {product.name} - ₹{product.price}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {isCustom ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm truncate max-w-[180px]">{item.product_name}</span>
+                              <Badge variant="secondary" className="text-xs shrink-0">Custom</Badge>
+                            </div>
+                          ) : (
+                            <Select
+                              value={item.product_id || ''}
+                              onValueChange={(value) => selectProduct(index, value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select product" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {products?.map((product) => (
+                                  <SelectItem key={product.id} value={product.id}>
+                                    {product.name} - ₹{product.price}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         </TableCell>
                         <TableCell>
                           {(() => {
-                            const selectedProduct = products?.find(p => p.id === item.product_id);
-                            const isUnitBased = selectedProduct?.pricing_model === 'unit_based';
+                            const isUnitBased = isCustom
+                              ? item.unit_type === 'unit_based'
+                              : products?.find(p => p.id === item.product_id)?.pricing_model === 'unit_based';
                             return (
                               <Input
                                 type="number"
                                 min={isUnitBased ? "1" : "0.0001"}
                                 step={isUnitBased ? "1" : "0.0001"}
                                 value={item.quantity}
-                                onChange={(e) => updateLineItem(index, 'quantity', parseQuantity(e.target.value, isUnitBased))}
+                                onChange={(e) => updateLineItem(index, 'quantity', parseQuantity(e.target.value, !!isUnitBased))}
                                 className="w-20"
                               />
                             );
@@ -533,5 +674,151 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Custom Item Dialog */}
+    <Dialog open={customItemOpen} onOpenChange={setCustomItemOpen}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add Custom Item</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Product Name *</Label>
+            <Input
+              value={customItemData.product_name}
+              onChange={(e) => setCustomItemData({ ...customItemData, product_name: e.target.value })}
+              placeholder="Enter product name"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Unit Type</Label>
+              <Select
+                value={customItemData.unit_type || 'weight_based'}
+                onValueChange={(value: 'weight_based' | 'unit_based') => setCustomItemData({ ...customItemData, unit_type: value, quantity: value === 'unit_based' ? 1 : customItemData.quantity })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weight_based">Weight Based (per kg)</SelectItem>
+                  <SelectItem value="unit_based">Unit Based (per piece)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Unit Price (₹) *</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={customItemData.unit_price}
+                onChange={(e) => setCustomItemData({ ...customItemData, unit_price: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Quantity</Label>
+              <Input
+                type="number"
+                min={customItemData.unit_type === 'unit_based' ? '1' : '0.0001'}
+                step={customItemData.unit_type === 'unit_based' ? '1' : '0.0001'}
+                value={customItemData.quantity}
+                onChange={(e) => setCustomItemData({ ...customItemData, quantity: parseQuantity(e.target.value, customItemData.unit_type === 'unit_based') })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>HSN Code</Label>
+              <Input
+                value={customItemData.hsn_code}
+                onChange={(e) => setCustomItemData({ ...customItemData, hsn_code: e.target.value })}
+                placeholder="e.g. 0201"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>GST Type</Label>
+              <Select
+                value={customItemData.gst_type}
+                onValueChange={(value) => setCustomItemData({ ...customItemData, gst_type: value, gst_rate: value === 'Taxable' ? customItemData.gst_rate : 0 })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Exempt">Exempt</SelectItem>
+                  <SelectItem value="Nil-rated">Nil-rated</SelectItem>
+                  <SelectItem value="Taxable">Taxable</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>GST Rate (%)</Label>
+              <Input
+                type="number"
+                min="0"
+                max="28"
+                value={customItemData.gst_rate}
+                onChange={(e) => setCustomItemData({ ...customItemData, gst_rate: parseFloat(e.target.value) || 0 })}
+                disabled={customItemData.gst_type !== 'Taxable'}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <Select
+                value={customItemData.category || ''}
+                onValueChange={(value) => setCustomItemData({ ...customItemData, category: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories?.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>SKU (Optional)</Label>
+              <Input
+                value={customItemData.sku || ''}
+                onChange={(e) => setCustomItemData({ ...customItemData, sku: e.target.value })}
+                placeholder="e.g. CUST-001"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 pt-2 border-t">
+            <Checkbox
+              id="save-to-catalog"
+              checked={customItemData.save_to_catalog || false}
+              onCheckedChange={(checked) => setCustomItemData({ ...customItemData, save_to_catalog: !!checked })}
+            />
+            <Label htmlFor="save-to-catalog" className="text-sm font-normal cursor-pointer">
+              Save to Catalog (creates a draft product for future reuse)
+            </Label>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setCustomItemOpen(false)}>Cancel</Button>
+            <Button onClick={addCustomItem}>
+              <PackagePlus className="h-4 w-4 mr-1" /> Add to Order
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
