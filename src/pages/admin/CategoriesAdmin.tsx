@@ -255,7 +255,7 @@ export default function CategoriesAdmin() {
                     <TableHead>Slug</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead className="text-center">Active</TableHead>
+                    <TableHead className="text-center">Show on Website & WhatsApp</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useProducts } from '@/hooks/useProducts';
 import { toast } from 'sonner';
+import { useCategories } from '@/hooks/useCategories';
 
 const WHATSAPP_NUMBER = '918971365236';
 
@@ -70,7 +71,15 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState('');
   const [quantity, setQuantity] = useState('0.5');
-  const { data: products, isLoading: productsLoading } = useProducts();
+  const { data: allProducts, isLoading: productsLoading } = useProducts();
+  const { data: visibleCategories } = useCategories();
+
+  // Only show products from visible (active) categories
+  const products = useMemo(() => {
+    if (!allProducts || !visibleCategories) return allProducts;
+    const visibleSlugs = new Set(visibleCategories.map(c => c.slug));
+    return allProducts.filter(p => visibleSlugs.has(p.category));
+  }, [allProducts, visibleCategories]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
