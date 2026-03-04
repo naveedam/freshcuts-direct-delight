@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil } from 'lucide-react';
+import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import { ShipmentTrackingModal } from '@/components/admin/ShipmentTrackingModal'
 import { NewOrderDialog } from '@/components/admin/NewOrderDialog';
 import { WeightAdjustmentDialog } from '@/components/admin/WeightAdjustmentDialog';
 import { EditOrderDialog } from '@/components/admin/EditOrderDialog';
+import { Input } from '@/components/ui/input';
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
@@ -25,6 +26,7 @@ export default function OrdersAdmin() {
   const [newOrderOpen, setNewOrderOpen] = useState(false);
   const [weightAdjustOrder, setWeightAdjustOrder] = useState<any>(null);
   const [editOrder, setEditOrder] = useState<any>(null);
+  const [buildingFilter, setBuildingFilter] = useState('');
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['admin', 'orders'],
@@ -37,6 +39,22 @@ export default function OrdersAdmin() {
       return data;
     }
   });
+
+  // Get unique building names for filtering
+  const buildingNames = useMemo(() => {
+    if (!orders) return [];
+    const names = orders
+      .map((o: any) => o.building_name)
+      .filter((n: string | null): n is string => !!n);
+    return [...new Set(names)].sort();
+  }, [orders]);
+
+  // Filtered orders
+  const filteredOrders = useMemo(() => {
+    if (!orders) return [];
+    if (!buildingFilter) return orders;
+    return orders.filter((o: any) => o.building_name === buildingFilter);
+  }, [orders, buildingFilter]);
 
   const { data: orderItems } = useQuery({
     queryKey: ['admin', 'orderItems', selectedOrder?.id],
@@ -235,6 +253,29 @@ export default function OrdersAdmin() {
           </Button>
         </div>
 
+        {/* Building Filter */}
+        {buildingNames.length > 0 && (
+          <div className="flex items-center gap-3">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <Select value={buildingFilter || 'all'} onValueChange={(v) => setBuildingFilter(v === 'all' ? '' : v)}>
+              <SelectTrigger className="w-[260px]">
+                <SelectValue placeholder="Filter by Building / Apartment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Buildings</SelectItem>
+                {buildingNames.map((name) => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {buildingFilter && (
+              <Button variant="ghost" size="sm" onClick={() => setBuildingFilter('')}>
+                Clear
+              </Button>
+            )}
+          </div>
+        )}
+
         {/* New Order Dialog */}
         <NewOrderDialog open={newOrderOpen} onOpenChange={setNewOrderOpen} />
 
@@ -271,8 +312,8 @@ export default function OrdersAdmin() {
                     <TableCell><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
                   </TableRow>
                 ))
-              ) : orders && orders.length > 0 ? (
-                orders.map((order) => (
+              ) : filteredOrders && filteredOrders.length > 0 ? (
+                filteredOrders.map((order: any) => (
                   <TableRow key={order.id}>
                     <TableCell>
                       <div>
@@ -288,7 +329,15 @@ export default function OrdersAdmin() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{order.shipping_city || 'N/A'}</p>
+                        {order.building_name && (
+                          <p className="font-medium text-sm">{order.building_name}</p>
+                        )}
+                        {order.flat_number && (
+                          <p className="text-xs text-foreground">Flat: {order.flat_number}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {[order.shipping_address, order.shipping_postal_code].filter(Boolean).join(' – ') || 'N/A'}
+                        </p>
                         <p className="text-xs text-muted-foreground">{order.customer_email || order.phone || 'No contact'}</p>
                       </div>
                     </TableCell>
@@ -481,10 +530,12 @@ export default function OrdersAdmin() {
 
                 <div className="border-t pt-4">
                   <p className="font-medium mb-2">Shipping Address</p>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedOrder.shipping_address || 'N/A'}<br />
-                    {selectedOrder.shipping_city}, {selectedOrder.shipping_postal_code}
-                  </p>
+                  <div className="text-sm text-muted-foreground">
+                    {selectedOrder.building_name && <p className="font-medium text-foreground">{selectedOrder.building_name}</p>}
+                    {selectedOrder.flat_number && <p>Flat: {selectedOrder.flat_number}</p>}
+                    <p>{selectedOrder.shipping_address || 'N/A'}</p>
+                    <p>{selectedOrder.shipping_city}, {selectedOrder.shipping_postal_code}</p>
+                  </div>
                 </div>
 
                 {selectedOrder.notes && (

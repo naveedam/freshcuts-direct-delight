@@ -20,6 +20,8 @@ const shippingSchema = z.object({
   lastName: z.string().trim().min(1, 'Last name is required').max(50, 'Last name must be less than 50 characters'),
   email: z.string().trim().email('Invalid email address').max(255, 'Email must be less than 255 characters'),
   phone: z.string().trim().min(10, 'Phone must be at least 10 digits').max(20, 'Phone must be less than 20 characters').regex(/^[0-9+\-\s()]+$/, 'Phone must contain only numbers and + - ( ) characters'),
+  buildingName: z.string().trim().max(100, 'Building name must be less than 100 characters').optional().or(z.literal('')),
+  flatNumber: z.string().trim().max(20, 'Flat number must be less than 20 characters').optional().or(z.literal('')),
   address: z.string().trim().min(5, 'Address must be at least 5 characters').max(200, 'Address must be less than 200 characters'),
   city: z.string().trim().min(2, 'City must be at least 2 characters').max(50, 'City must be less than 50 characters'),
   state: z.string().trim().min(2, 'State must be at least 2 characters').max(50, 'State must be less than 50 characters'),
@@ -49,6 +51,8 @@ const CheckoutPage = () => {
     lastName: '',
     email: '',
     phone: '',
+    buildingName: '',
+    flatNumber: '',
     address: '',
     city: '',
     state: '',
@@ -72,6 +76,8 @@ const CheckoutPage = () => {
       lastName: formData.lastName,
       email: formData.email,
       phone: formData.phone,
+      buildingName: formData.buildingName,
+      flatNumber: formData.flatNumber,
       address: formData.address,
       city: formData.city,
       state: formData.state,
@@ -99,6 +105,8 @@ const CheckoutPage = () => {
         lastName: sanitizeInput(formData.lastName),
         email: sanitizeInput(formData.email),
         phone: sanitizeInput(formData.phone),
+        buildingName: sanitizeInput(formData.buildingName),
+        flatNumber: sanitizeInput(formData.flatNumber),
         address: sanitizeInput(formData.address),
         city: sanitizeInput(formData.city),
         zipCode: sanitizeInput(formData.zipCode),
@@ -111,6 +119,8 @@ const CheckoutPage = () => {
           user_id: user?.id || null,
           total_amount: orderTotal,
           status: 'pending',
+          building_name: sanitizedData.buildingName || null,
+          flat_number: sanitizedData.flatNumber || null,
           shipping_address: sanitizedData.address,
           shipping_city: sanitizedData.city,
           shipping_postal_code: sanitizedData.zipCode,
@@ -273,8 +283,28 @@ const CheckoutPage = () => {
                   />
                   {formErrors.phone && <p className="text-sm text-destructive">{formErrors.phone}</p>}
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="buildingName">Building / Apartment Name</Label>
+                  <Input
+                    id="buildingName"
+                    value={formData.buildingName}
+                    onChange={(e) => setFormData({ ...formData, buildingName: e.target.value })}
+                    maxLength={100}
+                    placeholder="e.g. Prestige Lakeside Habitat"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="flatNumber">Flat / House Number</Label>
+                  <Input
+                    id="flatNumber"
+                    value={formData.flatNumber}
+                    onChange={(e) => setFormData({ ...formData, flatNumber: e.target.value })}
+                    maxLength={20}
+                    placeholder="e.g. A-402"
+                  />
+                </div>
                 <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="address">Address</Label>
+                  <Label htmlFor="address">Street / Area</Label>
                   <Input
                     id="address"
                     value={formData.address}

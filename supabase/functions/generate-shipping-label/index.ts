@@ -225,9 +225,10 @@ Deno.serve(async (req) => {
     <div class="section" style="flex: 1;">
       <div class="section-header">Ship To</div>
       <div class="address to">
+        ${order.building_name ? escapeHtml(order.building_name) + '<br>' : ''}
+        ${order.flat_number ? 'Flat: ' + escapeHtml(order.flat_number) + '<br>' : ''}
         ${escapeHtml(order.shipping_address) || 'N/A'}<br>
-        ${escapeHtml(order.shipping_city)}${order.shipping_postal_code ? ' - ' + escapeHtml(order.shipping_postal_code) : ''}<br>
-        ${order.phone ? 'Tel: ' + escapeHtml(order.phone) : ''}
+        ${escapeHtml(order.shipping_city)}${order.shipping_postal_code ? ' – ' + escapeHtml(order.shipping_postal_code) : ''}
       </div>
     </div>
 
