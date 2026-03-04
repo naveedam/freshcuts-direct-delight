@@ -179,6 +179,47 @@ export type Database = {
         }
         Relationships: []
       }
+      order_edit_logs: {
+        Row: {
+          action: string
+          admin_user_id: string
+          changes: Json
+          created_at: string
+          id: string
+          order_id: string
+          snapshot_after: Json
+          snapshot_before: Json
+        }
+        Insert: {
+          action?: string
+          admin_user_id: string
+          changes?: Json
+          created_at?: string
+          id?: string
+          order_id: string
+          snapshot_after?: Json
+          snapshot_before?: Json
+        }
+        Update: {
+          action?: string
+          admin_user_id?: string
+          changes?: Json
+          created_at?: string
+          id?: string
+          order_id?: string
+          snapshot_after?: Json
+          snapshot_before?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_edit_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           actual_weight: number | null

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle } from 'lucide-react';
+import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { ShipmentTrackingModal } from '@/components/admin/ShipmentTrackingModal';
 import { NewOrderDialog } from '@/components/admin/NewOrderDialog';
 import { WeightAdjustmentDialog } from '@/components/admin/WeightAdjustmentDialog';
+import { EditOrderDialog } from '@/components/admin/EditOrderDialog';
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
@@ -23,6 +24,7 @@ export default function OrdersAdmin() {
   const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
   const [weightAdjustOrder, setWeightAdjustOrder] = useState<any>(null);
+  const [editOrder, setEditOrder] = useState<any>(null);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['admin', 'orders'],
@@ -62,6 +64,20 @@ export default function OrdersAdmin() {
       return data;
     },
     enabled: !!weightAdjustOrder
+  });
+
+  const { data: editOrderItems } = useQuery({
+    queryKey: ['admin', 'orderItems', editOrder?.id],
+    queryFn: async () => {
+      if (!editOrder) return [];
+      const { data, error } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', editOrder.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!editOrder
   });
 
   const updateStatusMutation = useMutation({
@@ -346,6 +362,16 @@ export default function OrdersAdmin() {
                           <Eye className="h-4 w-4" />
                         </Button>
                         
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setEditOrder(order)}
+                          title={order.converted_to_sale ? 'Invoiced – cannot edit' : order.status === 'delivered' ? 'Delivered – cannot edit' : 'Edit Order'}
+                          disabled={!!order.converted_to_sale || order.status === 'delivered' || order.status === 'cancelled'}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        
                         {!order.converted_to_sale && (
                           <Button 
                             size="sm" 
@@ -552,6 +578,14 @@ export default function OrdersAdmin() {
           onOpenChange={(open) => !open && setWeightAdjustOrder(null)}
           order={weightAdjustOrder}
           orderItems={weightAdjustItems || []}
+        />
+
+        {/* Edit Order Dialog */}
+        <EditOrderDialog
+          open={!!editOrder}
+          onOpenChange={(open) => !open && setEditOrder(null)}
+          order={editOrder}
+          orderItems={editOrderItems || []}
         />
       </div>
     </AdminLayout>
