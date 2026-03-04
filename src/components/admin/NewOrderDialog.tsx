@@ -98,6 +98,8 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   // Customer details
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [buildingName, setBuildingName] = useState('');
+  const [flatNumber, setFlatNumber] = useState('');
   const [shippingAddress, setShippingAddress] = useState('');
   const [shippingCity, setShippingCity] = useState('');
   const [shippingPostalCode, setShippingPostalCode] = useState('');
@@ -157,6 +159,8 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   const resetForm = () => {
     setCustomerEmail('');
     setCustomerPhone('');
+    setBuildingName('');
+    setFlatNumber('');
     setShippingAddress('');
     setShippingCity('');
     setShippingPostalCode('');
@@ -329,6 +333,8 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
         .insert({
           customer_email: customerEmail || null,
           phone: customerPhone || null,
+          building_name: buildingName || null,
+          flat_number: flatNumber || null,
           shipping_address: shippingAddress || null,
           shipping_city: shippingCity || null,
           shipping_postal_code: shippingPostalCode || null,
@@ -426,12 +432,32 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
           {/* Shipping Address */}
           <div className="space-y-4">
             <h3 className="font-medium">Shipping Address</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Building / Apartment Name</Label>
+                <Input
+                  value={buildingName}
+                  onChange={(e) => setBuildingName(e.target.value)}
+                  placeholder="e.g. Prestige Lakeside Habitat"
+                  maxLength={100}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Flat / House Number</Label>
+                <Input
+                  value={flatNumber}
+                  onChange={(e) => setFlatNumber(e.target.value)}
+                  placeholder="e.g. A-402"
+                  maxLength={20}
+                />
+              </div>
+            </div>
             <div className="space-y-2">
-              <Label>Address</Label>
+              <Label>Street / Area</Label>
               <Textarea
                 value={shippingAddress}
                 onChange={(e) => setShippingAddress(e.target.value)}
-                placeholder="Street address, apartment, etc."
+                placeholder="Street address, area"
                 rows={2}
               />
             </div>

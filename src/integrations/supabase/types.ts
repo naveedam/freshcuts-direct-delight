@@ -297,9 +297,11 @@ export type Database = {
       }
       orders: {
         Row: {
+          building_name: string | null
           converted_to_sale: boolean | null
           created_at: string
           customer_email: string | null
+          flat_number: string | null
           id: string
           invoice_number: string | null
           is_igst: boolean
@@ -320,9 +322,11 @@ export type Database = {
           weight_finalized_at: string | null
         }
         Insert: {
+          building_name?: string | null
           converted_to_sale?: boolean | null
           created_at?: string
           customer_email?: string | null
+          flat_number?: string | null
           id?: string
           invoice_number?: string | null
           is_igst?: boolean
@@ -343,9 +347,11 @@ export type Database = {
           weight_finalized_at?: string | null
         }
         Update: {
+          building_name?: string | null
           converted_to_sale?: boolean | null
           created_at?: string
           customer_email?: string | null
+          flat_number?: string | null
           id?: string
           invoice_number?: string | null
           is_igst?: boolean
