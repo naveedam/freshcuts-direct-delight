@@ -106,6 +106,8 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   const [shippingPostalCode, setShippingPostalCode] = useState('');
   const [placeOfSupply, setPlaceOfSupply] = useState('29');
   const [notes, setNotes] = useState('');
+  const [discountType, setDiscountType] = useState<'none' | 'percentage' | 'flat'>('none');
+  const [discountValue, setDiscountValue] = useState('0');
   
   // Line items
   const [lineItems, setLineItems] = useState<OrderLineItem[]>([
