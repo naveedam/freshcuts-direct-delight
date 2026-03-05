@@ -511,6 +511,12 @@ export default function OrdersAdmin() {
                   <div>
                     <p className="text-muted-foreground">Total</p>
                     <p className="font-bold">₹{Number(selectedOrder.total_amount).toFixed(0)}</p>
+                    {Number(selectedOrder.discount_amount) > 0 && (
+                      <p className="text-xs text-destructive">
+                        Discount: −₹{Number(selectedOrder.discount_amount).toFixed(0)}
+                        {selectedOrder.discount_type === 'percentage' ? ` (${selectedOrder.discount_value}%)` : ''}
+                      </p>
+                    )}
                   </div>
                   {selectedOrder.invoice_number && (
                     <div>
