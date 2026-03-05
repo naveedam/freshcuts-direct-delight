@@ -169,6 +169,8 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
     setShippingPostalCode('');
     setPlaceOfSupply('29');
     setNotes('');
+    setDiscountType('none');
+    setDiscountValue('0');
     setLineItems([{ product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0 }]);
   };
 
