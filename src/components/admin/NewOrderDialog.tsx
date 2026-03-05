@@ -356,8 +356,11 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
           place_of_supply: placeOfSupply,
           is_igst: isIGST,
           notes: notes || null,
-          total_amount: orderTotals.total,
-          status: 'pending'
+          total_amount: finalTotal,
+          status: 'pending',
+          discount_type: discountType,
+          discount_value: parseFloat(discountValue) || 0,
+          discount_amount: discountAmount,
         })
         .select()
         .single();
