@@ -301,6 +301,9 @@ export type Database = {
           converted_to_sale: boolean | null
           created_at: string
           customer_email: string | null
+          discount_amount: number | null
+          discount_type: string | null
+          discount_value: number | null
           flat_number: string | null
           id: string
           invoice_number: string | null
@@ -326,6 +329,9 @@ export type Database = {
           converted_to_sale?: boolean | null
           created_at?: string
           customer_email?: string | null
+          discount_amount?: number | null
+          discount_type?: string | null
+          discount_value?: number | null
           flat_number?: string | null
           id?: string
           invoice_number?: string | null
@@ -351,6 +357,9 @@ export type Database = {
           converted_to_sale?: boolean | null
           created_at?: string
           customer_email?: string | null
+          discount_amount?: number | null
+          discount_type?: string | null
+          discount_value?: number | null
           flat_number?: string | null
           id?: string
           invoice_number?: string | null
