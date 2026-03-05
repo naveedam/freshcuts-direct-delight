@@ -294,6 +294,16 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
     };
   }, { taxableValue: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
 
+  // Discount calculation
+  const discountAmount = useMemo(() => {
+    const val = parseFloat(discountValue) || 0;
+    if (discountType === 'percentage') return Math.min((orderTotals.total * val) / 100, orderTotals.total);
+    if (discountType === 'flat') return Math.min(val, orderTotals.total);
+    return 0;
+  }, [discountType, discountValue, orderTotals.total]);
+
+  const finalTotal = orderTotals.total - discountAmount;
+
   const createOrderMutation = useMutation({
     mutationFn: async () => {
       // Validate
