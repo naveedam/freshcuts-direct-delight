@@ -660,9 +660,45 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
               </Table>
             </div>
 
+            {/* Discount */}
+            <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+              <Label className="font-medium">Order Discount</Label>
+              <div className="flex items-center gap-3">
+                <Select value={discountType} onValueChange={(v: any) => setDiscountType(v)}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Discount</SelectItem>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="flat">Flat Amount (₹)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {discountType !== 'none' && (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      max={discountType === 'percentage' ? '100' : undefined}
+                      value={discountValue}
+                      onChange={(e) => setDiscountValue(e.target.value)}
+                      className="w-24"
+                    />
+                    {discountType === 'percentage' ? <Percent className="h-4 w-4 text-muted-foreground" /> : <IndianRupee className="h-4 w-4 text-muted-foreground" />}
+                  </div>
+                )}
+                {discountAmount > 0 && (
+                  <span className="text-sm text-destructive font-medium">
+                    −{formatCurrency(discountAmount)}
+                  </span>
+                )}
+              </div>
+            </div>
+
             {/* Totals */}
             <div className="flex justify-end">
-              <div className="w-64 space-y-2 text-sm">
+              <div className="w-72 space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Taxable Value:</span>
                   <span>₹{orderTotals.taxableValue.toFixed(2)}</span>
@@ -684,9 +720,19 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                     </div>
                   </>
                 )}
-                <div className="flex justify-between font-bold border-t pt-2">
-                  <span>Total:</span>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subtotal:</span>
                   <span>₹{orderTotals.total.toFixed(2)}</span>
+                </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-destructive">
+                    <span>Discount{discountType === 'percentage' ? ` (${discountValue}%)` : ''}:</span>
+                    <span>−₹{discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold border-t pt-2 text-base">
+                  <span>Total:</span>
+                  <span>₹{finalTotal.toFixed(2)}</span>
                 </div>
               </div>
             </div>
