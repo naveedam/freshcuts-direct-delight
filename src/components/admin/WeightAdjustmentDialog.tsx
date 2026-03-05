@@ -1,18 +1,20 @@
-import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Loader2, Scale, Check, AlertCircle } from 'lucide-react';
+import { Loader2, Scale, Check, AlertCircle, Percent, IndianRupee } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 import { Badge } from '@/components/ui/badge';
 
 interface OrderItem {
   id: string;
+  product_id: string | null;
   product_name: string;
   quantity: number;
   unit_price: number;
@@ -36,6 +38,10 @@ interface WeightAdjustmentDialogProps {
     total_amount: number;
     weight_finalized: boolean;
     place_of_supply: string | null;
+    is_igst: boolean;
+    discount_type?: string;
+    discount_value?: number;
+    discount_amount?: number;
   } | null;
   orderItems: OrderItem[];
 }
@@ -48,6 +54,37 @@ export function WeightAdjustmentDialog({
 }: WeightAdjustmentDialogProps) {
   const queryClient = useQueryClient();
   const [adjustedItems, setAdjustedItems] = useState<Record<string, { weight: string; price: string }>>({});
+  const [discountType, setDiscountType] = useState<'none' | 'percentage' | 'flat'>('none');
+  const [discountValue, setDiscountValue] = useState('0');
+
+  // Fetch product pricing models for the items
+  const productIds = orderItems.map(i => i.product_id).filter(Boolean) as string[];
+  const { data: products } = useQuery({
+    queryKey: ['products-pricing', productIds],
+    queryFn: async () => {
+      if (productIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, pricing_model, unit')
+        .in('id', productIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: open && productIds.length > 0,
+  });
+
+  const productMap = useMemo(() => {
+    const map: Record<string, { pricing_model: string; unit: string }> = {};
+    products?.forEach(p => { map[p.id] = { pricing_model: p.pricing_model, unit: p.unit }; });
+    return map;
+  }, [products]);
+
+  const getItemPricingModel = (item: OrderItem): 'weight_based' | 'unit_based' => {
+    if (item.product_id && productMap[item.product_id]) {
+      return productMap[item.product_id].pricing_model === 'unit_based' ? 'unit_based' : 'weight_based';
+    }
+    return 'weight_based';
+  };
 
   // Initialize with current values when dialog opens
   useEffect(() => {
@@ -60,14 +97,37 @@ export function WeightAdjustmentDialog({
         };
       });
       setAdjustedItems(initial);
+      setDiscountType((order?.discount_type as any) || 'none');
+      setDiscountValue(order?.discount_value?.toString() || '0');
     }
-  }, [open, orderItems]);
+  }, [open, orderItems, order]);
+
+  const calculateItemTotal = (itemId: string, item: OrderItem) => {
+    const adjusted = adjustedItems[itemId];
+    const qty = parseFloat(adjusted?.weight || '0') || item.quantity;
+    const price = parseFloat(adjusted?.price || '0') || item.unit_price;
+    return qty * price;
+  };
+
+  const subtotal = useMemo(() => {
+    return orderItems.reduce((sum, item) => sum + calculateItemTotal(item.id, item), 0);
+  }, [orderItems, adjustedItems]);
+
+  const discountAmount = useMemo(() => {
+    const val = parseFloat(discountValue) || 0;
+    if (discountType === 'percentage') return Math.min((subtotal * val) / 100, subtotal);
+    if (discountType === 'flat') return Math.min(val, subtotal);
+    return 0;
+  }, [discountType, discountValue, subtotal]);
+
+  const newTotal = subtotal - discountAmount;
 
   const updateItemsMutation = useMutation({
     mutationFn: async () => {
       if (!order) return;
 
-      // Update each item
+      const isIGST = order.is_igst;
+
       for (const item of orderItems) {
         const adjusted = adjustedItems[item.id];
         if (!adjusted) continue;
@@ -76,25 +136,24 @@ export function WeightAdjustmentDialog({
         const unitPrice = parseFloat(adjusted.price) || item.unit_price;
         const totalPrice = actualWeight * unitPrice;
         
-        // Calculate tax based on GST type
         let taxableValue = totalPrice;
         let cgst = 0, sgst = 0, igst = 0;
         
-        if (item.gst_type === 'taxable' && item.gst_rate > 0) {
-          // For inclusive pricing, calculate taxable value
-          taxableValue = totalPrice / (1 + item.gst_rate / 100);
-          const totalTax = totalPrice - taxableValue;
-          
-          // Determine if IGST or CGST/SGST based on place of supply
-          // For now, assume same state (CGST/SGST)
-          cgst = totalTax / 2;
-          sgst = totalTax / 2;
+        if ((item.gst_type === 'taxable' || item.gst_type === 'Taxable') && item.gst_rate > 0) {
+          const gstAmount = (taxableValue * item.gst_rate) / 100;
+          if (isIGST) {
+            igst = gstAmount;
+          } else {
+            cgst = gstAmount / 2;
+            sgst = gstAmount / 2;
+          }
         }
 
         const { error } = await supabase
           .from('order_items')
           .update({
             actual_weight: actualWeight,
+            unit_price: unitPrice,
             total_price: totalPrice,
             taxable_value: taxableValue,
             cgst_amount: cgst,
@@ -107,21 +166,15 @@ export function WeightAdjustmentDialog({
         if (error) throw error;
       }
 
-      // Calculate new order total
-      const newTotal = orderItems.reduce((sum, item) => {
-        const adjusted = adjustedItems[item.id];
-        const weight = parseFloat(adjusted?.weight || '0') || item.quantity;
-        const price = parseFloat(adjusted?.price || '0') || item.unit_price;
-        return sum + (weight * price);
-      }, 0);
-
-      // Update order total and mark as finalized
       const { error: orderError } = await supabase
         .from('orders')
         .update({
           total_amount: newTotal,
           weight_finalized: true,
-          weight_finalized_at: new Date().toISOString()
+          weight_finalized_at: new Date().toISOString(),
+          discount_type: discountType,
+          discount_value: parseFloat(discountValue) || 0,
+          discount_amount: discountAmount,
         })
         .eq('id', order.id);
 
@@ -130,7 +183,7 @@ export function WeightAdjustmentDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'orderItems'] });
-      toast.success('Weights and prices updated successfully');
+      toast.success('Weights, prices and discount updated successfully');
       onOpenChange(false);
     },
     onError: (error: Error) => {
@@ -152,29 +205,18 @@ export function WeightAdjustmentDialog({
     }));
   };
 
-  const calculateItemTotal = (itemId: string, item: OrderItem) => {
-    const adjusted = adjustedItems[itemId];
-    const weight = parseFloat(adjusted?.weight || '0') || item.quantity;
-    const price = parseFloat(adjusted?.price || '0') || item.unit_price;
-    return weight * price;
-  };
-
-  const calculateNewTotal = () => {
-    return orderItems.reduce((sum, item) => sum + calculateItemTotal(item.id, item), 0);
-  };
-
   if (!order) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Scale className="h-5 w-5" />
             Adjust Weights & Prices
           </DialogTitle>
           <DialogDescription>
-            Update actual weights after weighing products. Final prices will be recalculated.
+            Update actual weights/quantities after verification. Final prices will be recalculated.
           </DialogDescription>
         </DialogHeader>
 
@@ -190,67 +232,139 @@ export function WeightAdjustmentDialog({
             <TableHeader>
               <TableRow>
                 <TableHead>Product</TableHead>
-                <TableHead>Ordered Qty</TableHead>
-                <TableHead>Actual Weight (kg)</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Ordered</TableHead>
+                <TableHead>Actual</TableHead>
                 <TableHead>Unit Price (₹)</TableHead>
                 <TableHead className="text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orderItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{item.product_name}</p>
-                      {item.hsn_code && (
-                        <p className="text-xs text-muted-foreground">HSN: {item.hsn_code}</p>
-                      )}
-                      <Badge variant="outline" className="text-xs mt-1">
-                        {item.gst_type === 'taxable' ? `GST ${item.gst_rate}%` : item.gst_type}
+              {orderItems.map((item) => {
+                const pm = getItemPricingModel(item);
+                const isUnit = pm === 'unit_based';
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{item.product_name}</p>
+                        {item.hsn_code && (
+                          <p className="text-xs text-muted-foreground">HSN: {item.hsn_code}</p>
+                        )}
+                        <Badge variant="outline" className="text-xs mt-1">
+                          {(item.gst_type === 'taxable' || item.gst_type === 'Taxable') ? `GST ${item.gst_rate}%` : item.gst_type}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-xs">
+                        {isUnit ? 'Unit' : 'Weight'}
                       </Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-muted-foreground">{item.quantity} kg</span>
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={adjustedItems[item.id]?.weight || ''}
-                      onChange={(e) => handleWeightChange(item.id, e.target.value)}
-                      className="w-24"
-                      disabled={order.weight_finalized}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={adjustedItems[item.id]?.price || ''}
-                      onChange={(e) => handlePriceChange(item.id, e.target.value)}
-                      className="w-24"
-                      disabled={order.weight_finalized}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(calculateItemTotal(item.id, item))}
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-muted-foreground">
+                        {item.quantity} {isUnit ? (item.quantity === 1 ? 'unit' : 'units') : 'kg'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          step={isUnit ? '1' : '0.01'}
+                          min={isUnit ? '1' : '0.01'}
+                          value={adjustedItems[item.id]?.weight || ''}
+                          onChange={(e) => {
+                            let val = e.target.value;
+                            if (isUnit) {
+                              const parsed = parseInt(val, 10);
+                              val = isNaN(parsed) || parsed < 1 ? '1' : parsed.toString();
+                            }
+                            handleWeightChange(item.id, val);
+                          }}
+                          className="w-24"
+                          disabled={order.weight_finalized}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {isUnit ? 'units' : 'kg'}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={adjustedItems[item.id]?.price || ''}
+                        onChange={(e) => handlePriceChange(item.id, e.target.value)}
+                        className="w-24"
+                        disabled={order.weight_finalized}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(calculateItemTotal(item.id, item))}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
+
+          {/* Discount Section */}
+          {!order.weight_finalized && (
+            <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+              <Label className="font-medium">Order Discount</Label>
+              <div className="flex items-center gap-3">
+                <Select value={discountType} onValueChange={(v: any) => setDiscountType(v)}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Discount</SelectItem>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="flat">Flat Amount (₹)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {discountType !== 'none' && (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      max={discountType === 'percentage' ? '100' : undefined}
+                      value={discountValue}
+                      onChange={(e) => setDiscountValue(e.target.value)}
+                      className="w-24"
+                    />
+                    {discountType === 'percentage' ? <Percent className="h-4 w-4 text-muted-foreground" /> : <IndianRupee className="h-4 w-4 text-muted-foreground" />}
+                  </div>
+                )}
+                {discountAmount > 0 && (
+                  <span className="text-sm text-destructive font-medium">
+                    −{formatCurrency(discountAmount)}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-between items-center p-4 bg-muted/50 rounded-lg">
             <div>
               <p className="text-sm text-muted-foreground">Original Total</p>
               <p className="font-medium">{formatCurrency(order.total_amount)}</p>
             </div>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Subtotal</p>
+              <p className="font-medium">{formatCurrency(subtotal)}</p>
+            </div>
+            {discountAmount > 0 && (
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">Discount</p>
+                <p className="font-medium text-destructive">−{formatCurrency(discountAmount)}</p>
+              </div>
+            )}
             <div className="text-right">
               <p className="text-sm text-muted-foreground">New Total</p>
-              <p className="text-xl font-bold text-primary">{formatCurrency(calculateNewTotal())}</p>
+              <p className="text-xl font-bold text-primary">{formatCurrency(newTotal)}</p>
             </div>
           </div>
 

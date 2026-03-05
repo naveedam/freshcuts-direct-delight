@@ -5,7 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// HTML escape function to prevent XSS
 function escapeHtml(unsafe: string | null | undefined): string {
   if (!unsafe) return '';
   return String(unsafe)
@@ -41,10 +40,15 @@ interface Order {
   shipping_address: string | null;
   shipping_city: string | null;
   shipping_postal_code: string | null;
+  building_name: string | null;
+  flat_number: string | null;
   place_of_supply: string | null;
   is_igst: boolean;
   notes: string | null;
   created_at: string;
+  discount_type: string | null;
+  discount_value: number | null;
+  discount_amount: number | null;
 }
 
 interface Business {
@@ -84,40 +88,25 @@ interface GSTSummary {
   grand_total: number;
 }
 
-// Calculate GST for a line item
 function calculateLineItemGST(
-  quantity: number,
-  unitPrice: number,
-  gstType: string,
-  gstRate: number,
-  isIGST: boolean
+  quantity: number, unitPrice: number, gstType: string, gstRate: number, isIGST: boolean
 ): { taxableValue: number; cgst: number; sgst: number; igst: number } {
   const lineValue = quantity * unitPrice;
-  
   if (gstType === 'exempt' || gstType === 'nil' || gstRate === 0) {
     return { taxableValue: 0, cgst: 0, sgst: 0, igst: 0 };
   }
-  
-  // For taxable items, calculate GST
   const taxableValue = lineValue;
   const totalGST = (taxableValue * gstRate) / 100;
-  
-  if (isIGST) {
-    return { taxableValue, cgst: 0, sgst: 0, igst: totalGST };
-  } else {
-    const halfGST = totalGST / 2;
-    return { taxableValue, cgst: halfGST, sgst: halfGST, igst: 0 };
-  }
+  if (isIGST) return { taxableValue, cgst: 0, sgst: 0, igst: totalGST };
+  const halfGST = totalGST / 2;
+  return { taxableValue, cgst: halfGST, sgst: halfGST, igst: 0 };
 }
 
-// Build HSN summary table
 function buildHSNSummary(items: OrderItem[], isIGST: boolean): HSNSummary[] {
   const hsnMap = new Map<string, HSNSummary>();
-  
   items.forEach(item => {
     const hsnCode = item.hsn_code || 'N/A';
     const existing = hsnMap.get(hsnCode);
-    
     if (existing) {
       existing.quantity += Number(item.quantity);
       existing.taxable_value += Number(item.taxable_value);
@@ -128,74 +117,39 @@ function buildHSNSummary(items: OrderItem[], isIGST: boolean): HSNSummary[] {
     } else {
       const gstRate = Number(item.gst_rate);
       hsnMap.set(hsnCode, {
-        hsn_code: hsnCode,
-        description: item.product_name,
-        quantity: Number(item.quantity),
+        hsn_code: hsnCode, description: item.product_name, quantity: Number(item.quantity),
         taxable_value: Number(item.taxable_value),
-        cgst_rate: isIGST ? 0 : gstRate / 2,
-        cgst_amount: Number(item.cgst_amount),
-        sgst_rate: isIGST ? 0 : gstRate / 2,
-        sgst_amount: Number(item.sgst_amount),
-        igst_rate: isIGST ? gstRate : 0,
-        igst_amount: Number(item.igst_amount),
+        cgst_rate: isIGST ? 0 : gstRate / 2, cgst_amount: Number(item.cgst_amount),
+        sgst_rate: isIGST ? 0 : gstRate / 2, sgst_amount: Number(item.sgst_amount),
+        igst_rate: isIGST ? gstRate : 0, igst_amount: Number(item.igst_amount),
         total_tax: Number(item.cgst_amount) + Number(item.sgst_amount) + Number(item.igst_amount),
       });
     }
   });
-  
   return Array.from(hsnMap.values());
 }
 
-// Calculate GST summary
 function calculateGSTSummary(items: OrderItem[]): GSTSummary {
-  let totalTaxableValue = 0;
-  let totalExemptValue = 0;
-  let totalNilRatedValue = 0;
-  let totalCGST = 0;
-  let totalSGST = 0;
-  let totalIGST = 0;
-  
+  let totalTaxableValue = 0, totalExemptValue = 0, totalNilRatedValue = 0;
+  let totalCGST = 0, totalSGST = 0, totalIGST = 0;
   items.forEach(item => {
     const lineValue = Number(item.quantity) * Number(item.unit_price);
-    
-    if (item.gst_type === 'exempt') {
-      totalExemptValue += lineValue;
-    } else if (item.gst_type === 'nil') {
-      totalNilRatedValue += lineValue;
-    } else if (item.gst_type === 'taxable') {
-      totalTaxableValue += Number(item.taxable_value);
-    }
-    
+    if (item.gst_type === 'exempt') totalExemptValue += lineValue;
+    else if (item.gst_type === 'nil') totalNilRatedValue += lineValue;
+    else if (item.gst_type === 'taxable') totalTaxableValue += Number(item.taxable_value);
     totalCGST += Number(item.cgst_amount);
     totalSGST += Number(item.sgst_amount);
     totalIGST += Number(item.igst_amount);
   });
-  
   const totalTax = totalCGST + totalSGST + totalIGST;
   const grandTotal = totalTaxableValue + totalExemptValue + totalNilRatedValue + totalTax;
-  
-  return {
-    total_taxable_value: totalTaxableValue,
-    total_exempt_value: totalExemptValue,
-    total_nil_rated_value: totalNilRatedValue,
-    total_cgst: totalCGST,
-    total_sgst: totalSGST,
-    total_igst: totalIGST,
-    total_tax: totalTax,
-    grand_total: grandTotal,
-  };
+  return { total_taxable_value: totalTaxableValue, total_exempt_value: totalExemptValue, total_nil_rated_value: totalNilRatedValue, total_cgst: totalCGST, total_sgst: totalSGST, total_igst: totalIGST, total_tax: totalTax, grand_total: grandTotal };
 }
 
-// Format currency
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 2,
-  }).format(amount);
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 }).format(amount);
 }
 
-// Get GST type label
 function getGSTTypeLabel(gstType: string, gstRate: number): string {
   if (gstType === 'exempt') return 'Exempt';
   if (gstType === 'nil') return 'NIL (0%)';
@@ -203,161 +157,62 @@ function getGSTTypeLabel(gstType: string, gstRate: number): string {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    // 1. Verify authentication
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    if (!authHeader) return new Response(JSON.stringify({ error: 'Missing authorization header' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    // 2. Create client with user's auth token
-    const supabaseAuth = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
+    const supabaseAuth = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', { global: { headers: { Authorization: authHeader } } });
     const token = authHeader.replace('Bearer ', '');
     const { data: claimsData, error: authError } = await supabaseAuth.auth.getClaims(token);
-    if (authError || !claimsData?.claims) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid or expired token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    if (authError || !claimsData?.claims) return new Response(JSON.stringify({ error: 'Invalid or expired token' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     const userId = claimsData.claims.sub as string;
 
-    // 3. Verify admin role
-    const { data: isAdmin, error: roleError } = await supabaseAuth.rpc('has_role', {
-      _user_id: userId,
-      _role: 'admin'
-    });
+    const { data: isAdmin, error: roleError } = await supabaseAuth.rpc('has_role', { _user_id: userId, _role: 'admin' });
+    if (roleError || !isAdmin) return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    if (roleError || !isAdmin) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden: Admin access required' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // 4. Validate input
     const { orderId, recalculate = false } = await req.json();
-    
-    if (!orderId) {
-      return new Response(JSON.stringify({ error: 'Order ID is required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    if (!orderId) return new Response(JSON.stringify({ error: 'Order ID is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId)) return new Response(JSON.stringify({ error: 'Invalid order ID format' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    // Validate UUID format
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId)) {
-      return new Response(JSON.stringify({ error: 'Invalid order ID format' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 
-    console.log('Generating GST invoice for order:', orderId);
+    const { data: order, error: orderError } = await supabase.from('orders').select('*').eq('id', orderId).single();
+    if (orderError || !order) return new Response(JSON.stringify({ error: 'Order not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    // 5. Now safe to use service role for document generation
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    let { data: orderItems, error: itemsError } = await supabase.from('order_items').select('*').eq('order_id', orderId);
+    if (itemsError) orderItems = [];
 
-    // Fetch order details
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', orderId)
-      .single();
-
-    if (orderError || !order) {
-      console.error('Order not found:', orderError);
-      return new Response(JSON.stringify({ error: 'Order not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    // Fetch order items with GST data
-    let { data: orderItems, error: itemsError } = await supabase
-      .from('order_items')
-      .select('*')
-      .eq('order_id', orderId);
-
-    if (itemsError) {
-      console.error('Failed to fetch order items:', itemsError);
-      orderItems = [];
-    }
-
-    // If recalculate flag is set, recalculate GST for all items
     if (recalculate && orderItems && orderItems.length > 0) {
       for (const item of orderItems) {
-        const gst = calculateLineItemGST(
-          Number(item.quantity),
-          Number(item.unit_price),
-          item.gst_type || 'exempt',
-          Number(item.gst_rate) || 0,
-          order.is_igst
-        );
-        
-        // Update the item in database
-        await supabase
-          .from('order_items')
-          .update({
-            taxable_value: gst.taxableValue,
-            cgst_amount: gst.cgst,
-            sgst_amount: gst.sgst,
-            igst_amount: gst.igst,
-          })
-          .eq('id', item.id);
-        
-        // Update local item for HTML generation
-        item.taxable_value = gst.taxableValue;
-        item.cgst_amount = gst.cgst;
-        item.sgst_amount = gst.sgst;
-        item.igst_amount = gst.igst;
+        const gst = calculateLineItemGST(Number(item.quantity), Number(item.unit_price), item.gst_type || 'exempt', Number(item.gst_rate) || 0, order.is_igst);
+        await supabase.from('order_items').update({ taxable_value: gst.taxableValue, cgst_amount: gst.cgst, sgst_amount: gst.sgst, igst_amount: gst.igst }).eq('id', item.id);
+        item.taxable_value = gst.taxableValue; item.cgst_amount = gst.cgst; item.sgst_amount = gst.sgst; item.igst_amount = gst.igst;
       }
     }
 
-    // Fetch business settings
-    const { data: businessSettings } = await supabase
-      .from('business_settings')
-      .select('*')
-      .limit(1)
-      .maybeSingle();
-
-    const business: Business = businessSettings || {
-      business_name: 'My Business',
-      address: null,
-      city: null,
-      postal_code: null,
-      phone: null,
-      email: null,
-      gstin: null,
-      state_code: null,
-      state_name: null,
-    };
+    const { data: businessSettings } = await supabase.from('business_settings').select('*').limit(1).maybeSingle();
+    const business: Business = businessSettings || { business_name: 'My Business', address: null, city: null, postal_code: null, phone: null, email: null, gstin: null, state_code: null, state_name: null };
 
     const items = (orderItems || []) as OrderItem[];
     const isIGST = order.is_igst;
     const hsnSummary = buildHSNSummary(items, isIGST);
     const gstSummary = calculateGSTSummary(items);
 
-    const invoiceDate = new Date(order.created_at).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    const discountAmount = Number(order.discount_amount) || 0;
+    const discountType = order.discount_type || 'none';
+    const discountValue = Number(order.discount_value) || 0;
+    const subtotal = gstSummary.total_exempt_value + gstSummary.total_nil_rated_value + gstSummary.total_taxable_value;
+    const grandTotalWithDiscount = gstSummary.grand_total - discountAmount;
+
+    const invoiceDate = new Date(order.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Build address for Bill To
+    const addressParts = [
+      order.building_name, order.flat_number ? `Flat: ${order.flat_number}` : null,
+      order.shipping_address, [order.shipping_city, order.shipping_postal_code].filter(Boolean).join(', ')
+    ].filter(Boolean);
 
     const html = `
 <!DOCTYPE html>
@@ -394,6 +249,7 @@ Deno.serve(async (req) => {
     .summary-box h4 { color: #16a34a; font-size: 11px; text-transform: uppercase; margin-bottom: 10px; }
     .summary-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px; }
     .summary-row.total { border-top: 2px solid #16a34a; margin-top: 8px; padding-top: 8px; font-weight: bold; font-size: 14px; color: #16a34a; }
+    .summary-row.discount { color: #dc2626; }
     .gst-tag { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: 600; }
     .gst-exempt { background: #fef3c7; color: #92400e; }
     .gst-nil { background: #e0e7ff; color: #3730a3; }
@@ -407,10 +263,7 @@ Deno.serve(async (req) => {
     .signature-box { text-align: right; }
     .signature-line { margin-top: 40px; border-top: 1px solid #333; width: 150px; margin-left: auto; }
     .signature-label { font-size: 10px; color: #666; margin-top: 5px; }
-    @media print { 
-      body { padding: 0; background: white; }
-      .invoice { box-shadow: none; padding: 20px; }
-    }
+    @media print { body { padding: 0; background: white; } .invoice { box-shadow: none; padding: 20px; } }
   </style>
 </head>
 <body>
@@ -434,9 +287,7 @@ Deno.serve(async (req) => {
       </div>
     </div>
 
-    <div class="invoice-title">
-      <h2>TAX INVOICE</h2>
-    </div>
+    <div class="invoice-title"><h2>TAX INVOICE</h2></div>
 
     <div class="addresses">
       <div class="address-block">
@@ -448,8 +299,7 @@ Deno.serve(async (req) => {
       </div>
       <div class="address-block">
         <h3>Bill To / Ship To</h3>
-        <p>${escapeHtml(order.shipping_address) || 'N/A'}</p>
-        <p>${escapeHtml(order.shipping_city)}${order.shipping_postal_code ? ', ' + escapeHtml(order.shipping_postal_code) : ''}</p>
+        ${addressParts.map(p => `<p>${escapeHtml(p)}</p>`).join('')}
         ${order.phone ? `<p>Phone: ${escapeHtml(order.phone)}</p>` : ''}
         ${order.customer_email ? `<p>Email: ${escapeHtml(order.customer_email)}</p>` : ''}
       </div>
@@ -477,7 +327,6 @@ Deno.serve(async (req) => {
           const total = lineValue + taxAmount;
           const gstLabel = getGSTTypeLabel(item.gst_type, Number(item.gst_rate));
           const gstClass = item.gst_type === 'exempt' ? 'gst-exempt' : item.gst_type === 'nil' ? 'gst-nil' : 'gst-taxable';
-          
           return `
           <tr>
             <td>${index + 1}</td>
@@ -500,15 +349,7 @@ Deno.serve(async (req) => {
         <tr>
           <th>HSN Code</th>
           <th class="text-right">Taxable Value</th>
-          ${isIGST ? `
-            <th class="text-center">IGST Rate</th>
-            <th class="text-right">IGST Amount</th>
-          ` : `
-            <th class="text-center">CGST Rate</th>
-            <th class="text-right">CGST Amount</th>
-            <th class="text-center">SGST Rate</th>
-            <th class="text-right">SGST Amount</th>
-          `}
+          ${isIGST ? `<th class="text-center">IGST Rate</th><th class="text-right">IGST Amount</th>` : `<th class="text-center">CGST Rate</th><th class="text-right">CGST Amount</th><th class="text-center">SGST Rate</th><th class="text-right">SGST Amount</th>`}
           <th class="text-right">Total Tax</th>
         </tr>
       </thead>
@@ -517,15 +358,7 @@ Deno.serve(async (req) => {
           <tr>
             <td>${escapeHtml(hsn.hsn_code)}</td>
             <td class="text-right">${formatCurrency(hsn.taxable_value)}</td>
-            ${isIGST ? `
-              <td class="text-center">${hsn.igst_rate}%</td>
-              <td class="text-right">${formatCurrency(hsn.igst_amount)}</td>
-            ` : `
-              <td class="text-center">${hsn.cgst_rate}%</td>
-              <td class="text-right">${formatCurrency(hsn.cgst_amount)}</td>
-              <td class="text-center">${hsn.sgst_rate}%</td>
-              <td class="text-right">${formatCurrency(hsn.sgst_amount)}</td>
-            `}
+            ${isIGST ? `<td class="text-center">${hsn.igst_rate}%</td><td class="text-right">${formatCurrency(hsn.igst_amount)}</td>` : `<td class="text-center">${hsn.cgst_rate}%</td><td class="text-right">${formatCurrency(hsn.cgst_amount)}</td><td class="text-center">${hsn.sgst_rate}%</td><td class="text-right">${formatCurrency(hsn.sgst_amount)}</td>`}
             <td class="text-right">${formatCurrency(hsn.total_tax)}</td>
           </tr>
         `).join('')}
@@ -541,19 +374,15 @@ Deno.serve(async (req) => {
       </div>
       <div class="summary-box">
         <h4>Tax Summary</h4>
-        ${isIGST ? `
-          <div class="summary-row"><span>IGST</span><span>${formatCurrency(gstSummary.total_igst)}</span></div>
-        ` : `
-          <div class="summary-row"><span>CGST</span><span>${formatCurrency(gstSummary.total_cgst)}</span></div>
-          <div class="summary-row"><span>SGST</span><span>${formatCurrency(gstSummary.total_sgst)}</span></div>
-        `}
+        ${isIGST ? `<div class="summary-row"><span>IGST</span><span>${formatCurrency(gstSummary.total_igst)}</span></div>` : `<div class="summary-row"><span>CGST</span><span>${formatCurrency(gstSummary.total_cgst)}</span></div><div class="summary-row"><span>SGST</span><span>${formatCurrency(gstSummary.total_sgst)}</span></div>`}
         <div class="summary-row" style="border-top: 1px solid #ddd; margin-top: 5px; padding-top: 5px;"><span><strong>Total Tax</strong></span><span><strong>${formatCurrency(gstSummary.total_tax)}</strong></span></div>
       </div>
       <div class="summary-box">
         <h4>Invoice Total</h4>
-        <div class="summary-row"><span>Subtotal</span><span>${formatCurrency(gstSummary.total_exempt_value + gstSummary.total_nil_rated_value + gstSummary.total_taxable_value)}</span></div>
+        <div class="summary-row"><span>Subtotal</span><span>${formatCurrency(subtotal)}</span></div>
         <div class="summary-row"><span>Total Tax</span><span>${formatCurrency(gstSummary.total_tax)}</span></div>
-        <div class="summary-row total"><span>Grand Total</span><span>${formatCurrency(gstSummary.grand_total)}</span></div>
+        ${discountAmount > 0 ? `<div class="summary-row discount"><span>Discount${discountType === 'percentage' ? ` (${discountValue}%)` : ''}</span><span>-${formatCurrency(discountAmount)}</span></div>` : ''}
+        <div class="summary-row total"><span>Grand Total</span><span>${formatCurrency(grandTotalWithDiscount)}</span></div>
       </div>
     </div>
 
@@ -586,18 +415,10 @@ Deno.serve(async (req) => {
 </html>
     `;
 
-    console.log('GST Invoice generated successfully');
-
-    return new Response(html, {
-      headers: { ...corsHeaders, 'Content-Type': 'text/html' }
-    });
-
+    return new Response(html, { headers: { ...corsHeaders, 'Content-Type': 'text/html' } });
   } catch (error: unknown) {
     console.error('Error generating invoice:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(JSON.stringify({ error: errorMessage }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });

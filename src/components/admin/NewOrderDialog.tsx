@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -9,9 +9,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Loader2, PackagePlus } from 'lucide-react';
+import { Plus, Trash2, Loader2, PackagePlus, Percent, IndianRupee } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { formatCurrency } from '@/lib/currency';
 
 interface OrderLineItem {
   product_id: string | null;
@@ -105,6 +106,8 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   const [shippingPostalCode, setShippingPostalCode] = useState('');
   const [placeOfSupply, setPlaceOfSupply] = useState('29');
   const [notes, setNotes] = useState('');
+  const [discountType, setDiscountType] = useState<'none' | 'percentage' | 'flat'>('none');
+  const [discountValue, setDiscountValue] = useState('0');
   
   // Line items
   const [lineItems, setLineItems] = useState<OrderLineItem[]>([
@@ -166,6 +169,8 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
     setShippingPostalCode('');
     setPlaceOfSupply('29');
     setNotes('');
+    setDiscountType('none');
+    setDiscountValue('0');
     setLineItems([{ product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0 }]);
   };
 
@@ -289,6 +294,16 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
     };
   }, { taxableValue: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
 
+  // Discount calculation
+  const discountAmount = useMemo(() => {
+    const val = parseFloat(discountValue) || 0;
+    if (discountType === 'percentage') return Math.min((orderTotals.total * val) / 100, orderTotals.total);
+    if (discountType === 'flat') return Math.min(val, orderTotals.total);
+    return 0;
+  }, [discountType, discountValue, orderTotals.total]);
+
+  const finalTotal = orderTotals.total - discountAmount;
+
   const createOrderMutation = useMutation({
     mutationFn: async () => {
       // Validate
@@ -341,8 +356,11 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
           place_of_supply: placeOfSupply,
           is_igst: isIGST,
           notes: notes || null,
-          total_amount: orderTotals.total,
-          status: 'pending'
+          total_amount: finalTotal,
+          status: 'pending',
+          discount_type: discountType,
+          discount_value: parseFloat(discountValue) || 0,
+          discount_amount: discountAmount,
         })
         .select()
         .single();
@@ -642,9 +660,45 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
               </Table>
             </div>
 
+            {/* Discount */}
+            <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+              <Label className="font-medium">Order Discount</Label>
+              <div className="flex items-center gap-3">
+                <Select value={discountType} onValueChange={(v: any) => setDiscountType(v)}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Discount</SelectItem>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="flat">Flat Amount (₹)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {discountType !== 'none' && (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      max={discountType === 'percentage' ? '100' : undefined}
+                      value={discountValue}
+                      onChange={(e) => setDiscountValue(e.target.value)}
+                      className="w-24"
+                    />
+                    {discountType === 'percentage' ? <Percent className="h-4 w-4 text-muted-foreground" /> : <IndianRupee className="h-4 w-4 text-muted-foreground" />}
+                  </div>
+                )}
+                {discountAmount > 0 && (
+                  <span className="text-sm text-destructive font-medium">
+                    −{formatCurrency(discountAmount)}
+                  </span>
+                )}
+              </div>
+            </div>
+
             {/* Totals */}
             <div className="flex justify-end">
-              <div className="w-64 space-y-2 text-sm">
+              <div className="w-72 space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Taxable Value:</span>
                   <span>₹{orderTotals.taxableValue.toFixed(2)}</span>
@@ -666,9 +720,19 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                     </div>
                   </>
                 )}
-                <div className="flex justify-between font-bold border-t pt-2">
-                  <span>Total:</span>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subtotal:</span>
                   <span>₹{orderTotals.total.toFixed(2)}</span>
+                </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-destructive">
+                    <span>Discount{discountType === 'percentage' ? ` (${discountValue}%)` : ''}:</span>
+                    <span>−₹{discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold border-t pt-2 text-base">
+                  <span>Total:</span>
+                  <span>₹{finalTotal.toFixed(2)}</span>
                 </div>
               </div>
             </div>
