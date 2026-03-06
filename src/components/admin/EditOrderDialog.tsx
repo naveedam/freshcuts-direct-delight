@@ -38,6 +38,7 @@ interface EditableItem {
   hsn_code: string;
   gst_type: string;
   gst_rate: number;
+  vendor_id: string | null;
   _removed?: boolean;
 }
 
@@ -91,23 +92,49 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
     },
   });
 
+  // Fetch vendors
+  const { data: vendors } = useQuery({
+    queryKey: ['vendors-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('vendors').select('*').eq('status', 'active').order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch vendor-product mappings
+  const { data: vendorProducts } = useQuery({
+    queryKey: ['vendor-products-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('vendor_products').select('*').order('is_preferred_vendor', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Initialize items from orderItems
   useEffect(() => {
     if (open && orderItems.length > 0) {
       setItems(
-        orderItems.map((oi) => ({
-          id: oi.id,
-          product_id: oi.product_id,
-          product_name: oi.product_name,
-          quantity: Number(oi.quantity),
-          unit_price: Number(oi.unit_price),
-          hsn_code: oi.hsn_code || '',
-          gst_type: oi.gst_type,
-          gst_rate: Number(oi.gst_rate),
-        }))
+        orderItems.map((oi) => {
+          // Try to find preferred vendor for this product
+          const preferredVp = oi.product_id ? vendorProducts?.find(vp => vp.product_id === oi.product_id && vp.is_preferred_vendor) : null;
+          const anyVp = oi.product_id ? vendorProducts?.find(vp => vp.product_id === oi.product_id) : null;
+          return {
+            id: oi.id,
+            product_id: oi.product_id,
+            product_name: oi.product_name,
+            quantity: Number(oi.quantity),
+            unit_price: Number(oi.unit_price),
+            hsn_code: oi.hsn_code || '',
+            gst_type: oi.gst_type,
+            gst_rate: Number(oi.gst_rate),
+            vendor_id: preferredVp?.vendor_id || anyVp?.vendor_id || null,
+          };
+        })
       );
     }
-  }, [open, orderItems]);
+  }, [open, orderItems, vendorProducts]);
 
   const lockReason = isOrderLocked(order);
   const isIGST = order?.is_igst ?? false;
@@ -177,6 +204,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
         hsn_code: '',
         gst_type: 'Exempt',
         gst_rate: 0,
+        vendor_id: null,
       },
     ]);
   };
@@ -184,8 +212,9 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
   const selectProduct = (index: number, productId: string) => {
     const product = products?.find((p) => p.id === productId);
     if (!product) return;
-    updateItem(index, 'product_id', product.id);
-    // batch the rest
+    const preferredVp = vendorProducts?.find(vp => vp.product_id === productId && vp.is_preferred_vendor);
+    const anyVp = vendorProducts?.find(vp => vp.product_id === productId);
+    const autoVendorId = preferredVp?.vendor_id || anyVp?.vendor_id || null;
     setItems((prev) => {
       const next = [...prev];
       let activeIdx = -1;
@@ -200,6 +229,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
             hsn_code: product.hsn_code || '',
             gst_type: product.gst_type || 'Exempt',
             gst_rate: Number(product.gst_rate) || 0,
+            vendor_id: autoVendorId,
           };
           break;
         }
@@ -351,11 +381,63 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
         });
         if (logErr) console.error('Audit log failed:', logErr);
       }
+
+      // Auto-generate purchase orders grouped by vendor
+      const vendorItemsMap = activeItems
+        .filter(item => item.product_name && item.vendor_id)
+        .reduce((acc, item) => {
+          const vid = item.vendor_id!;
+          if (!acc[vid]) acc[vid] = [];
+          acc[vid].push(item);
+          return acc;
+        }, {} as Record<string, EditableItem[]>);
+
+      for (const [vendorId, vItems] of Object.entries(vendorItemsMap)) {
+        try {
+          const { data: poNumber } = await supabase.rpc('generate_po_number');
+          const subtotal = vItems.reduce((sum, it) => sum + (it.quantity * it.unit_price), 0);
+          const taxAmount = vItems.reduce((sum, it) => {
+            const gst = calculateLineGST(it, isIGST);
+            return sum + gst.cgst + gst.sgst + gst.igst;
+          }, 0);
+
+          const { data: po, error: poError } = await supabase
+            .from('purchase_orders')
+            .insert({
+              po_number: poNumber || `PO-AUTO-${Date.now()}`,
+              vendor_id: vendorId,
+              status: 'draft',
+              subtotal,
+              tax_amount: taxAmount,
+              total_amount: subtotal + taxAmount,
+              notes: `Auto-generated from Order #${order.id.slice(0, 8)}`,
+            })
+            .select()
+            .single();
+
+          if (poError) { console.error('Failed to create PO', poError); continue; }
+
+          const poItems = vItems.map(it => ({
+            purchase_order_id: po.id,
+            product_id: it.product_id || null,
+            product_name: it.product_name,
+            quantity: it.quantity,
+            unit_cost: it.unit_price,
+            total_cost: it.quantity * it.unit_price,
+          }));
+
+          await supabase.from('purchase_order_items').insert(poItems);
+        } catch (e) {
+          console.error('PO generation error:', e);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'orderItems'] });
-      toast.success('Order updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-order-stats'] });
+      toast.success('Order updated. Purchase orders generated for assigned vendors.');
       onOpenChange(false);
     },
     onError: (error) => {
@@ -365,7 +447,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
             Edit Order {order ? `#${order.id.slice(0, 8)}` : ''}
@@ -398,12 +480,13 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[220px]">Product</TableHead>
+                        <TableHead className="w-[180px]">Product</TableHead>
+                        <TableHead className="w-[130px]">Vendor</TableHead>
                         <TableHead className="w-[80px]">Qty</TableHead>
-                        <TableHead className="w-[100px]">Price</TableHead>
-                        <TableHead className="w-[80px]">HSN</TableHead>
-                        <TableHead className="w-[100px]">GST</TableHead>
-                        <TableHead className="w-[90px] text-right">Total</TableHead>
+                        <TableHead className="w-[90px]">Price</TableHead>
+                        <TableHead className="w-[70px]">HSN</TableHead>
+                        <TableHead className="w-[80px]">GST</TableHead>
+                        <TableHead className="w-[80px] text-right">Total</TableHead>
                         <TableHead className="w-[40px]" />
                       </TableRow>
                     </TableHeader>
@@ -431,6 +514,24 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
                               )}
                             </TableCell>
                             <TableCell>
+                              <Select
+                                value={item.vendor_id || 'none'}
+                                onValueChange={(v) => updateItem(idx, 'vendor_id', v === 'none' ? null : v)}
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue placeholder="No vendor" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none" className="text-xs">No vendor</SelectItem>
+                                  {vendors?.map((v) => (
+                                    <SelectItem key={v.id} value={v.id} className="text-xs">
+                                      {v.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
                               <Input
                                 type="number"
                                 className="h-8 w-20 text-xs"
@@ -443,7 +544,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
                             <TableCell>
                               <Input
                                 type="number"
-                                className="h-8 w-24 text-xs"
+                                className="h-8 w-20 text-xs"
                                 value={item.unit_price}
                                 min={0}
                                 step="any"

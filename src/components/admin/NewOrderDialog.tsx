@@ -22,6 +22,7 @@ interface OrderLineItem {
   hsn_code: string;
   gst_type: string;
   gst_rate: number;
+  vendor_id: string | null;
   is_custom?: boolean;
   unit_type?: 'weight_based' | 'unit_based';
   category?: string;
@@ -86,6 +87,7 @@ const defaultCustomItem: Omit<OrderLineItem, 'product_id'> & { product_id: null 
   hsn_code: '',
   gst_type: 'Exempt',
   gst_rate: 0,
+  vendor_id: null,
   is_custom: true,
   unit_type: 'weight_based',
   category: '',
@@ -111,7 +113,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   
   // Line items
   const [lineItems, setLineItems] = useState<OrderLineItem[]>([
-    { product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0 }
+    { product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }
   ]);
 
   // Custom item dialog
@@ -159,6 +161,33 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
     }
   });
 
+  // Fetch vendors
+  const { data: vendors } = useQuery({
+    queryKey: ['vendors-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vendors')
+        .select('*')
+        .eq('status', 'active')
+        .order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch vendor-product mappings for auto-assigning preferred vendor
+  const { data: vendorProducts } = useQuery({
+    queryKey: ['vendor-products-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vendor_products')
+        .select('*')
+        .order('is_preferred_vendor', { ascending: false });
+      if (error) throw error;
+      return data;
+    }
+  });
+
   const resetForm = () => {
     setCustomerEmail('');
     setCustomerPhone('');
@@ -171,11 +200,11 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
     setNotes('');
     setDiscountType('none');
     setDiscountValue('0');
-    setLineItems([{ product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0 }]);
+    setLineItems([{ product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }]);
   };
 
   const addLineItem = () => {
-    setLineItems([...lineItems, { product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0 }]);
+    setLineItems([...lineItems, { product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }]);
   };
 
   const removeLineItem = (index: number) => {
@@ -193,6 +222,11 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   const selectProduct = (index: number, productId: string) => {
     const product = products?.find(p => p.id === productId);
     if (product) {
+      // Find preferred vendor for this product
+      const preferredVp = vendorProducts?.find(vp => vp.product_id === productId && vp.is_preferred_vendor);
+      const anyVp = vendorProducts?.find(vp => vp.product_id === productId);
+      const autoVendorId = preferredVp?.vendor_id || anyVp?.vendor_id || null;
+
       const updated = [...lineItems];
       updated[index] = {
         product_id: product.id,
@@ -201,7 +235,8 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
         unit_price: product.price,
         hsn_code: product.hsn_code || '',
         gst_type: product.gst_type || 'Exempt',
-        gst_rate: product.gst_rate || 0
+        gst_rate: product.gst_rate || 0,
+        vendor_id: autoVendorId,
       };
       setLineItems(updated);
     }
@@ -240,6 +275,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
       hsn_code: customItemData.hsn_code,
       gst_type: customItemData.gst_type,
       gst_rate: customItemData.gst_type === 'Taxable' ? customItemData.gst_rate : 0,
+      vendor_id: customItemData.vendor_id,
       is_custom: true,
       unit_type: customItemData.unit_type,
       category: customItemData.category,
@@ -395,13 +431,72 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
 
       if (itemsError) throw itemsError;
 
+      // Auto-generate purchase orders grouped by vendor
+      const vendorItems = lineItems
+        .filter(item => item.product_name && item.vendor_id)
+        .reduce((acc, item) => {
+          const vid = item.vendor_id!;
+          if (!acc[vid]) acc[vid] = [];
+          acc[vid].push(item);
+          return acc;
+        }, {} as Record<string, OrderLineItem[]>);
+
+      for (const [vendorId, items] of Object.entries(vendorItems)) {
+        try {
+          const { data: poNumber } = await supabase.rpc('generate_po_number');
+          const subtotal = items.reduce((sum, it) => sum + (it.quantity * it.unit_price), 0);
+          const taxAmount = items.reduce((sum, it) => {
+            const gst = calculateLineGST(it);
+            return sum + gst.cgst + gst.sgst + gst.igst;
+          }, 0);
+
+          const { data: po, error: poError } = await supabase
+            .from('purchase_orders')
+            .insert({
+              po_number: poNumber || `PO-AUTO-${Date.now()}`,
+              vendor_id: vendorId,
+              status: 'draft',
+              subtotal,
+              tax_amount: taxAmount,
+              total_amount: subtotal + taxAmount,
+              notes: `Auto-generated from Order #${order.id.slice(0, 8)}`,
+            })
+            .select()
+            .single();
+
+          if (poError) {
+            console.error('Failed to create PO for vendor', vendorId, poError);
+            continue;
+          }
+
+          const poItems = items.map(it => ({
+            purchase_order_id: po.id,
+            product_id: it.product_id || null,
+            product_name: it.product_name,
+            quantity: it.quantity,
+            unit_cost: it.unit_price,
+            total_cost: it.quantity * it.unit_price,
+          }));
+
+          const { error: poItemsError } = await supabase
+            .from('purchase_order_items')
+            .insert(poItems);
+
+          if (poItemsError) console.error('Failed to create PO items', poItemsError);
+        } catch (e) {
+          console.error('PO generation error:', e);
+        }
+      }
+
       return order;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-order-stats'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast.success('Order created successfully');
+      toast.success('Order created successfully. Purchase orders generated for assigned vendors.');
       resetForm();
       onOpenChange(false);
     },
@@ -420,7 +515,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
       if (!isOpen) resetForm();
       onOpenChange(isOpen);
     }}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Order</DialogTitle>
         </DialogHeader>
@@ -538,14 +633,15 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[250px]">Product</TableHead>
+                    <TableHead className="w-[200px]">Product</TableHead>
+                    <TableHead className="w-[140px]">Vendor</TableHead>
                     <TableHead className="w-[80px]">Qty</TableHead>
-                    <TableHead className="w-[100px]">Unit Price</TableHead>
-                    <TableHead className="w-[100px]">HSN</TableHead>
-                    <TableHead className="w-[120px]">GST Type</TableHead>
-                    <TableHead className="w-[80px]">GST %</TableHead>
-                    <TableHead className="w-[100px] text-right">Total</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead className="w-[90px]">Unit Price</TableHead>
+                    <TableHead className="w-[80px]">HSN</TableHead>
+                    <TableHead className="w-[110px]">GST Type</TableHead>
+                    <TableHead className="w-[70px]">GST %</TableHead>
+                    <TableHead className="w-[90px] text-right">Total</TableHead>
+                    <TableHead className="w-[40px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -557,7 +653,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                         <TableCell>
                           {isCustom ? (
                             <div className="flex items-center gap-1.5">
-                              <span className="text-sm truncate max-w-[180px]">{item.product_name}</span>
+                              <span className="text-sm truncate max-w-[140px]">{item.product_name}</span>
                               <Badge variant="secondary" className="text-xs shrink-0">Custom</Badge>
                             </div>
                           ) : (
@@ -565,18 +661,36 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                               value={item.product_id || ''}
                               onValueChange={(value) => selectProduct(index, value)}
                             >
-                              <SelectTrigger>
+                              <SelectTrigger className="text-xs h-8">
                                 <SelectValue placeholder="Select product" />
                               </SelectTrigger>
                               <SelectContent>
                                 {products?.map((product) => (
-                                  <SelectItem key={product.id} value={product.id}>
+                                  <SelectItem key={product.id} value={product.id} className="text-xs">
                                     {product.name} - ₹{product.price}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={item.vendor_id || 'none'}
+                            onValueChange={(value) => updateLineItem(index, 'vendor_id', value === 'none' ? null : value)}
+                          >
+                            <SelectTrigger className="text-xs h-8">
+                              <SelectValue placeholder="No vendor" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none" className="text-xs">No vendor</SelectItem>
+                              {vendors?.map((v) => (
+                                <SelectItem key={v.id} value={v.id} className="text-xs">
+                                  {v.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell>
                           {(() => {
@@ -590,7 +704,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                                 step={isUnitBased ? "1" : "0.0001"}
                                 value={item.quantity}
                                 onChange={(e) => updateLineItem(index, 'quantity', parseQuantity(e.target.value, !!isUnitBased))}
-                                className="w-20"
+                                className="w-20 h-8 text-xs"
                               />
                             );
                           })()}
@@ -602,14 +716,14 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                             step="0.01"
                             value={item.unit_price}
                             onChange={(e) => updateLineItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                            className="w-24"
+                            className="w-20 h-8 text-xs"
                           />
                         </TableCell>
                         <TableCell>
                           <Input
                             value={item.hsn_code}
                             onChange={(e) => updateLineItem(index, 'hsn_code', e.target.value)}
-                            className="w-24"
+                            className="w-20 h-8 text-xs"
                             placeholder="HSN"
                           />
                         </TableCell>
@@ -618,7 +732,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                             value={item.gst_type}
                             onValueChange={(value) => updateLineItem(index, 'gst_type', value)}
                           >
-                            <SelectTrigger className="w-28">
+                            <SelectTrigger className="w-24 h-8 text-xs">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -635,11 +749,11 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                             max="28"
                             value={item.gst_rate}
                             onChange={(e) => updateLineItem(index, 'gst_rate', parseFloat(e.target.value) || 0)}
-                            className="w-20"
+                            className="w-16 h-8 text-xs"
                             disabled={item.gst_type !== 'Taxable'}
                           />
                         </TableCell>
-                        <TableCell className="text-right font-medium">
+                        <TableCell className="text-right font-medium text-sm">
                           ₹{lineTotal.toFixed(2)}
                         </TableCell>
                         <TableCell>
