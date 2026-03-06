@@ -381,11 +381,63 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
         });
         if (logErr) console.error('Audit log failed:', logErr);
       }
+
+      // Auto-generate purchase orders grouped by vendor
+      const vendorItemsMap = activeItems
+        .filter(item => item.product_name && item.vendor_id)
+        .reduce((acc, item) => {
+          const vid = item.vendor_id!;
+          if (!acc[vid]) acc[vid] = [];
+          acc[vid].push(item);
+          return acc;
+        }, {} as Record<string, EditableItem[]>);
+
+      for (const [vendorId, vItems] of Object.entries(vendorItemsMap)) {
+        try {
+          const { data: poNumber } = await supabase.rpc('generate_po_number');
+          const subtotal = vItems.reduce((sum, it) => sum + (it.quantity * it.unit_price), 0);
+          const taxAmount = vItems.reduce((sum, it) => {
+            const gst = calculateLineGST(it, isIGST);
+            return sum + gst.cgst + gst.sgst + gst.igst;
+          }, 0);
+
+          const { data: po, error: poError } = await supabase
+            .from('purchase_orders')
+            .insert({
+              po_number: poNumber || `PO-AUTO-${Date.now()}`,
+              vendor_id: vendorId,
+              status: 'draft',
+              subtotal,
+              tax_amount: taxAmount,
+              total_amount: subtotal + taxAmount,
+              notes: `Auto-generated from Order #${order.id.slice(0, 8)}`,
+            })
+            .select()
+            .single();
+
+          if (poError) { console.error('Failed to create PO', poError); continue; }
+
+          const poItems = vItems.map(it => ({
+            purchase_order_id: po.id,
+            product_id: it.product_id || null,
+            product_name: it.product_name,
+            quantity: it.quantity,
+            unit_cost: it.unit_price,
+            total_cost: it.quantity * it.unit_price,
+          }));
+
+          await supabase.from('purchase_order_items').insert(poItems);
+        } catch (e) {
+          console.error('PO generation error:', e);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'orderItems'] });
-      toast.success('Order updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-order-stats'] });
+      toast.success('Order updated. Purchase orders generated for assigned vendors.');
       onOpenChange(false);
     },
     onError: (error) => {
