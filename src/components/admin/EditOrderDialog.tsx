@@ -480,12 +480,13 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[220px]">Product</TableHead>
+                        <TableHead className="w-[180px]">Product</TableHead>
+                        <TableHead className="w-[130px]">Vendor</TableHead>
                         <TableHead className="w-[80px]">Qty</TableHead>
-                        <TableHead className="w-[100px]">Price</TableHead>
-                        <TableHead className="w-[80px]">HSN</TableHead>
-                        <TableHead className="w-[100px]">GST</TableHead>
-                        <TableHead className="w-[90px] text-right">Total</TableHead>
+                        <TableHead className="w-[90px]">Price</TableHead>
+                        <TableHead className="w-[70px]">HSN</TableHead>
+                        <TableHead className="w-[80px]">GST</TableHead>
+                        <TableHead className="w-[80px] text-right">Total</TableHead>
                         <TableHead className="w-[40px]" />
                       </TableRow>
                     </TableHeader>
@@ -513,6 +514,24 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
                               )}
                             </TableCell>
                             <TableCell>
+                              <Select
+                                value={item.vendor_id || 'none'}
+                                onValueChange={(v) => updateItem(idx, 'vendor_id', v === 'none' ? null : v)}
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue placeholder="No vendor" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none" className="text-xs">No vendor</SelectItem>
+                                  {vendors?.map((v) => (
+                                    <SelectItem key={v.id} value={v.id} className="text-xs">
+                                      {v.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
                               <Input
                                 type="number"
                                 className="h-8 w-20 text-xs"
@@ -525,7 +544,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
                             <TableCell>
                               <Input
                                 type="number"
-                                className="h-8 w-24 text-xs"
+                                className="h-8 w-20 text-xs"
                                 value={item.unit_price}
                                 min={0}
                                 step="any"
