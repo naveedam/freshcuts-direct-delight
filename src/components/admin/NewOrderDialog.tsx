@@ -431,13 +431,72 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
 
       if (itemsError) throw itemsError;
 
+      // Auto-generate purchase orders grouped by vendor
+      const vendorItems = lineItems
+        .filter(item => item.product_name && item.vendor_id)
+        .reduce((acc, item) => {
+          const vid = item.vendor_id!;
+          if (!acc[vid]) acc[vid] = [];
+          acc[vid].push(item);
+          return acc;
+        }, {} as Record<string, OrderLineItem[]>);
+
+      for (const [vendorId, items] of Object.entries(vendorItems)) {
+        try {
+          const { data: poNumber } = await supabase.rpc('generate_po_number');
+          const subtotal = items.reduce((sum, it) => sum + (it.quantity * it.unit_price), 0);
+          const taxAmount = items.reduce((sum, it) => {
+            const gst = calculateLineGST(it);
+            return sum + gst.cgst + gst.sgst + gst.igst;
+          }, 0);
+
+          const { data: po, error: poError } = await supabase
+            .from('purchase_orders')
+            .insert({
+              po_number: poNumber || `PO-AUTO-${Date.now()}`,
+              vendor_id: vendorId,
+              status: 'draft',
+              subtotal,
+              tax_amount: taxAmount,
+              total_amount: subtotal + taxAmount,
+              notes: `Auto-generated from Order #${order.id.slice(0, 8)}`,
+            })
+            .select()
+            .single();
+
+          if (poError) {
+            console.error('Failed to create PO for vendor', vendorId, poError);
+            continue;
+          }
+
+          const poItems = items.map(it => ({
+            purchase_order_id: po.id,
+            product_id: it.product_id || null,
+            product_name: it.product_name,
+            quantity: it.quantity,
+            unit_cost: it.unit_price,
+            total_cost: it.quantity * it.unit_price,
+          }));
+
+          const { error: poItemsError } = await supabase
+            .from('purchase_order_items')
+            .insert(poItems);
+
+          if (poItemsError) console.error('Failed to create PO items', poItemsError);
+        } catch (e) {
+          console.error('PO generation error:', e);
+        }
+      }
+
       return order;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-order-stats'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast.success('Order created successfully');
+      toast.success('Order created successfully. Purchase orders generated for assigned vendors.');
       resetForm();
       onOpenChange(false);
     },
