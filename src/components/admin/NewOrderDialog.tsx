@@ -633,14 +633,15 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[250px]">Product</TableHead>
+                    <TableHead className="w-[200px]">Product</TableHead>
+                    <TableHead className="w-[140px]">Vendor</TableHead>
                     <TableHead className="w-[80px]">Qty</TableHead>
-                    <TableHead className="w-[100px]">Unit Price</TableHead>
-                    <TableHead className="w-[100px]">HSN</TableHead>
-                    <TableHead className="w-[120px]">GST Type</TableHead>
-                    <TableHead className="w-[80px]">GST %</TableHead>
-                    <TableHead className="w-[100px] text-right">Total</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead className="w-[90px]">Unit Price</TableHead>
+                    <TableHead className="w-[80px]">HSN</TableHead>
+                    <TableHead className="w-[110px]">GST Type</TableHead>
+                    <TableHead className="w-[70px]">GST %</TableHead>
+                    <TableHead className="w-[90px] text-right">Total</TableHead>
+                    <TableHead className="w-[40px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -652,7 +653,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                         <TableCell>
                           {isCustom ? (
                             <div className="flex items-center gap-1.5">
-                              <span className="text-sm truncate max-w-[180px]">{item.product_name}</span>
+                              <span className="text-sm truncate max-w-[140px]">{item.product_name}</span>
                               <Badge variant="secondary" className="text-xs shrink-0">Custom</Badge>
                             </div>
                           ) : (
@@ -660,18 +661,36 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                               value={item.product_id || ''}
                               onValueChange={(value) => selectProduct(index, value)}
                             >
-                              <SelectTrigger>
+                              <SelectTrigger className="text-xs h-8">
                                 <SelectValue placeholder="Select product" />
                               </SelectTrigger>
                               <SelectContent>
                                 {products?.map((product) => (
-                                  <SelectItem key={product.id} value={product.id}>
+                                  <SelectItem key={product.id} value={product.id} className="text-xs">
                                     {product.name} - ₹{product.price}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={item.vendor_id || 'none'}
+                            onValueChange={(value) => updateLineItem(index, 'vendor_id', value === 'none' ? null : value)}
+                          >
+                            <SelectTrigger className="text-xs h-8">
+                              <SelectValue placeholder="No vendor" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none" className="text-xs">No vendor</SelectItem>
+                              {vendors?.map((v) => (
+                                <SelectItem key={v.id} value={v.id} className="text-xs">
+                                  {v.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell>
                           {(() => {
@@ -685,7 +704,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                                 step={isUnitBased ? "1" : "0.0001"}
                                 value={item.quantity}
                                 onChange={(e) => updateLineItem(index, 'quantity', parseQuantity(e.target.value, !!isUnitBased))}
-                                className="w-20"
+                                className="w-20 h-8 text-xs"
                               />
                             );
                           })()}
@@ -697,14 +716,14 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                             step="0.01"
                             value={item.unit_price}
                             onChange={(e) => updateLineItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                            className="w-24"
+                            className="w-20 h-8 text-xs"
                           />
                         </TableCell>
                         <TableCell>
                           <Input
                             value={item.hsn_code}
                             onChange={(e) => updateLineItem(index, 'hsn_code', e.target.value)}
-                            className="w-24"
+                            className="w-20 h-8 text-xs"
                             placeholder="HSN"
                           />
                         </TableCell>
@@ -713,7 +732,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                             value={item.gst_type}
                             onValueChange={(value) => updateLineItem(index, 'gst_type', value)}
                           >
-                            <SelectTrigger className="w-28">
+                            <SelectTrigger className="w-24 h-8 text-xs">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -730,11 +749,11 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                             max="28"
                             value={item.gst_rate}
                             onChange={(e) => updateLineItem(index, 'gst_rate', parseFloat(e.target.value) || 0)}
-                            className="w-20"
+                            className="w-16 h-8 text-xs"
                             disabled={item.gst_type !== 'Taxable'}
                           />
                         </TableCell>
-                        <TableCell className="text-right font-medium">
+                        <TableCell className="text-right font-medium text-sm">
                           ₹{lineTotal.toFixed(2)}
                         </TableCell>
                         <TableCell>
