@@ -22,6 +22,7 @@ interface OrderLineItem {
   hsn_code: string;
   gst_type: string;
   gst_rate: number;
+  vendor_id: string | null;
   is_custom?: boolean;
   unit_type?: 'weight_based' | 'unit_based';
   category?: string;
@@ -86,6 +87,7 @@ const defaultCustomItem: Omit<OrderLineItem, 'product_id'> & { product_id: null 
   hsn_code: '',
   gst_type: 'Exempt',
   gst_rate: 0,
+  vendor_id: null,
   is_custom: true,
   unit_type: 'weight_based',
   category: '',
@@ -111,7 +113,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   
   // Line items
   const [lineItems, setLineItems] = useState<OrderLineItem[]>([
-    { product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0 }
+    { product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }
   ]);
 
   // Custom item dialog
@@ -159,6 +161,33 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
     }
   });
 
+  // Fetch vendors
+  const { data: vendors } = useQuery({
+    queryKey: ['vendors-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vendors')
+        .select('*')
+        .eq('status', 'active')
+        .order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch vendor-product mappings for auto-assigning preferred vendor
+  const { data: vendorProducts } = useQuery({
+    queryKey: ['vendor-products-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vendor_products')
+        .select('*')
+        .order('is_preferred_vendor', { ascending: false });
+      if (error) throw error;
+      return data;
+    }
+  });
+
   const resetForm = () => {
     setCustomerEmail('');
     setCustomerPhone('');
@@ -171,11 +200,11 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
     setNotes('');
     setDiscountType('none');
     setDiscountValue('0');
-    setLineItems([{ product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0 }]);
+    setLineItems([{ product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }]);
   };
 
   const addLineItem = () => {
-    setLineItems([...lineItems, { product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0 }]);
+    setLineItems([...lineItems, { product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }]);
   };
 
   const removeLineItem = (index: number) => {
@@ -193,6 +222,11 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   const selectProduct = (index: number, productId: string) => {
     const product = products?.find(p => p.id === productId);
     if (product) {
+      // Find preferred vendor for this product
+      const preferredVp = vendorProducts?.find(vp => vp.product_id === productId && vp.is_preferred_vendor);
+      const anyVp = vendorProducts?.find(vp => vp.product_id === productId);
+      const autoVendorId = preferredVp?.vendor_id || anyVp?.vendor_id || null;
+
       const updated = [...lineItems];
       updated[index] = {
         product_id: product.id,
@@ -201,7 +235,8 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
         unit_price: product.price,
         hsn_code: product.hsn_code || '',
         gst_type: product.gst_type || 'Exempt',
-        gst_rate: product.gst_rate || 0
+        gst_rate: product.gst_rate || 0,
+        vendor_id: autoVendorId,
       };
       setLineItems(updated);
     }
@@ -240,6 +275,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
       hsn_code: customItemData.hsn_code,
       gst_type: customItemData.gst_type,
       gst_rate: customItemData.gst_type === 'Taxable' ? customItemData.gst_rate : 0,
+      vendor_id: customItemData.vendor_id,
       is_custom: true,
       unit_type: customItemData.unit_type,
       category: customItemData.category,
