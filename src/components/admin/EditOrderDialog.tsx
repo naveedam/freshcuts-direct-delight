@@ -38,6 +38,7 @@ interface EditableItem {
   hsn_code: string;
   gst_type: string;
   gst_rate: number;
+  vendor_id: string | null;
   _removed?: boolean;
 }
 
@@ -91,23 +92,49 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
     },
   });
 
+  // Fetch vendors
+  const { data: vendors } = useQuery({
+    queryKey: ['vendors-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('vendors').select('*').eq('status', 'active').order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch vendor-product mappings
+  const { data: vendorProducts } = useQuery({
+    queryKey: ['vendor-products-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('vendor_products').select('*').order('is_preferred_vendor', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Initialize items from orderItems
   useEffect(() => {
     if (open && orderItems.length > 0) {
       setItems(
-        orderItems.map((oi) => ({
-          id: oi.id,
-          product_id: oi.product_id,
-          product_name: oi.product_name,
-          quantity: Number(oi.quantity),
-          unit_price: Number(oi.unit_price),
-          hsn_code: oi.hsn_code || '',
-          gst_type: oi.gst_type,
-          gst_rate: Number(oi.gst_rate),
-        }))
+        orderItems.map((oi) => {
+          // Try to find preferred vendor for this product
+          const preferredVp = oi.product_id ? vendorProducts?.find(vp => vp.product_id === oi.product_id && vp.is_preferred_vendor) : null;
+          const anyVp = oi.product_id ? vendorProducts?.find(vp => vp.product_id === oi.product_id) : null;
+          return {
+            id: oi.id,
+            product_id: oi.product_id,
+            product_name: oi.product_name,
+            quantity: Number(oi.quantity),
+            unit_price: Number(oi.unit_price),
+            hsn_code: oi.hsn_code || '',
+            gst_type: oi.gst_type,
+            gst_rate: Number(oi.gst_rate),
+            vendor_id: preferredVp?.vendor_id || anyVp?.vendor_id || null,
+          };
+        })
       );
     }
-  }, [open, orderItems]);
+  }, [open, orderItems, vendorProducts]);
 
   const lockReason = isOrderLocked(order);
   const isIGST = order?.is_igst ?? false;
@@ -177,6 +204,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
         hsn_code: '',
         gst_type: 'Exempt',
         gst_rate: 0,
+        vendor_id: null,
       },
     ]);
   };
@@ -184,8 +212,9 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
   const selectProduct = (index: number, productId: string) => {
     const product = products?.find((p) => p.id === productId);
     if (!product) return;
-    updateItem(index, 'product_id', product.id);
-    // batch the rest
+    const preferredVp = vendorProducts?.find(vp => vp.product_id === productId && vp.is_preferred_vendor);
+    const anyVp = vendorProducts?.find(vp => vp.product_id === productId);
+    const autoVendorId = preferredVp?.vendor_id || anyVp?.vendor_id || null;
     setItems((prev) => {
       const next = [...prev];
       let activeIdx = -1;
@@ -200,6 +229,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
             hsn_code: product.hsn_code || '',
             gst_type: product.gst_type || 'Exempt',
             gst_rate: Number(product.gst_rate) || 0,
+            vendor_id: autoVendorId,
           };
           break;
         }
