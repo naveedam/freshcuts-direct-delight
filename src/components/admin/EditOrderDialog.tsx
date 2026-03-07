@@ -401,7 +401,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
       for (const [vendorId, vItems] of Object.entries(vendorItemsMap)) {
         try {
           const { data: poNumber } = await supabase.rpc('generate_po_number');
-          const subtotal = vItems.reduce((sum, it) => sum + (it.quantity * it.unit_price), 0);
+          const subtotal = vItems.reduce((sum, it) => sum + (it.quantity * (it.vendor_cost || it.unit_price)), 0);
           const taxAmount = vItems.reduce((sum, it) => {
             const gst = calculateLineGST(it, isIGST);
             return sum + gst.cgst + gst.sgst + gst.igst;
@@ -428,8 +428,8 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
             product_id: it.product_id || null,
             product_name: it.product_name,
             quantity: it.quantity,
-            unit_cost: it.unit_price,
-            total_cost: it.quantity * it.unit_price,
+            unit_cost: it.vendor_cost || it.unit_price,
+            total_cost: it.quantity * (it.vendor_cost || it.unit_price),
           }));
 
           await supabase.from('purchase_order_items').insert(poItems);
