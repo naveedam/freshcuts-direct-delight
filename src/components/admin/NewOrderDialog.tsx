@@ -19,6 +19,7 @@ interface OrderLineItem {
   product_name: string;
   quantity: number;
   unit_price: number;
+  vendor_cost: number;
   hsn_code: string;
   gst_type: string;
   gst_rate: number;
@@ -84,6 +85,7 @@ const defaultCustomItem: Omit<OrderLineItem, 'product_id'> & { product_id: null 
   product_name: '',
   quantity: 1,
   unit_price: 0,
+  vendor_cost: 0,
   hsn_code: '',
   gst_type: 'Exempt',
   gst_rate: 0,
@@ -113,7 +115,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   
   // Line items
   const [lineItems, setLineItems] = useState<OrderLineItem[]>([
-    { product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }
+    { product_id: null, product_name: '', quantity: 1, unit_price: 0, vendor_cost: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }
   ]);
 
   // Custom item dialog
@@ -200,11 +202,11 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
     setNotes('');
     setDiscountType('none');
     setDiscountValue('0');
-    setLineItems([{ product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }]);
+    setLineItems([{ product_id: null, product_name: '', quantity: 1, unit_price: 0, vendor_cost: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }]);
   };
 
   const addLineItem = () => {
-    setLineItems([...lineItems, { product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }]);
+    setLineItems([...lineItems, { product_id: null, product_name: '', quantity: 1, unit_price: 0, vendor_cost: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }]);
   };
 
   const removeLineItem = (index: number) => {
