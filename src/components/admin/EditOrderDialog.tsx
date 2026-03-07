@@ -559,6 +559,15 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
                               />
                             </TableCell>
                             <TableCell>
+                              <Input
+                                type="number"
+                                className="h-8 w-20 text-xs"
+                                value={item.vendor_cost}
+                                min={0}
+                                step="any"
+                                onChange={(e) => updateItem(idx, 'vendor_cost', parseFloat(e.target.value) || 0)}
+                              />
+                            <TableCell>
                               <span className="text-xs text-muted-foreground">{item.hsn_code || '—'}</span>
                             </TableCell>
                             <TableCell>
