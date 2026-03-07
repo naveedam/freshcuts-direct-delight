@@ -217,6 +217,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
     const preferredVp = vendorProducts?.find(vp => vp.product_id === productId && vp.is_preferred_vendor);
     const anyVp = vendorProducts?.find(vp => vp.product_id === productId);
     const autoVendorId = preferredVp?.vendor_id || anyVp?.vendor_id || null;
+    const vendorCost = preferredVp?.cost_price || anyVp?.cost_price || 0;
     setItems((prev) => {
       const next = [...prev];
       let activeIdx = -1;
@@ -228,6 +229,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
             product_id: product.id,
             product_name: product.name,
             unit_price: Number(product.price),
+            vendor_cost: vendorCost,
             hsn_code: product.hsn_code || '',
             gst_type: product.gst_type || 'Exempt',
             gst_rate: Number(product.gst_rate) || 0,
