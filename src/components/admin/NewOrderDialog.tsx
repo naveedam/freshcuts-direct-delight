@@ -276,6 +276,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
       product_name: customItemData.product_name.trim(),
       quantity: customItemData.quantity,
       unit_price: customItemData.unit_price,
+      vendor_cost: customItemData.vendor_cost,
       hsn_code: customItemData.hsn_code,
       gst_type: customItemData.gst_type,
       gst_rate: customItemData.gst_type === 'Taxable' ? customItemData.gst_rate : 0,
