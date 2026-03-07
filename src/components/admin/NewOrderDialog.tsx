@@ -419,6 +419,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
             product_name: item.product_name,
             quantity: item.quantity,
             unit_price: item.unit_price,
+            vendor_cost: item.vendor_cost || null,
             total_price: gst.total,
             hsn_code: item.hsn_code || null,
             gst_type: item.gst_type,
@@ -449,7 +450,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
       for (const [vendorId, items] of Object.entries(vendorItems)) {
         try {
           const { data: poNumber } = await supabase.rpc('generate_po_number');
-          const subtotal = items.reduce((sum, it) => sum + (it.quantity * it.unit_price), 0);
+          const subtotal = items.reduce((sum, it) => sum + (it.quantity * (it.vendor_cost || it.unit_price)), 0);
           const taxAmount = items.reduce((sum, it) => {
             const gst = calculateLineGST(it);
             return sum + gst.cgst + gst.sgst + gst.igst;
@@ -479,8 +480,8 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
             product_id: it.product_id || null,
             product_name: it.product_name,
             quantity: it.quantity,
-            unit_cost: it.unit_price,
-            total_cost: it.quantity * it.unit_price,
+            unit_cost: it.vendor_cost || it.unit_price,
+            total_cost: it.quantity * (it.vendor_cost || it.unit_price),
           }));
 
           const { error: poItemsError } = await supabase
