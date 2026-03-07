@@ -489,7 +489,8 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
                         <TableHead className="w-[180px]">Product</TableHead>
                         <TableHead className="w-[130px]">Vendor</TableHead>
                         <TableHead className="w-[80px]">Qty</TableHead>
-                        <TableHead className="w-[90px]">Price</TableHead>
+                        <TableHead className="w-[90px]">Sell Price</TableHead>
+                        <TableHead className="w-[90px]">Vendor Cost</TableHead>
                         <TableHead className="w-[70px]">HSN</TableHead>
                         <TableHead className="w-[80px]">GST</TableHead>
                         <TableHead className="w-[80px] text-right">Total</TableHead>
