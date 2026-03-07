@@ -642,7 +642,8 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                     <TableHead className="w-[200px]">Product</TableHead>
                     <TableHead className="w-[140px]">Vendor</TableHead>
                     <TableHead className="w-[80px]">Qty</TableHead>
-                    <TableHead className="w-[90px]">Unit Price</TableHead>
+                    <TableHead className="w-[90px]">Sell Price</TableHead>
+                    <TableHead className="w-[90px]">Vendor Cost</TableHead>
                     <TableHead className="w-[80px]">HSN</TableHead>
                     <TableHead className="w-[110px]">GST Type</TableHead>
                     <TableHead className="w-[70px]">GST %</TableHead>
@@ -723,6 +724,17 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                             value={item.unit_price}
                             onChange={(e) => updateLineItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
                             className="w-20 h-8 text-xs"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.vendor_cost}
+                            onChange={(e) => updateLineItem(index, 'vendor_cost', parseFloat(e.target.value) || 0)}
+                            className="w-20 h-8 text-xs"
+                          />
                           />
                         </TableCell>
                         <TableCell>
