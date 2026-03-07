@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -19,6 +19,18 @@ interface PurchaseOrderDetailsDialogProps {
 
 export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseOrderDetailsDialogProps) {
   const queryClient = useQueryClient();
+
+  // Fetch products for pricing model info
+  const { data: products } = useQuery({
+    queryKey: ['admin', 'products-for-po-details'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, pricing_model, unit');
+      if (error) throw error;
+      return data;
+    }
+  });
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -45,6 +57,20 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
 
   if (!purchaseOrder) return null;
 
+  const getProductInfo = (productId: string | null) => {
+    if (!productId) return { pricing_model: 'weight_based', unit: 'kg' };
+    const product = products?.find(p => p.id === productId);
+    return {
+      pricing_model: product?.pricing_model || 'weight_based',
+      unit: product?.unit || 'kg',
+    };
+  };
+
+  const getUnitLabel = (productId: string | null) => {
+    const info = getProductInfo(productId);
+    return info.pricing_model === 'unit_based' ? (info.unit || 'units') : 'kg';
+  };
+
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
       draft: 'bg-gray-100 text-gray-800',
@@ -55,12 +81,8 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
       cancelled: 'bg-red-100 text-red-800',
     };
     const labels: Record<string, string> = {
-      draft: 'Draft',
-      sent: 'Sent',
-      confirmed: 'Confirmed',
-      partially_received: 'Partially Received',
-      received: 'Received',
-      cancelled: 'Cancelled',
+      draft: 'Draft', sent: 'Sent', confirmed: 'Confirmed',
+      partially_received: 'Partially Received', received: 'Received', cancelled: 'Cancelled',
     };
     return <Badge className={styles[status]}>{labels[status] || status}</Badge>;
   };
@@ -69,17 +91,13 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
   const canConfirm = purchaseOrder.status === 'sent';
   const canCancel = ['draft', 'sent'].includes(purchaseOrder.status);
 
-  // Calculate totals for GRN summary
   const totalOrdered = purchaseOrder.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
   const totalActualReceived = purchaseOrder.items?.reduce((sum, item) => sum + (item.actual_received_weight || 0), 0) || 0;
   const hasGRNData = purchaseOrder.items?.some(item => item.actual_received_weight !== null);
-  const variance = totalActualReceived - totalOrdered;
-  const variancePercent = totalOrdered > 0 ? (variance / totalOrdered * 100) : 0;
 
-  // Calculate actual value based on received weights
   const actualValue = purchaseOrder.items?.reduce((sum, item) => {
-    const weight = item.actual_received_weight || 0;
-    return sum + (weight * item.unit_cost);
+    const received = item.actual_received_weight || 0;
+    return sum + (received * item.unit_cost);
   }, 0) || 0;
 
   const orderedValue = purchaseOrder.items?.reduce((sum, item) => sum + item.total_cost, 0) || 0;
@@ -134,7 +152,7 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
 
             <Separator />
 
-            {/* Line Items with GRN columns */}
+            {/* Line Items */}
             <div>
               <h4 className="font-medium mb-3">Order Items</h4>
               <div className="border rounded-lg overflow-hidden">
@@ -142,10 +160,10 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
-                      <TableHead className="text-right">Ordered Qty (kg)</TableHead>
-                      <TableHead className="text-right">Actual Received (kg)</TableHead>
+                      <TableHead className="text-right">Ordered Qty</TableHead>
+                      <TableHead className="text-right">Actual Received</TableHead>
                       <TableHead className="text-right">Variance</TableHead>
-                      <TableHead className="text-right">Cost/kg</TableHead>
+                      <TableHead className="text-right">Cost/Unit</TableHead>
                       <TableHead className="text-right">Ordered Value</TableHead>
                       <TableHead className="text-right">Actual Value</TableHead>
                       <TableHead>Remarks</TableHead>
@@ -153,6 +171,7 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
                   </TableHeader>
                   <TableBody>
                     {purchaseOrder.items?.map((item) => {
+                      const unitLabel = getUnitLabel(item.product_id);
                       const actualWeight = item.actual_received_weight || 0;
                       const itemVariance = actualWeight - item.quantity;
                       const itemVariancePercent = item.quantity > 0 ? (itemVariance / item.quantity * 100) : 0;
@@ -161,10 +180,12 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
                       return (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">{item.product_name}</TableCell>
-                          <TableCell className="text-right">{Number(item.quantity).toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                            {Number(item.quantity).toFixed(2)} {unitLabel}
+                          </TableCell>
                           <TableCell className="text-right">
                             {actualWeight > 0 ? (
-                              <span className="font-medium">{actualWeight.toFixed(2)} kg</span>
+                              <span className="font-medium">{actualWeight.toFixed(2)} {unitLabel}</span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
@@ -175,21 +196,15 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
                                 itemVariance > 0 ? 'text-green-600' : 
                                 itemVariance < 0 ? 'text-destructive' : 'text-muted-foreground'
                               }`}>
-                                {itemVariance > 0 ? (
-                                  <TrendingUp className="h-3 w-3" />
-                                ) : itemVariance < 0 ? (
-                                  <TrendingDown className="h-3 w-3" />
-                                ) : (
-                                  <Minus className="h-3 w-3" />
-                                )}
-                                {itemVariance > 0 ? '+' : ''}{itemVariance.toFixed(2)} kg
+                                {itemVariance > 0 ? <TrendingUp className="h-3 w-3" /> : itemVariance < 0 ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+                                {itemVariance > 0 ? '+' : ''}{itemVariance.toFixed(2)} {unitLabel}
                                 <span className="text-xs">({itemVariancePercent > 0 ? '+' : ''}{itemVariancePercent.toFixed(1)}%)</span>
                               </span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-right">{formatCurrency(item.unit_cost)}/kg</TableCell>
+                          <TableCell className="text-right">{formatCurrency(item.unit_cost)}/{unitLabel}</TableCell>
                           <TableCell className="text-right">{formatCurrency(item.total_cost)}</TableCell>
                           <TableCell className="text-right">
                             {actualWeight > 0 ? (
@@ -220,23 +235,14 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
                     <AlertTriangle className="h-4 w-4" />
                     Goods Received Summary
                   </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Total Ordered:</span>
-                      <p className="font-semibold">{totalOrdered.toFixed(2)} kg</p>
+                      <span className="text-muted-foreground">Ordered Value:</span>
+                      <p className="font-semibold">{formatCurrency(orderedValue)}</p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Actual Received:</span>
-                      <p className="font-semibold">{totalActualReceived.toFixed(2)} kg</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Weight Variance:</span>
-                      <p className={`font-semibold flex items-center gap-1 ${
-                        variance > 0 ? 'text-green-600' : variance < 0 ? 'text-destructive' : ''
-                      }`}>
-                        {variance > 0 ? <TrendingUp className="h-3 w-3" /> : variance < 0 ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                        {variance > 0 ? '+' : ''}{variance.toFixed(2)} kg ({variancePercent > 0 ? '+' : ''}{variancePercent.toFixed(1)}%)
-                      </p>
+                      <span className="text-muted-foreground">Actual Value:</span>
+                      <p className="font-semibold">{formatCurrency(actualValue)}</p>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Value Variance:</span>
@@ -300,38 +306,23 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
         </ScrollArea>
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
+          <Button variant="outline" onClick={onClose}>Close</Button>
           {canCancel && (
-            <Button
-              variant="destructive"
-              onClick={() => updateStatusMutation.mutate({ id: purchaseOrder.id, status: 'cancelled' })}
-              disabled={updateStatusMutation.isPending}
-            >
+            <Button variant="destructive" onClick={() => updateStatusMutation.mutate({ id: purchaseOrder.id, status: 'cancelled' })} disabled={updateStatusMutation.isPending}>
               {updateStatusMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              <XCircle className="h-4 w-4 mr-2" />
-              Cancel PO
+              <XCircle className="h-4 w-4 mr-2" /> Cancel PO
             </Button>
           )}
           {canSend && (
-            <Button
-              onClick={() => updateStatusMutation.mutate({ id: purchaseOrder.id, status: 'sent' })}
-              disabled={updateStatusMutation.isPending}
-            >
+            <Button onClick={() => updateStatusMutation.mutate({ id: purchaseOrder.id, status: 'sent' })} disabled={updateStatusMutation.isPending}>
               {updateStatusMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              <Send className="h-4 w-4 mr-2" />
-              Send to Vendor
+              <Send className="h-4 w-4 mr-2" /> Send to Vendor
             </Button>
           )}
           {canConfirm && (
-            <Button
-              onClick={() => updateStatusMutation.mutate({ id: purchaseOrder.id, status: 'confirmed' })}
-              disabled={updateStatusMutation.isPending}
-            >
+            <Button onClick={() => updateStatusMutation.mutate({ id: purchaseOrder.id, status: 'confirmed' })} disabled={updateStatusMutation.isPending}>
               {updateStatusMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Mark Confirmed
+              <CheckCircle className="h-4 w-4 mr-2" /> Mark Confirmed
             </Button>
           )}
         </DialogFooter>
