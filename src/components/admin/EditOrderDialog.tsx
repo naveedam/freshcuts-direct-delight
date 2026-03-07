@@ -35,6 +35,7 @@ interface EditableItem {
   product_name: string;
   quantity: number;
   unit_price: number;
+  vendor_cost: number;
   hsn_code: string;
   gst_type: string;
   gst_rate: number;
@@ -117,7 +118,6 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
     if (open && orderItems.length > 0) {
       setItems(
         orderItems.map((oi) => {
-          // Try to find preferred vendor for this product
           const preferredVp = oi.product_id ? vendorProducts?.find(vp => vp.product_id === oi.product_id && vp.is_preferred_vendor) : null;
           const anyVp = oi.product_id ? vendorProducts?.find(vp => vp.product_id === oi.product_id) : null;
           return {
@@ -126,6 +126,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
             product_name: oi.product_name,
             quantity: Number(oi.quantity),
             unit_price: Number(oi.unit_price),
+            vendor_cost: Number((oi as any).vendor_cost) || preferredVp?.cost_price || anyVp?.cost_price || 0,
             hsn_code: oi.hsn_code || '',
             gst_type: oi.gst_type,
             gst_rate: Number(oi.gst_rate),
@@ -201,6 +202,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
         product_name: '',
         quantity: 1,
         unit_price: 0,
+        vendor_cost: 0,
         hsn_code: '',
         gst_type: 'Exempt',
         gst_rate: 0,
