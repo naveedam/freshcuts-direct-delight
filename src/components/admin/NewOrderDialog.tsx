@@ -735,7 +735,6 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                             onChange={(e) => updateLineItem(index, 'vendor_cost', parseFloat(e.target.value) || 0)}
                             className="w-20 h-8 text-xs"
                           />
-                          />
                         </TableCell>
                         <TableCell>
                           <Input
