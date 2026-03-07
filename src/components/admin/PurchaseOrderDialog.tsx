@@ -17,9 +17,11 @@ import { format } from 'date-fns';
 interface POLineItem {
   product_id: string | null;
   product_name: string;
-  ordered_quantity_kg: number; // Ordered quantity in kg (decimals allowed)
-  unit_cost: number; // Cost per kg
-  total_cost: number; // ordered_quantity_kg × unit_cost
+  ordered_quantity: number;
+  unit_cost: number;
+  total_cost: number;
+  pricing_model: string; // 'weight_based' | 'unit_based'
+  unit_type: string; // 'kg', 'piece', 'pack', etc.
 }
 
 interface PurchaseOrderDialogProps {
@@ -56,7 +58,7 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, price, category')
+        .select('id, name, price, category, pricing_model, unit')
         .order('name');
       if (error) throw error;
       return data;
@@ -69,7 +71,7 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vendor_products')
-        .select('*, product:products(id, name, category)')
+        .select('*, product:products(id, name, category, pricing_model, unit)')
         .eq('vendor_id', vendorId);
       if (error) throw error;
       return data;
@@ -83,18 +85,23 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
       setNotes(purchaseOrder.notes || '');
       setTaxRate(purchaseOrder.subtotal > 0 ? (purchaseOrder.tax_amount / purchaseOrder.subtotal) * 100 : 0);
       if (purchaseOrder.items) {
-        setItems(purchaseOrder.items.map(item => ({
-          product_id: item.product_id,
-          product_name: item.product_name,
-          ordered_quantity_kg: item.quantity, // Map from DB field
-          unit_cost: item.unit_cost,
-          total_cost: item.total_cost,
-        })));
+        setItems(purchaseOrder.items.map(item => {
+          const product = products?.find(p => p.id === item.product_id);
+          return {
+            product_id: item.product_id,
+            product_name: item.product_name,
+            ordered_quantity: item.quantity,
+            unit_cost: item.unit_cost,
+            total_cost: item.total_cost,
+            pricing_model: product?.pricing_model || 'weight_based',
+            unit_type: product?.unit || 'kg',
+          };
+        }));
       }
     } else {
       resetForm();
     }
-  }, [purchaseOrder, open]);
+  }, [purchaseOrder, open, products]);
 
   const resetForm = () => {
     setVendorId('');
@@ -104,21 +111,32 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
     setTaxRate(0);
   };
 
+  const getUnitLabel = (item: POLineItem) => {
+    if (item.pricing_model === 'unit_based') return item.unit_type || 'units';
+    return 'kg';
+  };
+
+  const getCostLabel = (item: POLineItem) => {
+    if (item.pricing_model === 'unit_based') return `Cost/${item.unit_type || 'unit'}`;
+    return 'Cost/kg';
+  };
+
   const addItem = () => {
     setItems([...items, {
       product_id: null,
       product_name: '',
-      ordered_quantity_kg: 1, // Default 1 kg
+      ordered_quantity: 1,
       unit_cost: 0,
       total_cost: 0,
+      pricing_model: 'weight_based',
+      unit_type: 'kg',
     }]);
   };
 
   const updateItem = (index: number, updates: Partial<POLineItem>) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], ...updates };
-    // Recalculate total: ordered_quantity_kg × unit_cost
-    newItems[index].total_cost = newItems[index].ordered_quantity_kg * newItems[index].unit_cost;
+    newItems[index].total_cost = newItems[index].ordered_quantity * newItems[index].unit_cost;
     setItems(newItems);
   };
 
@@ -134,6 +152,8 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
         product_id: productId,
         product_name: product.name,
         unit_cost: vendorProduct?.cost_price || 0,
+        pricing_model: product.pricing_model || 'weight_based',
+        unit_type: product.unit || 'kg',
       });
     }
   };
@@ -144,11 +164,9 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
 
   const createMutation = useMutation({
     mutationFn: async (status: 'draft' | 'sent') => {
-      // Generate PO number
       const { data: poNumber, error: poError } = await supabase.rpc('generate_po_number');
       if (poError) throw poError;
 
-      // Create PO
       const { data: po, error: insertError } = await supabase
         .from('purchase_orders')
         .insert({
@@ -167,7 +185,6 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
 
       if (insertError) throw insertError;
 
-      // Insert items
       if (items.length > 0) {
         const { error: itemsError } = await supabase
           .from('purchase_order_items')
@@ -175,7 +192,7 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
             purchase_order_id: po.id,
             product_id: item.product_id,
             product_name: item.product_name,
-            quantity: item.ordered_quantity_kg, // Map to DB field
+            quantity: item.ordered_quantity,
             unit_cost: item.unit_cost,
             total_cost: item.total_cost,
           })));
@@ -200,7 +217,6 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
     mutationFn: async (status: 'draft' | 'sent') => {
       if (!purchaseOrder) return;
 
-      // Update PO
       const { error: updateError } = await supabase
         .from('purchase_orders')
         .update({
@@ -216,7 +232,6 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
 
       if (updateError) throw updateError;
 
-      // Delete existing items and re-insert
       await supabase.from('purchase_order_items').delete().eq('purchase_order_id', purchaseOrder.id);
       
       if (items.length > 0) {
@@ -226,7 +241,7 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
             purchase_order_id: purchaseOrder.id,
             product_id: item.product_id,
             product_name: item.product_name,
-            quantity: item.ordered_quantity_kg, // Map to DB field
+            quantity: item.ordered_quantity,
             unit_cost: item.unit_cost,
             total_cost: item.total_cost,
           })));
@@ -246,27 +261,17 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
   });
 
   const handleSave = (status: 'draft' | 'sent') => {
-    if (!vendorId) {
-      toast.error('Please select a vendor');
-      return;
-    }
-    if (items.length === 0) {
-      toast.error('Please add at least one item');
-      return;
-    }
-    if (items.some(item => !item.product_name)) {
-      toast.error('All items must have a product name');
-      return;
-    }
-
-    if (isEditing) {
-      updateMutation.mutate(status);
-    } else {
-      createMutation.mutate(status);
-    }
+    if (!vendorId) { toast.error('Please select a vendor'); return; }
+    if (items.length === 0) { toast.error('Please add at least one item'); return; }
+    if (items.some(item => !item.product_name)) { toast.error('All items must have a product name'); return; }
+    if (isEditing) { updateMutation.mutate(status); } else { createMutation.mutate(status); }
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
+
+  // Check if items have mixed units
+  const hasWeightItems = items.some(i => i.pricing_model === 'weight_based');
+  const hasUnitItems = items.some(i => i.pricing_model === 'unit_based');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -317,79 +322,91 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[40%]">Product</TableHead>
-                    <TableHead className="w-[15%]">Ordered Qty (kg)</TableHead>
-                    <TableHead className="w-[20%]">Cost/kg</TableHead>
-                    <TableHead className="w-[20%] text-right">Total</TableHead>
+                    <TableHead className="w-[35%]">Product</TableHead>
+                    <TableHead className="w-[15%]">Ordered Qty</TableHead>
+                    <TableHead className="w-[10%]">Unit</TableHead>
+                    <TableHead className="w-[15%]">Cost/Unit</TableHead>
+                    <TableHead className="w-[15%] text-right">Total</TableHead>
                     <TableHead className="w-[5%]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                         No items added yet
                       </TableCell>
                     </TableRow>
                   ) : (
-                    items.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell>
-                          <Select
-                            value={item.product_id || ''}
-                            onValueChange={(v) => selectProduct(index, v)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select product">
-                                {item.product_name || 'Select product'}
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(vendorId && vendorProducts?.length 
-                                ? vendorProducts.map(vp => vp.product)
-                                : products
-                              )?.map(product => (
-                                <SelectItem key={product?.id} value={product?.id || ''}>
-                                  {product?.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            min="0.01"
-                            step="0.01"
-                            value={item.ordered_quantity_kg}
-                            onChange={(e) => updateItem(index, { ordered_quantity_kg: parseFloat(e.target.value) || 0 })}
-                            placeholder="0.00"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={item.unit_cost}
-                            onChange={(e) => updateItem(index, { unit_cost: parseFloat(e.target.value) || 0 })}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(item.total_cost)}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeItem(index)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    items.map((item, index) => {
+                      const unitLabel = getUnitLabel(item);
+                      const isUnitBased = item.pricing_model === 'unit_based';
+                      return (
+                        <TableRow key={index}>
+                          <TableCell>
+                            <Select
+                              value={item.product_id || ''}
+                              onValueChange={(v) => selectProduct(index, v)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select product">
+                                  {item.product_name || 'Select product'}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(vendorId && vendorProducts?.length 
+                                  ? vendorProducts.map(vp => vp.product)
+                                  : products
+                                )?.map(product => (
+                                  <SelectItem key={product?.id} value={product?.id || ''}>
+                                    {product?.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min={isUnitBased ? "1" : "0.01"}
+                              step={isUnitBased ? "1" : "0.01"}
+                              value={item.ordered_quantity}
+                              onChange={(e) => updateItem(index, { 
+                                ordered_quantity: isUnitBased 
+                                  ? Math.max(1, parseInt(e.target.value) || 1)
+                                  : parseFloat(e.target.value) || 0 
+                              })}
+                              placeholder="0.00"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-muted-foreground">{unitLabel}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.unit_cost}
+                              onChange={(e) => updateItem(index, { unit_cost: parseFloat(e.target.value) || 0 })}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatCurrency(item.total_cost)}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeItem(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>

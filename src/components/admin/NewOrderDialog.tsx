@@ -19,6 +19,7 @@ interface OrderLineItem {
   product_name: string;
   quantity: number;
   unit_price: number;
+  vendor_cost: number;
   hsn_code: string;
   gst_type: string;
   gst_rate: number;
@@ -84,6 +85,7 @@ const defaultCustomItem: Omit<OrderLineItem, 'product_id'> & { product_id: null 
   product_name: '',
   quantity: 1,
   unit_price: 0,
+  vendor_cost: 0,
   hsn_code: '',
   gst_type: 'Exempt',
   gst_rate: 0,
@@ -113,7 +115,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   
   // Line items
   const [lineItems, setLineItems] = useState<OrderLineItem[]>([
-    { product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }
+    { product_id: null, product_name: '', quantity: 1, unit_price: 0, vendor_cost: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }
   ]);
 
   // Custom item dialog
@@ -200,11 +202,11 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
     setNotes('');
     setDiscountType('none');
     setDiscountValue('0');
-    setLineItems([{ product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }]);
+    setLineItems([{ product_id: null, product_name: '', quantity: 1, unit_price: 0, vendor_cost: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }]);
   };
 
   const addLineItem = () => {
-    setLineItems([...lineItems, { product_id: null, product_name: '', quantity: 1, unit_price: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }]);
+    setLineItems([...lineItems, { product_id: null, product_name: '', quantity: 1, unit_price: 0, vendor_cost: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }]);
   };
 
   const removeLineItem = (index: number) => {
@@ -227,12 +229,14 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
       const anyVp = vendorProducts?.find(vp => vp.product_id === productId);
       const autoVendorId = preferredVp?.vendor_id || anyVp?.vendor_id || null;
 
+      const vendorCost = preferredVp?.cost_price || anyVp?.cost_price || 0;
       const updated = [...lineItems];
       updated[index] = {
         product_id: product.id,
         product_name: product.name,
         quantity: lineItems[index].quantity || 1,
         unit_price: product.price,
+        vendor_cost: vendorCost,
         hsn_code: product.hsn_code || '',
         gst_type: product.gst_type || 'Exempt',
         gst_rate: product.gst_rate || 0,
@@ -272,6 +276,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
       product_name: customItemData.product_name.trim(),
       quantity: customItemData.quantity,
       unit_price: customItemData.unit_price,
+      vendor_cost: customItemData.vendor_cost,
       hsn_code: customItemData.hsn_code,
       gst_type: customItemData.gst_type,
       gst_rate: customItemData.gst_type === 'Taxable' ? customItemData.gst_rate : 0,
@@ -414,6 +419,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
             product_name: item.product_name,
             quantity: item.quantity,
             unit_price: item.unit_price,
+            vendor_cost: item.vendor_cost || null,
             total_price: gst.total,
             hsn_code: item.hsn_code || null,
             gst_type: item.gst_type,
@@ -444,7 +450,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
       for (const [vendorId, items] of Object.entries(vendorItems)) {
         try {
           const { data: poNumber } = await supabase.rpc('generate_po_number');
-          const subtotal = items.reduce((sum, it) => sum + (it.quantity * it.unit_price), 0);
+          const subtotal = items.reduce((sum, it) => sum + (it.quantity * (it.vendor_cost || it.unit_price)), 0);
           const taxAmount = items.reduce((sum, it) => {
             const gst = calculateLineGST(it);
             return sum + gst.cgst + gst.sgst + gst.igst;
@@ -474,8 +480,8 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
             product_id: it.product_id || null,
             product_name: it.product_name,
             quantity: it.quantity,
-            unit_cost: it.unit_price,
-            total_cost: it.quantity * it.unit_price,
+            unit_cost: it.vendor_cost || it.unit_price,
+            total_cost: it.quantity * (it.vendor_cost || it.unit_price),
           }));
 
           const { error: poItemsError } = await supabase
@@ -636,7 +642,8 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                     <TableHead className="w-[200px]">Product</TableHead>
                     <TableHead className="w-[140px]">Vendor</TableHead>
                     <TableHead className="w-[80px]">Qty</TableHead>
-                    <TableHead className="w-[90px]">Unit Price</TableHead>
+                    <TableHead className="w-[90px]">Sell Price</TableHead>
+                    <TableHead className="w-[90px]">Vendor Cost</TableHead>
                     <TableHead className="w-[80px]">HSN</TableHead>
                     <TableHead className="w-[110px]">GST Type</TableHead>
                     <TableHead className="w-[70px]">GST %</TableHead>
@@ -716,6 +723,16 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                             step="0.01"
                             value={item.unit_price}
                             onChange={(e) => updateLineItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                            className="w-20 h-8 text-xs"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.vendor_cost}
+                            onChange={(e) => updateLineItem(index, 'vendor_cost', parseFloat(e.target.value) || 0)}
                             className="w-20 h-8 text-xs"
                           />
                         </TableCell>

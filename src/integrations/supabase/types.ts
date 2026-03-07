@@ -238,6 +238,7 @@ export type Database = {
           taxable_value: number
           total_price: number
           unit_price: number
+          vendor_cost: number | null
           weight_adjusted_at: string | null
         }
         Insert: {
@@ -257,6 +258,7 @@ export type Database = {
           taxable_value?: number
           total_price: number
           unit_price: number
+          vendor_cost?: number | null
           weight_adjusted_at?: string | null
         }
         Update: {
@@ -276,6 +278,7 @@ export type Database = {
           taxable_value?: number
           total_price?: number
           unit_price?: number
+          vendor_cost?: number | null
           weight_adjusted_at?: string | null
         }
         Relationships: [

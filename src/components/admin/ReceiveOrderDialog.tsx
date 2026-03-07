@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PackageCheck, Loader2, AlertCircle, TrendingDown, TrendingUp, Minus } from 'lucide-react';
@@ -16,12 +15,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ReceivedItem {
   id: string;
+  product_id: string | null;
   product_name: string;
-  quantity: number; // Ordered quantity (kg)
-  received_quantity: number; // Previously received (count)
-  actual_received_weight: number | null; // Previously received actual weight
-  receiving_now: number; // Actual weight being received now (kg)
+  quantity: number;
+  received_quantity: number;
+  actual_received_weight: number | null;
+  receiving_now: number;
   remarks: string;
+  pricing_model: string;
+  unit_label: string;
 }
 
 interface ReceiveOrderDialogProps {
@@ -34,20 +36,40 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
   const [items, setItems] = useState<ReceivedItem[]>([]);
   const [receivedDate, setReceivedDate] = useState(new Date().toISOString().split('T')[0]);
 
+  // Fetch products for pricing model
+  const { data: products } = useQuery({
+    queryKey: ['admin', 'products-for-receive'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, pricing_model, unit');
+      if (error) throw error;
+      return data;
+    }
+  });
+
   useEffect(() => {
-    if (purchaseOrder?.items) {
-      setItems(purchaseOrder.items.map(item => ({
-        id: item.id,
-        product_name: item.product_name,
-        quantity: item.quantity, // Ordered qty in kg
-        received_quantity: item.received_quantity,
-        actual_received_weight: item.actual_received_weight,
-        receiving_now: item.quantity - (item.actual_received_weight || 0), // Default to remaining
-        remarks: '',
-      })));
+    if (purchaseOrder?.items && products) {
+      setItems(purchaseOrder.items.map(item => {
+        const product = products?.find(p => p.id === item.product_id);
+        const pricingModel = product?.pricing_model || 'weight_based';
+        const unitLabel = pricingModel === 'unit_based' ? (product?.unit || 'units') : 'kg';
+        return {
+          id: item.id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          quantity: item.quantity,
+          received_quantity: item.received_quantity,
+          actual_received_weight: item.actual_received_weight,
+          receiving_now: item.quantity - (item.actual_received_weight || 0),
+          remarks: '',
+          pricing_model: pricingModel,
+          unit_label: unitLabel,
+        };
+      }));
       setReceivedDate(new Date().toISOString().split('T')[0]);
     }
-  }, [purchaseOrder]);
+  }, [purchaseOrder, products]);
 
   const updateReceivingWeight = (id: string, weight: number) => {
     setItems(items.map(item =>
@@ -67,11 +89,10 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
     mutationFn: async () => {
       if (!purchaseOrder) return;
 
-      // Update each item's actual received weight
       for (const item of items) {
         if (item.receiving_now > 0) {
           const newActualWeight = (item.actual_received_weight || 0) + item.receiving_now;
-          const newReceivedCount = item.received_quantity + 1; // Increment received count
+          const newReceivedCount = item.received_quantity + 1;
 
           const { error } = await supabase
             .from('purchase_order_items')
@@ -86,20 +107,12 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
         }
       }
 
-      // Calculate new totals based on actual received weights
       const totalOrdered = items.reduce((sum, item) => sum + item.quantity, 0);
       const totalActualReceived = items.reduce((sum, item) =>
         sum + (item.actual_received_weight || 0) + item.receiving_now, 0);
 
-      // Determine status based on actual received weights
-      // If all items have been received (at least partially), mark as received
-      const allItemsReceived = items.every(item =>
-        ((item.actual_received_weight || 0) + item.receiving_now) > 0
-      );
-
       let newStatus: string;
       if (totalActualReceived >= totalOrdered * 0.95) {
-        // Within 5% tolerance, consider fully received
         newStatus = 'received';
       } else if (totalActualReceived > 0) {
         newStatus = 'partially_received';
@@ -107,15 +120,11 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
         newStatus = purchaseOrder.status;
       }
 
-      const updates: Record<string, any> = {
-        status: newStatus,
-      };
-
+      const updates: Record<string, any> = { status: newStatus };
       if (newStatus === 'received') {
         updates.received_date = receivedDate;
       }
 
-      // Recalculate total based on actual received weight
       const actualTotalValue = items.reduce((sum, item) => {
         const actualWeight = (item.actual_received_weight || 0) + item.receiving_now;
         const itemFromPO = purchaseOrder.items?.find(i => i.id === item.id);
@@ -133,26 +142,12 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
 
       if (poError) throw poError;
 
-      return {
-        status: newStatus,
-        totalActualReceived,
-        totalOrdered,
-        variance: totalActualReceived - totalOrdered,
-        variancePercent: ((totalActualReceived - totalOrdered) / totalOrdered * 100).toFixed(1)
-      };
+      return { status: newStatus, totalActualReceived, totalOrdered };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-orders'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-order-stats'] });
-
-      if (result?.status === 'received') {
-        const varianceMsg = result.variance !== 0
-          ? ` (Variance: ${result.variance > 0 ? '+' : ''}${result.variance.toFixed(2)} kg / ${result.variancePercent}%)`
-          : '';
-        toast.success(`Order received! Actual: ${result.totalActualReceived.toFixed(2)} kg${varianceMsg}`);
-      } else {
-        toast.success(`Received ${result?.totalActualReceived.toFixed(2)} kg of ${result?.totalOrdered} kg ordered`);
-      }
+      toast.success(result?.status === 'received' ? 'Order fully received!' : 'Receipt recorded.');
       onClose();
     },
     onError: (error) => {
@@ -163,7 +158,7 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
   const handleReceive = () => {
     const hasReceiving = items.some(item => item.receiving_now > 0);
     if (!hasReceiving) {
-      toast.error('Please enter weight received for at least one item');
+      toast.error('Please enter quantity received for at least one item');
       return;
     }
     receiveMutation.mutate();
@@ -175,7 +170,6 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
     (item.actual_received_weight || 0) >= item.quantity
   );
 
-  // Calculate totals for display
   const totalOrdered = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPreviouslyReceived = items.reduce((sum, item) => sum + (item.actual_received_weight || 0), 0);
   const totalReceivingNow = items.reduce((sum, item) => sum + item.receiving_now, 0);
@@ -192,7 +186,7 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
             Goods Received Note: {purchaseOrder.po_number}
           </DialogTitle>
           <DialogDescription>
-            Record actual weights received for each item. Decimals allowed (e.g., 9.45 kg).
+            Record actual quantities received for each item.
           </DialogDescription>
         </DialogHeader>
 
@@ -206,7 +200,6 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
         ) : (
           <ScrollArea className="max-h-[60vh]">
             <div className="space-y-4 pr-4">
-              {/* Received Date */}
               <div className="flex items-center gap-4">
                 <Label htmlFor="received-date" className="whitespace-nowrap">Received Date:</Label>
                 <Input
@@ -218,16 +211,15 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
                 />
               </div>
 
-              {/* Items Table */}
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[200px]">Product</TableHead>
-                      <TableHead className="text-right w-[100px]">Ordered Qty (kg)</TableHead>
-                      <TableHead className="text-right w-[100px]">Prev. Received (kg)</TableHead>
-                      <TableHead className="text-right w-[100px]">Remaining (kg)</TableHead>
-                      <TableHead className="text-right w-[120px]">Receiving Now (kg)</TableHead>
+                      <TableHead className="text-right w-[100px]">Ordered</TableHead>
+                      <TableHead className="text-right w-[100px]">Prev. Received</TableHead>
+                      <TableHead className="text-right w-[100px]">Remaining</TableHead>
+                      <TableHead className="text-right w-[120px]">Receiving Now</TableHead>
                       <TableHead className="w-[150px]">Remarks</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -236,18 +228,22 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
                       const previousActual = item.actual_received_weight || 0;
                       const remaining = item.quantity - previousActual;
                       const isComplete = remaining <= 0;
-                      const itemVariance = item.receiving_now - remaining;
+                      const isUnitBased = item.pricing_model === 'unit_based';
+                      const unit = item.unit_label;
 
                       return (
                         <TableRow key={item.id} className={isComplete ? 'bg-muted/50' : ''}>
-                          <TableCell className="font-medium">{item.product_name}</TableCell>
-                          <TableCell className="text-right">{Number(item.quantity).toFixed(2)}</TableCell>
+                          <TableCell className="font-medium">
+                            {item.product_name}
+                            <span className="text-xs text-muted-foreground ml-1">({unit})</span>
+                          </TableCell>
+                          <TableCell className="text-right">{Number(item.quantity).toFixed(2)} {unit}</TableCell>
                           <TableCell className="text-right">
-                            {previousActual > 0 ? previousActual.toFixed(2) : '-'}
+                            {previousActual > 0 ? `${previousActual.toFixed(2)} ${unit}` : '-'}
                           </TableCell>
                           <TableCell className="text-right">
                             <span className={remaining > 0 ? 'text-amber-600 font-medium' : 'text-green-600'}>
-                              {remaining.toFixed(2)}
+                              {remaining.toFixed(2)} {unit}
                             </span>
                           </TableCell>
                           <TableCell className="text-right">
@@ -256,10 +252,14 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
                             ) : (
                               <Input
                                 type="number"
-                                step="0.01"
+                                step={isUnitBased ? "1" : "0.01"}
                                 min="0"
                                 value={item.receiving_now || ''}
-                                onChange={(e) => updateReceivingWeight(item.id, parseFloat(e.target.value) || 0)}
+                                onChange={(e) => updateReceivingWeight(item.id, 
+                                  isUnitBased 
+                                    ? Math.max(0, parseInt(e.target.value) || 0)
+                                    : parseFloat(e.target.value) || 0
+                                )}
                                 className="w-24 text-right ml-auto"
                                 placeholder="0.00"
                               />
@@ -288,19 +288,19 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Total Ordered:</span>
-                    <p className="font-semibold">{totalOrdered.toFixed(2)} kg</p>
+                    <p className="font-semibold">{totalOrdered.toFixed(2)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Previously Received:</span>
-                    <p className="font-semibold">{totalPreviouslyReceived.toFixed(2)} kg</p>
+                    <p className="font-semibold">{totalPreviouslyReceived.toFixed(2)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Receiving Now:</span>
-                    <p className="font-semibold text-primary">{totalReceivingNow.toFixed(2)} kg</p>
+                    <p className="font-semibold text-primary">{totalReceivingNow.toFixed(2)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">After Receiving:</span>
-                    <p className="font-semibold">{totalAfterReceiving.toFixed(2)} kg</p>
+                    <p className="font-semibold">{totalAfterReceiving.toFixed(2)}</p>
                   </div>
                 </div>
 
@@ -311,21 +311,9 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
                       variant={variance === 0 ? 'secondary' : variance > 0 ? 'default' : 'destructive'}
                       className="flex items-center gap-1"
                     >
-                      {variance > 0 ? (
-                        <TrendingUp className="h-3 w-3" />
-                      ) : variance < 0 ? (
-                        <TrendingDown className="h-3 w-3" />
-                      ) : (
-                        <Minus className="h-3 w-3" />
-                      )}
-                      {variance > 0 ? '+' : ''}{variance.toFixed(2)} kg ({variancePercent > 0 ? '+' : ''}{variancePercent.toFixed(1)}%)
+                      {variance > 0 ? <TrendingUp className="h-3 w-3" /> : variance < 0 ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+                      {variance > 0 ? '+' : ''}{variance.toFixed(2)} ({variancePercent > 0 ? '+' : ''}{variancePercent.toFixed(1)}%)
                     </Badge>
-                    {variance < 0 && (
-                      <span className="text-sm text-destructive">Shortage</span>
-                    )}
-                    {variance > 0 && (
-                      <span className="text-sm text-green-600">Excess</span>
-                    )}
                   </div>
                 )}
               </div>
@@ -334,9 +322,7 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
           {!allFullyReceived && (
             <Button onClick={handleReceive} disabled={receiveMutation.isPending}>
               {receiveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
