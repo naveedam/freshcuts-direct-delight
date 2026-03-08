@@ -11,7 +11,7 @@ function escapeHtml(unsafe: string | null | undefined): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
+    .replace(/\"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
 
@@ -181,6 +181,11 @@ Deno.serve(async (req) => {
     const { data: order, error: orderError } = await supabase.from('orders').select('*').eq('id', orderId).single();
     if (orderError || !order) return new Response(JSON.stringify({ error: 'Order not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
+    // Validate required delivery address fields
+    if (!order.flat_number && !order.building_name) {
+      return new Response(JSON.stringify({ error: 'Cannot generate invoice: Flat/House Number and Building/Apartment Name are required. Please update the order delivery details first.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     let { data: orderItems, error: itemsError } = await supabase.from('order_items').select('*').eq('order_id', orderId);
     if (itemsError) orderItems = [];
 
@@ -208,11 +213,13 @@ Deno.serve(async (req) => {
 
     const invoiceDate = new Date(order.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    // Build address for Bill To
-    const addressParts = [
-      order.building_name, order.flat_number ? `Flat: ${order.flat_number}` : null,
-      order.shipping_address, [order.shipping_city, order.shipping_postal_code].filter(Boolean).join(', ')
-    ].filter(Boolean);
+    // Build structured delivery address for Bill To
+    const deliveryAddressLines: string[] = [];
+    if (order.flat_number) deliveryAddressLines.push(`Flat/House: ${order.flat_number}`);
+    if (order.building_name) deliveryAddressLines.push(order.building_name);
+    if (order.shipping_address) deliveryAddressLines.push(order.shipping_address);
+    const cityPostal = [order.shipping_city, order.shipping_postal_code].filter(Boolean).join(' – ');
+    if (cityPostal) deliveryAddressLines.push(cityPostal);
 
     const html = `
 <!DOCTYPE html>
@@ -298,9 +305,9 @@ Deno.serve(async (req) => {
         ${business.gstin ? `<p>GSTIN: ${escapeHtml(business.gstin)}</p>` : ''}
       </div>
       <div class="address-block">
-        <h3>Bill To / Ship To</h3>
-        ${addressParts.map(p => `<p>${escapeHtml(p)}</p>`).join('')}
-        ${order.phone ? `<p>Phone: ${escapeHtml(order.phone)}</p>` : ''}
+        <h3>Deliver To</h3>
+        ${deliveryAddressLines.map(line => `<p>${escapeHtml(line)}</p>`).join('')}
+        ${order.phone ? `<p style="margin-top: 6px;">Phone: ${escapeHtml(order.phone)}</p>` : ''}
         ${order.customer_email ? `<p>Email: ${escapeHtml(order.customer_email)}</p>` : ''}
       </div>
     </div>

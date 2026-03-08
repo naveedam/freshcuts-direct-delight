@@ -179,6 +179,11 @@ export default function OrdersAdmin() {
   };
 
   const handleGenerateInvoice = async (orderId: string) => {
+    const order = orders?.find((o: any) => o.id === orderId);
+    if (order && !order.flat_number && !order.building_name) {
+      toast.error('Cannot generate invoice: Flat/House Number and Building/Apartment Name are required. Please edit the order first.');
+      return;
+    }
     setProcessingAction(`invoice-${orderId}`);
     try {
       const { data, error } = await supabase.functions.invoke('generate-invoice', {
@@ -187,7 +192,6 @@ export default function OrdersAdmin() {
 
       if (error) throw error;
 
-      // Open invoice in new tab
       const blob = new Blob([data], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
@@ -200,6 +204,11 @@ export default function OrdersAdmin() {
   };
 
   const handleGenerateShippingLabel = async (orderId: string) => {
+    const order = orders?.find((o: any) => o.id === orderId);
+    if (order && !order.flat_number && !order.building_name) {
+      toast.error('Cannot generate shipping label: Flat/House Number and Building/Apartment Name are required. Please edit the order first.');
+      return;
+    }
     setProcessingAction(`label-${orderId}`);
     try {
       const { data, error } = await supabase.functions.invoke('generate-shipping-label', {

@@ -5,7 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// HTML escape function to prevent XSS
 function escapeHtml(unsafe: string | null | undefined): string {
   if (!unsafe) return '';
   return String(unsafe)
@@ -17,13 +16,11 @@ function escapeHtml(unsafe: string | null | undefined): string {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // 1. Verify authentication
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -32,7 +29,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 2. Create client with user's auth token
     const supabaseAuth = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -49,7 +45,6 @@ Deno.serve(async (req) => {
     }
     const userId = claimsData.claims.sub as string;
 
-    // 3. Verify admin role
     const { data: isAdmin, error: roleError } = await supabaseAuth.rpc('has_role', {
       _user_id: userId,
       _role: 'admin'
@@ -62,7 +57,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 4. Validate input
     const { orderId } = await req.json();
     
     if (!orderId) {
@@ -72,7 +66,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Validate UUID format
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId)) {
       return new Response(JSON.stringify({ error: 'Invalid order ID format' }), {
         status: 400,
@@ -82,13 +75,11 @@ Deno.serve(async (req) => {
 
     console.log('Generating shipping label for order:', orderId);
 
-    // 5. Now safe to use service role for document generation
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Fetch order details
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select('*')
@@ -103,7 +94,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch business settings
+    // Validate required delivery address fields
+    if (!order.flat_number && !order.building_name) {
+      return new Response(JSON.stringify({ error: 'Cannot generate shipping label: Flat/House Number and Building/Apartment Name are required. Please update the order delivery details first.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     const { data: businessSettings } = await supabase
       .from('business_settings')
       .select('*')
@@ -119,6 +117,14 @@ Deno.serve(async (req) => {
     };
 
     const orderRef = order.invoice_number || order.id.slice(0, 8).toUpperCase();
+
+    // Build delivery address lines — NO customer name, phone, or email
+    const deliveryLines: string[] = [];
+    if (order.flat_number) deliveryLines.push(`Flat/House: ${order.flat_number}`);
+    if (order.building_name) deliveryLines.push(order.building_name);
+    if (order.shipping_address) deliveryLines.push(order.shipping_address);
+    const cityPostal = [order.shipping_city, order.shipping_postal_code].filter(Boolean).join(' – ');
+    if (cityPostal) deliveryLines.push(cityPostal);
 
     const html = `
 <!DOCTYPE html>
@@ -198,6 +204,13 @@ Deno.serve(async (req) => {
       margin-top: 10px;
       color: #666;
     }
+    .privacy-note {
+      font-size: 8px;
+      color: #999;
+      text-align: center;
+      margin-top: 8px;
+      font-style: italic;
+    }
     @media print {
       body { padding: 0; background: white; }
       .label { border: 2px solid #000; }
@@ -217,18 +230,14 @@ Deno.serve(async (req) => {
       <div class="address">
         <strong>${escapeHtml(business.business_name)}</strong><br>
         ${escapeHtml(business.address) || 'Address not set'}<br>
-        ${escapeHtml(business.city)}${business.postal_code ? ' - ' + escapeHtml(business.postal_code) : ''}<br>
-        ${business.phone ? 'Tel: ' + escapeHtml(business.phone) : ''}
+        ${escapeHtml(business.city)}${business.postal_code ? ' - ' + escapeHtml(business.postal_code) : ''}
       </div>
     </div>
 
     <div class="section" style="flex: 1;">
-      <div class="section-header">Ship To</div>
+      <div class="section-header">Deliver To</div>
       <div class="address to">
-        ${order.building_name ? escapeHtml(order.building_name) + '<br>' : ''}
-        ${order.flat_number ? 'Flat: ' + escapeHtml(order.flat_number) + '<br>' : ''}
-        ${escapeHtml(order.shipping_address) || 'N/A'}<br>
-        ${escapeHtml(order.shipping_city)}${order.shipping_postal_code ? ' – ' + escapeHtml(order.shipping_postal_code) : ''}
+        ${deliveryLines.map(line => escapeHtml(line)).join('<br>')}
       </div>
     </div>
 
@@ -238,6 +247,7 @@ Deno.serve(async (req) => {
       <div class="barcode-text">${order.id.toUpperCase()}</div>
       <div class="date">Generated: ${new Date().toLocaleDateString('en-IN')}</div>
     </div>
+    <div class="privacy-note">Customer contact details withheld for privacy</div>
   </div>
 </body>
 </html>
