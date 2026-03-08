@@ -125,12 +125,15 @@ export default function AdminDashboard() {
     const totalWeight = orderItems?.reduce((s, i) => s + Number(i.quantity), 0) || 0;
 
     const weekRevenue = weekOrders.reduce((s, o) => s + Number(o.total_amount), 0);
-    const weekOrderIds = new Set(weekOrders.map(o => o.id));
-    const weekItems = orderItems?.filter(i => weekOrderIds.has(i.order_id)) || [];
-    const productSales: Record<string, { name: string; qty: number }> = {};
-    weekItems.forEach(i => {
-      const key = i.product_name;
-      if (!productSales[key]) productSales[key] = { name: key, qty: 0 };
+    // Top product: only from finalized orders (exclude cancelled, draft, pending)
+    const finalizedStatuses = new Set(['processing', 'shipped', 'delivered', 'completed']);
+    const weekFinalizedOrders = weekOrders.filter(o => finalizedStatuses.has(o.status));
+    const weekFinalizedIds = new Set(weekFinalizedOrders.map(o => o.id));
+    const weekFinalizedItems = orderItems?.filter(i => weekFinalizedIds.has(i.order_id)) || [];
+    const productSales: Record<string, { name: string; qty: number; productId: string | null }> = {};
+    weekFinalizedItems.forEach(i => {
+      const key = i.product_id || i.product_name;
+      if (!productSales[key]) productSales[key] = { name: i.product_name, qty: 0, productId: i.product_id };
       productSales[key].qty += Number(i.quantity);
     });
     const topProduct = Object.values(productSales).sort((a, b) => b.qty - a.qty)[0]?.name || 'N/A';
