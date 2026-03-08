@@ -25,6 +25,7 @@ import PurchaseOrdersAdmin from "./pages/admin/PurchaseOrdersAdmin";
 import CategoriesAdmin from "./pages/admin/CategoriesAdmin";
 import DocumentsAdmin from "./pages/admin/DocumentsAdmin";
 import BulkUploadAdmin from "./pages/admin/BulkUploadAdmin";
+import FinancialYearsAdmin from "./pages/admin/FinancialYearsAdmin";
 import OrderHistory from "./pages/account/OrderHistory";
 import OrderDetails from "./pages/account/OrderDetails";
 import ProfileSettings from "./pages/account/ProfileSettings";
