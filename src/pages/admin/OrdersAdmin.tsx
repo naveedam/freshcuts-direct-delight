@@ -55,9 +55,22 @@ export default function OrdersAdmin() {
   // Filtered orders
   const filteredOrders = useMemo(() => {
     if (!orders) return [];
-    if (!buildingFilter) return orders;
-    return orders.filter((o: any) => o.building_name === buildingFilter);
-  }, [orders, buildingFilter]);
+    let filtered = orders;
+    if (buildingFilter) {
+      filtered = filtered.filter((o: any) => o.building_name === buildingFilter);
+    }
+    if (fyFilter && fyFilter !== 'all') {
+      filtered = filtered.filter((o: any) => o.financial_year_id === fyFilter);
+    }
+    return filtered;
+  }, [orders, buildingFilter, fyFilter]);
+
+  // Check if an order belongs to a closed FY
+  const isOrderInClosedFY = (order: any): boolean => {
+    if (!order.financial_year_id || !financialYears) return false;
+    const fy = financialYears.find(f => f.id === order.financial_year_id);
+    return fy ? !fy.is_active : false;
+  };
 
   const { data: orderItems } = useQuery({
     queryKey: ['admin', 'orderItems', selectedOrder?.id],
