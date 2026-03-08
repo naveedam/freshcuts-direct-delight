@@ -33,12 +33,16 @@ import {
   FileJson,
   Calendar,
   IndianRupee,
+  CalendarDays,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { useFinancialYears } from '@/hooks/useFinancialYears';
 
 export default function GSTReportsAdmin() {
   const monthOptions = useMemo(() => generateMonthOptions(), []);
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0]?.value || '');
+  const { data: financialYears } = useFinancialYears();
+  const [fyFilter, setFyFilter] = useState<string>('all');
   
   // Fetch business settings
   const { data: businessSettings } = useQuery({

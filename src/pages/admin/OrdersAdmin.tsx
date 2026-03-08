@@ -449,8 +449,8 @@ export default function OrdersAdmin() {
                           size="sm"
                           variant="ghost"
                           onClick={() => setEditOrder(order)}
-                          title={order.converted_to_sale ? 'Invoiced – cannot edit' : order.status === 'delivered' ? 'Delivered – cannot edit' : 'Edit Order'}
-                          disabled={!!order.converted_to_sale || order.status === 'delivered' || order.status === 'cancelled'}
+                          title={isOrderInClosedFY(order) ? 'Closed FY – cannot edit' : order.converted_to_sale ? 'Invoiced – cannot edit' : order.status === 'delivered' ? 'Delivered – cannot edit' : 'Edit Order'}
+                          disabled={isOrderInClosedFY(order) || !!order.converted_to_sale || order.status === 'delivered' || order.status === 'cancelled'}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
