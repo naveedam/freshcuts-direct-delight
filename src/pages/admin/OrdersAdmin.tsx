@@ -269,28 +269,46 @@ export default function OrdersAdmin() {
           </Button>
         </div>
 
-        {/* Building Filter */}
-        {buildingNames.length > 0 && (
-          <div className="flex items-center gap-3">
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-            <Select value={buildingFilter || 'all'} onValueChange={(v) => setBuildingFilter(v === 'all' ? '' : v)}>
-              <SelectTrigger className="w-[260px]">
-                <SelectValue placeholder="Filter by Building / Apartment" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Buildings</SelectItem>
-                {buildingNames.map((name) => (
-                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {buildingFilter && (
-              <Button variant="ghost" size="sm" onClick={() => setBuildingFilter('')}>
-                Clear
-              </Button>
-            )}
-          </div>
-        )}
+        {/* Filters */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {financialYears && financialYears.length > 0 && (
+            <>
+              <CalendarDays className="h-4 w-4 text-muted-foreground" />
+              <Select value={fyFilter} onValueChange={setFyFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Financial Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Financial Years</SelectItem>
+                  {financialYears.map((fy) => (
+                    <SelectItem key={fy.id} value={fy.id}>{fy.name}{fy.is_active ? ' (Active)' : ''}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+          {buildingNames.length > 0 && (
+            <>
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <Select value={buildingFilter || 'all'} onValueChange={(v) => setBuildingFilter(v === 'all' ? '' : v)}>
+                <SelectTrigger className="w-[260px]">
+                  <SelectValue placeholder="Filter by Building / Apartment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Buildings</SelectItem>
+                  {buildingNames.map((name) => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {buildingFilter && (
+                <Button variant="ghost" size="sm" onClick={() => setBuildingFilter('')}>
+                  Clear
+                </Button>
+              )}
+            </>
+          )}
+        </div>
 
         {/* New Order Dialog */}
         <NewOrderDialog open={newOrderOpen} onOpenChange={setNewOrderOpen} />
