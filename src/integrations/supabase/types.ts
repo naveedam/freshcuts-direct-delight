@@ -140,6 +140,36 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_years: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          is_active: boolean
+          name: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          is_active?: boolean
+          name: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       gst_config: {
         Row: {
           category: string
@@ -307,6 +337,7 @@ export type Database = {
           discount_amount: number | null
           discount_type: string | null
           discount_value: number | null
+          financial_year_id: string | null
           flat_number: string | null
           id: string
           invoice_number: string | null
@@ -335,6 +366,7 @@ export type Database = {
           discount_amount?: number | null
           discount_type?: string | null
           discount_value?: number | null
+          financial_year_id?: string | null
           flat_number?: string | null
           id?: string
           invoice_number?: string | null
@@ -363,6 +395,7 @@ export type Database = {
           discount_amount?: number | null
           discount_type?: string | null
           discount_value?: number | null
+          financial_year_id?: string | null
           flat_number?: string | null
           id?: string
           invoice_number?: string | null
@@ -383,7 +416,15 @@ export type Database = {
           weight_finalized?: boolean | null
           weight_finalized_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_financial_year_id_fkey"
+            columns: ["financial_year_id"]
+            isOneToOne: false
+            referencedRelation: "financial_years"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       page_content: {
         Row: {
@@ -599,6 +640,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           expected_delivery_date: string | null
+          financial_year_id: string | null
           id: string
           notes: string | null
           order_date: string
@@ -617,6 +659,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           expected_delivery_date?: string | null
+          financial_year_id?: string | null
           id?: string
           notes?: string | null
           order_date?: string
@@ -635,6 +678,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           expected_delivery_date?: string | null
+          financial_year_id?: string | null
           id?: string
           notes?: string | null
           order_date?: string
@@ -651,6 +695,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "purchase_orders_financial_year_id_fkey"
+            columns: ["financial_year_id"]
+            isOneToOne: false
+            referencedRelation: "financial_years"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "purchase_orders_vendor_id_fkey"
             columns: ["vendor_id"]
             isOneToOne: false
@@ -662,6 +713,7 @@ export type Database = {
       sales: {
         Row: {
           created_at: string
+          financial_year_id: string | null
           id: string
           invoice_number: string
           notes: string | null
@@ -671,6 +723,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          financial_year_id?: string | null
           id?: string
           invoice_number: string
           notes?: string | null
@@ -680,6 +733,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          financial_year_id?: string | null
           id?: string
           invoice_number?: string
           notes?: string | null
@@ -688,6 +742,13 @@ export type Database = {
           sale_date?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_financial_year_id_fkey"
+            columns: ["financial_year_id"]
+            isOneToOne: false
+            referencedRelation: "financial_years"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_order_id_fkey"
             columns: ["order_id"]
@@ -1051,6 +1112,10 @@ export type Database = {
     Functions: {
       generate_invoice_number: { Args: never; Returns: string }
       generate_po_number: { Args: never; Returns: string }
+      get_financial_year_for_date: {
+        Args: { target_date: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
