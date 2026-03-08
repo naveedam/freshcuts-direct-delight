@@ -69,17 +69,20 @@ export default function GSTReportsAdmin() {
 
   // Fetch invoices for the selected period
   const { data: invoices, isLoading: invoicesLoading } = useQuery({
-    queryKey: ['admin', 'gstReportInvoices', selectedMonth],
+    queryKey: ['admin', 'gstReportInvoices', selectedMonth, fyFilter],
     queryFn: async () => {
       if (!startDate || !endDate) return [];
       
-      // Fetch orders with invoice numbers (converted to sales)
-      const { data: orders, error: ordersError } = await supabase
+      let query = supabase
         .from('orders')
         .select('*')
         .not('invoice_number', 'is', null)
         .gte('created_at', startDate)
         .lte('created_at', endDate);
+      
+      if (fyFilter && fyFilter !== 'all') {
+        query = query.eq('financial_year_id', fyFilter);
+      }
       
       if (ordersError) throw ordersError;
       
