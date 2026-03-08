@@ -84,6 +84,7 @@ export default function GSTReportsAdmin() {
         query = query.eq('financial_year_id', fyFilter);
       }
       
+      const { data: orders, error: ordersError } = await query;
       if (ordersError) throw ordersError;
       
       if (!orders?.length) return [];
