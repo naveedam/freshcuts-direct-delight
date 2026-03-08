@@ -33,12 +33,16 @@ import {
   FileJson,
   Calendar,
   IndianRupee,
+  CalendarDays,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { useFinancialYears } from '@/hooks/useFinancialYears';
 
 export default function GSTReportsAdmin() {
   const monthOptions = useMemo(() => generateMonthOptions(), []);
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0]?.value || '');
+  const { data: financialYears } = useFinancialYears();
+  const [fyFilter, setFyFilter] = useState<string>('all');
   
   // Fetch business settings
   const { data: businessSettings } = useQuery({
@@ -65,18 +69,22 @@ export default function GSTReportsAdmin() {
 
   // Fetch invoices for the selected period
   const { data: invoices, isLoading: invoicesLoading } = useQuery({
-    queryKey: ['admin', 'gstReportInvoices', selectedMonth],
+    queryKey: ['admin', 'gstReportInvoices', selectedMonth, fyFilter],
     queryFn: async () => {
       if (!startDate || !endDate) return [];
       
-      // Fetch orders with invoice numbers (converted to sales)
-      const { data: orders, error: ordersError } = await supabase
+      let query = supabase
         .from('orders')
         .select('*')
         .not('invoice_number', 'is', null)
         .gte('created_at', startDate)
         .lte('created_at', endDate);
       
+      if (fyFilter && fyFilter !== 'all') {
+        query = query.eq('financial_year_id', fyFilter);
+      }
+      
+      const { data: orders, error: ordersError } = await query;
       if (ordersError) throw ordersError;
       
       if (!orders?.length) return [];
@@ -278,7 +286,24 @@ export default function GSTReportsAdmin() {
             <p className="font-body text-muted-foreground">Generate GSTR-1 and GSTR-3B reports</p>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Financial Year Filter */}
+            {financialYears && financialYears.length > 0 && (
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <Select value={fyFilter} onValueChange={setFyFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Financial Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Financial Years</SelectItem>
+                    {financialYears.map((fy) => (
+                      <SelectItem key={fy.id} value={fy.id}>{fy.name}{fy.is_active ? ' (Active)' : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {/* Month Selector */}
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />

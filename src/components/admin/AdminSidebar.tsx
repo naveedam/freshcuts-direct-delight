@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, FileText, LogOut, Home, Building2, Truck, Receipt, BarChart3, Users, ClipboardList, FolderOpen, Layers, Upload } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, FileText, LogOut, Home, Building2, Truck, Receipt, BarChart3, Users, ClipboardList, FolderOpen, Layers, Upload, CalendarDays } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -30,6 +30,7 @@ const menuItems = [
   { title: 'GST Reports', url: '/admin/gst-reports', icon: BarChart3 },
   { title: 'Page Content', url: '/admin/content', icon: FileText },
   { title: 'Business Settings', url: '/admin/settings', icon: Building2 },
+  { title: 'Financial Years', url: '/admin/financial-years', icon: CalendarDays },
 ];
 
 export function AdminSidebar() {

@@ -55,7 +55,7 @@ export default function PurchaseOrdersAdmin() {
       
       const { data, error } = await query;
       if (error) throw error;
-      return data as PurchaseOrder[];
+      return data as unknown as PurchaseOrder[];
     }
   });
 

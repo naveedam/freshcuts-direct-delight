@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search } from 'lucide-react';
+import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import { NewOrderDialog } from '@/components/admin/NewOrderDialog';
 import { WeightAdjustmentDialog } from '@/components/admin/WeightAdjustmentDialog';
 import { EditOrderDialog } from '@/components/admin/EditOrderDialog';
 import { Input } from '@/components/ui/input';
+import { useFinancialYears } from '@/hooks/useFinancialYears';
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
@@ -27,6 +28,8 @@ export default function OrdersAdmin() {
   const [weightAdjustOrder, setWeightAdjustOrder] = useState<any>(null);
   const [editOrder, setEditOrder] = useState<any>(null);
   const [buildingFilter, setBuildingFilter] = useState('');
+  const [fyFilter, setFyFilter] = useState<string>('all');
+  const { data: financialYears } = useFinancialYears();
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['admin', 'orders'],
@@ -52,9 +55,22 @@ export default function OrdersAdmin() {
   // Filtered orders
   const filteredOrders = useMemo(() => {
     if (!orders) return [];
-    if (!buildingFilter) return orders;
-    return orders.filter((o: any) => o.building_name === buildingFilter);
-  }, [orders, buildingFilter]);
+    let filtered = orders;
+    if (buildingFilter) {
+      filtered = filtered.filter((o: any) => o.building_name === buildingFilter);
+    }
+    if (fyFilter && fyFilter !== 'all') {
+      filtered = filtered.filter((o: any) => o.financial_year_id === fyFilter);
+    }
+    return filtered;
+  }, [orders, buildingFilter, fyFilter]);
+
+  // Check if an order belongs to a closed FY
+  const isOrderInClosedFY = (order: any): boolean => {
+    if (!order.financial_year_id || !financialYears) return false;
+    const fy = financialYears.find(f => f.id === order.financial_year_id);
+    return fy ? !fy.is_active : false;
+  };
 
   const { data: orderItems } = useQuery({
     queryKey: ['admin', 'orderItems', selectedOrder?.id],
@@ -253,28 +269,46 @@ export default function OrdersAdmin() {
           </Button>
         </div>
 
-        {/* Building Filter */}
-        {buildingNames.length > 0 && (
-          <div className="flex items-center gap-3">
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-            <Select value={buildingFilter || 'all'} onValueChange={(v) => setBuildingFilter(v === 'all' ? '' : v)}>
-              <SelectTrigger className="w-[260px]">
-                <SelectValue placeholder="Filter by Building / Apartment" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Buildings</SelectItem>
-                {buildingNames.map((name) => (
-                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {buildingFilter && (
-              <Button variant="ghost" size="sm" onClick={() => setBuildingFilter('')}>
-                Clear
-              </Button>
-            )}
-          </div>
-        )}
+        {/* Filters */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {financialYears && financialYears.length > 0 && (
+            <>
+              <CalendarDays className="h-4 w-4 text-muted-foreground" />
+              <Select value={fyFilter} onValueChange={setFyFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Financial Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Financial Years</SelectItem>
+                  {financialYears.map((fy) => (
+                    <SelectItem key={fy.id} value={fy.id}>{fy.name}{fy.is_active ? ' (Active)' : ''}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+          {buildingNames.length > 0 && (
+            <>
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <Select value={buildingFilter || 'all'} onValueChange={(v) => setBuildingFilter(v === 'all' ? '' : v)}>
+                <SelectTrigger className="w-[260px]">
+                  <SelectValue placeholder="Filter by Building / Apartment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Buildings</SelectItem>
+                  {buildingNames.map((name) => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {buildingFilter && (
+                <Button variant="ghost" size="sm" onClick={() => setBuildingFilter('')}>
+                  Clear
+                </Button>
+              )}
+            </>
+          )}
+        </div>
 
         {/* New Order Dialog */}
         <NewOrderDialog open={newOrderOpen} onOpenChange={setNewOrderOpen} />
@@ -415,8 +449,8 @@ export default function OrdersAdmin() {
                           size="sm"
                           variant="ghost"
                           onClick={() => setEditOrder(order)}
-                          title={order.converted_to_sale ? 'Invoiced – cannot edit' : order.status === 'delivered' ? 'Delivered – cannot edit' : 'Edit Order'}
-                          disabled={!!order.converted_to_sale || order.status === 'delivered' || order.status === 'cancelled'}
+                          title={isOrderInClosedFY(order) ? 'Closed FY – cannot edit' : order.converted_to_sale ? 'Invoiced – cannot edit' : order.status === 'delivered' ? 'Delivered – cannot edit' : 'Edit Order'}
+                          disabled={isOrderInClosedFY(order) || !!order.converted_to_sale || order.status === 'delivered' || order.status === 'cancelled'}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
