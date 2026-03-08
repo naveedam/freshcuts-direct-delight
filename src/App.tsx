@@ -63,6 +63,7 @@ const App = () => (
               <Route path="/admin/gst-reports" element={<GSTReportsAdmin />} />
               <Route path="/admin/content" element={<ContentAdmin />} />
               <Route path="/admin/settings" element={<BusinessSettings />} />
+              <Route path="/admin/financial-years" element={<FinancialYearsAdmin />} />
               
               {/* Account Routes */}
               <Route path="/account" element={<UserDashboard />} />

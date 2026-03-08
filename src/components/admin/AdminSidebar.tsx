@@ -30,6 +30,7 @@ const menuItems = [
   { title: 'GST Reports', url: '/admin/gst-reports', icon: BarChart3 },
   { title: 'Page Content', url: '/admin/content', icon: FileText },
   { title: 'Business Settings', url: '/admin/settings', icon: Building2 },
+  { title: 'Financial Years', url: '/admin/financial-years', icon: CalendarDays },
 ];
 
 export function AdminSidebar() {
