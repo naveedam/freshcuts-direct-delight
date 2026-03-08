@@ -30,6 +30,8 @@ import OrderHistory from "./pages/account/OrderHistory";
 import OrderDetails from "./pages/account/OrderDetails";
 import ProfileSettings from "./pages/account/ProfileSettings";
 import UserDashboard from "./pages/account/UserDashboard";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +50,8 @@ const App = () => (
               <Route path="/cart" element={<CartPage />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/checkout" element={<CheckoutPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               
               {/* Admin Routes */}
               <Route path="/admin" element={<AdminDashboard />} />

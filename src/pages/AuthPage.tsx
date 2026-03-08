@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -180,7 +180,17 @@ const AuthPage = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="font-body">Password</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password" className="font-body">Password</Label>
+                      {isLogin && (
+                        <Link
+                          to="/forgot-password"
+                          className="text-xs text-primary font-medium hover:underline"
+                        >
+                          Forgot password?
+                        </Link>
+                      )}
+                    </div>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
