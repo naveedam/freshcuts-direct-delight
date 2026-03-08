@@ -28,6 +28,8 @@ export default function OrdersAdmin() {
   const [weightAdjustOrder, setWeightAdjustOrder] = useState<any>(null);
   const [editOrder, setEditOrder] = useState<any>(null);
   const [buildingFilter, setBuildingFilter] = useState('');
+  const [fyFilter, setFyFilter] = useState<string>('all');
+  const { data: financialYears } = useFinancialYears();
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['admin', 'orders'],
