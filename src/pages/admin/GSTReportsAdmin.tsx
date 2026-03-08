@@ -286,7 +286,24 @@ export default function GSTReportsAdmin() {
             <p className="font-body text-muted-foreground">Generate GSTR-1 and GSTR-3B reports</p>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Financial Year Filter */}
+            {financialYears && financialYears.length > 0 && (
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <Select value={fyFilter} onValueChange={setFyFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Financial Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Financial Years</SelectItem>
+                    {financialYears.map((fy) => (
+                      <SelectItem key={fy.id} value={fy.id}>{fy.name}{fy.is_active ? ' (Active)' : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {/* Month Selector */}
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
