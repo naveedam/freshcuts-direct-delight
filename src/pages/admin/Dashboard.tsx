@@ -10,7 +10,7 @@ import { formatCurrency } from '@/lib/currency';
 import { useNavigate } from 'react-router-dom';
 import {
   Package, ShoppingCart, IndianRupee, TrendingUp, Building2,
-  Plus, FileText, Truck, Upload, Receipt, AlertTriangle, BarChart3, CalendarDays
+  Plus, FileText, Truck, Upload, Receipt, AlertTriangle, BarChart3, CalendarDays, Star, Users
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -36,7 +36,6 @@ export default function AdminDashboard() {
   const monthStart = startOfMonth(new Date());
   const weekStart = startOfWeek(new Date());
 
-  // Fetch all orders (limited to recent 1000)
   const { data: orders, isLoading } = useQuery({
     queryKey: ['admin', 'dashboard-orders'],
     queryFn: async () => {
@@ -49,31 +48,28 @@ export default function AdminDashboard() {
     }
   });
 
-  // Fetch order items for weight & category data
   const { data: orderItems } = useQuery({
     queryKey: ['admin', 'dashboard-items'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('order_items')
-        .select('order_id, product_name, quantity, total_price, product_id');
+        .select('order_id, product_name, quantity, total_price, product_id, unit_price, vendor_cost');
       if (error) throw error;
       return data || [];
     }
   });
 
-  // Fetch products for category mapping
   const { data: products } = useQuery({
     queryKey: ['admin', 'dashboard-products'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, category, stock_quantity, in_stock');
+        .select('id, name, category, stock_quantity, in_stock, pricing_model, unit');
       if (error) throw error;
       return data || [];
     }
   });
 
-  // Fetch purchase orders this month
   const { data: purchaseOrders } = useQuery({
     queryKey: ['admin', 'dashboard-purchases'],
     queryFn: async () => {
@@ -81,6 +77,31 @@ export default function AdminDashboard() {
         .from('purchase_orders')
         .select('id, total_amount, created_at')
         .gte('created_at', monthStart.toISOString());
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Fetch vendors for procurement summary
+  const { data: vendors } = useQuery({
+    queryKey: ['admin', 'dashboard-vendors'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vendors')
+        .select('id, name')
+        .eq('status', 'active');
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Fetch vendor-product mappings for procurement intelligence
+  const { data: vendorProducts } = useQuery({
+    queryKey: ['admin', 'dashboard-vendor-products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vendor_products')
+        .select('vendor_id, product_id, cost_price, is_preferred_vendor');
       if (error) throw error;
       return data || [];
     }
@@ -101,14 +122,9 @@ export default function AdminDashboard() {
     const pending = orders.filter(o => o.status === 'pending').length;
     const delivered = orders.filter(o => o.status === 'delivered').length;
     const avgOrderValue = orders.length > 0 ? orders.reduce((s, o) => s + Number(o.total_amount), 0) / orders.length : 0;
-
-    // Total weight sold (from order items quantity)
     const totalWeight = orderItems?.reduce((s, i) => s + Number(i.quantity), 0) || 0;
 
-    // Weekly stats
     const weekRevenue = weekOrders.reduce((s, o) => s + Number(o.total_amount), 0);
-
-    // Top selling product this week
     const weekOrderIds = new Set(weekOrders.map(o => o.id));
     const weekItems = orderItems?.filter(i => weekOrderIds.has(i.order_id)) || [];
     const productSales: Record<string, { name: string; qty: number }> = {};
@@ -119,14 +135,96 @@ export default function AdminDashboard() {
     });
     const topProduct = Object.values(productSales).sort((a, b) => b.qty - a.qty)[0]?.name || 'N/A';
 
+    // Today's vendor cost & profit
+    const todayOrderIds = new Set(todayOrders.map(o => o.id));
+    const todayItems = orderItems?.filter(i => todayOrderIds.has(i.order_id)) || [];
+    const vendorCostToday = todayItems.reduce((s, i) => s + (Number(i.vendor_cost || 0) * Number(i.quantity)), 0);
+    const profitToday = salesToday - vendorCostToday;
+
+    // Today's avg order value
+    const avgOrderValueToday = todayOrders.length > 0 ? salesToday / todayOrders.length : 0;
+
     return {
       salesToday, salesMonth, purchasesMonth,
       netRevenue: salesMonth - purchasesMonth,
       ordersToday: todayOrders.length,
       pending, delivered, avgOrderValue, totalWeight,
       weekOrders: weekOrders.length, weekRevenue, topProduct,
+      vendorCostToday, profitToday, avgOrderValueToday,
     };
   }, [orders, orderItems, purchaseOrders, today, monthStart, weekStart]);
+
+  // Top selling products today
+  const topSellingToday = useMemo(() => {
+    if (!orders || !orderItems) return [];
+    const todayOrderIds = new Set(orders.filter(o => new Date(o.created_at) >= today).map(o => o.id));
+    const todayItems = orderItems.filter(i => todayOrderIds.has(i.order_id));
+    const productMap: Record<string, { name: string; qty: number; revenue: number }> = {};
+    todayItems.forEach(i => {
+      const key = i.product_name;
+      if (!productMap[key]) productMap[key] = { name: key, qty: 0, revenue: 0 };
+      productMap[key].qty += Number(i.quantity);
+      productMap[key].revenue += Number(i.total_price);
+    });
+    return Object.values(productMap).sort((a, b) => b.qty - a.qty).slice(0, 8);
+  }, [orders, orderItems, today]);
+
+  // Vendor procurement summary: aggregate pending order items by vendor
+  const vendorProcurement = useMemo(() => {
+    if (!orders || !orderItems || !vendorProducts || !vendors || !products) return [];
+    const pendingOrderIds = new Set(orders.filter(o => o.status === 'pending' || o.status === 'processing').map(o => o.id));
+    const pendingItems = orderItems.filter(i => pendingOrderIds.has(i.order_id));
+
+    // Build product->preferred vendor map
+    const preferredVendorMap: Record<string, string> = {};
+    vendorProducts.forEach(vp => {
+      if (vp.is_preferred_vendor) preferredVendorMap[vp.product_id] = vp.vendor_id;
+    });
+    // Fallback: any vendor mapping
+    vendorProducts.forEach(vp => {
+      if (!preferredVendorMap[vp.product_id]) preferredVendorMap[vp.product_id] = vp.vendor_id;
+    });
+
+    const vendorMap = new Map(vendors.map(v => [v.id, v.name]));
+    const productUnitMap = new Map(products.map(p => [p.id, { unit: p.unit, pricing_model: p.pricing_model }]));
+
+    // Group: vendor -> product -> qty
+    const summary: Record<string, { vendorName: string; items: Record<string, { productName: string; qty: number; unit: string }> }> = {};
+
+    pendingItems.forEach(i => {
+      const vendorId = i.product_id ? preferredVendorMap[i.product_id] : null;
+      if (!vendorId) return;
+      const vendorName = vendorMap.get(vendorId) || 'Unknown';
+      if (!summary[vendorId]) summary[vendorId] = { vendorName, items: {} };
+      const key = i.product_name;
+      const pInfo = i.product_id ? productUnitMap.get(i.product_id) : null;
+      const unit = pInfo?.pricing_model === 'unit_based' ? (pInfo.unit || 'pcs') : 'kg';
+      if (!summary[vendorId].items[key]) summary[vendorId].items[key] = { productName: key, qty: 0, unit };
+      summary[vendorId].items[key].qty += Number(i.quantity);
+    });
+
+    return Object.values(summary).map(v => ({
+      vendorName: v.vendorName,
+      items: Object.values(v.items).sort((a, b) => b.qty - a.qty),
+    })).sort((a, b) => b.items.length - a.items.length);
+  }, [orders, orderItems, vendorProducts, vendors, products]);
+
+  // Today's apartment delivery demand
+  const todayApartmentDemand = useMemo(() => {
+    if (!orders) return [];
+    const todayOrders = orders.filter(o => new Date(o.created_at) >= today);
+    const map: Record<string, { building: string; deliveries: number; flats: Set<string> }> = {};
+    todayOrders.forEach(o => {
+      if (!o.building_name) return;
+      if (!map[o.building_name]) map[o.building_name] = { building: o.building_name, deliveries: 0, flats: new Set() };
+      map[o.building_name].deliveries++;
+      if (o.flat_number) map[o.building_name].flats.add(o.flat_number);
+    });
+    return Object.values(map)
+      .map(d => ({ building: d.building, deliveries: d.deliveries, flatsCount: d.flats.size }))
+      .sort((a, b) => b.deliveries - a.deliveries)
+      .slice(0, 10);
+  }, [orders, today]);
 
   // Chart data
   const chartData = useMemo(() => {
@@ -145,37 +243,17 @@ export default function AdminDashboard() {
     return Object.entries(dayMap).map(([day, sales]) => ({ day, sales: Math.round(sales) })).reverse();
   }, [orders, chartPeriod, today, monthStart]);
 
-  // Apartment demand
-  const apartmentData = useMemo(() => {
-    if (!orders) return [];
-    const map: Record<string, { building: string; orders: number; revenue: number; flats: Set<string> }> = {};
-    orders.forEach(o => {
-      if (!o.building_name) return;
-      if (!map[o.building_name]) map[o.building_name] = { building: o.building_name, orders: 0, revenue: 0, flats: new Set() };
-      map[o.building_name].orders++;
-      map[o.building_name].revenue += Number(o.total_amount);
-      if (o.flat_number) map[o.building_name].flats.add(o.flat_number);
-    });
-    return Object.values(map)
-      .map(d => ({ ...d, flatsCount: d.flats.size }))
-      .sort((a, b) => b.orders - a.orders)
-      .slice(0, 10);
-  }, [orders]);
-
-  // Category performance
+  // Category performance (all time)
   const categoryData = useMemo(() => {
     if (!orderItems || !products) return [];
     const productCatMap: Record<string, string> = {};
     products.forEach(p => { productCatMap[p.id] = p.category; });
-
     const catRevenue: Record<string, number> = {};
     orderItems.forEach(i => {
       const cat = (i.product_id && productCatMap[i.product_id]) || 'Other';
       catRevenue[cat] = (catRevenue[cat] || 0) + Number(i.total_price);
     });
-    return Object.entries(catRevenue)
-      .map(([category, revenue]) => ({ category, revenue }))
-      .sort((a, b) => b.revenue - a.revenue);
+    return Object.entries(catRevenue).map(([category, revenue]) => ({ category, revenue })).sort((a, b) => b.revenue - a.revenue);
   }, [orderItems, products]);
 
   // Low stock
@@ -212,17 +290,17 @@ export default function AdminDashboard() {
           <p className="font-body text-muted-foreground">Business overview &amp; analytics</p>
         </div>
 
-        {/* Financial Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard title="Sales Today" value={formatCurrency(stats?.salesToday || 0)} icon={IndianRupee} />
-          <StatCard title="Sales This Month" value={formatCurrency(stats?.salesMonth || 0)} icon={TrendingUp} />
-          <StatCard title="Purchases This Month" value={formatCurrency(stats?.purchasesMonth || 0)} icon={Package} />
-          <StatCard title="Net Revenue" value={formatCurrency(stats?.netRevenue || 0)} icon={BarChart3} subtitle="Sales − Purchases" />
+        {/* Financial Overview - Today's P&L */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <StatCard title="Sales Today" value={formatCurrency(stats?.salesToday || 0)} icon={IndianRupee} subtitle={`${stats?.ordersToday || 0} orders`} />
+          <StatCard title="Vendor Cost Today" value={formatCurrency(stats?.vendorCostToday || 0)} icon={Package} subtitle="Purchase cost" />
+          <StatCard title="Profit Today" value={formatCurrency(stats?.profitToday || 0)} icon={TrendingUp} subtitle="Sales − Vendor Cost" />
+          <StatCard title="Avg Order Value" value={formatCurrency(stats?.avgOrderValueToday || 0)} icon={IndianRupee} subtitle="Today" />
+          <StatCard title="Net Revenue (Month)" value={formatCurrency(stats?.netRevenue || 0)} icon={BarChart3} subtitle="Sales − Purchases" />
         </div>
 
         {/* Sales Trend + Operational */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Sales Chart */}
           <Card className="lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Sales Trend</CardTitle>
@@ -257,47 +335,103 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          {/* Operational Metrics */}
           <div className="space-y-4">
             <StatCard title="Orders Today" value={String(stats?.ordersToday || 0)} icon={ShoppingCart} />
             <StatCard title="Pending Orders" value={String(stats?.pending || 0)} icon={AlertTriangle} />
-            <StatCard title="Avg Order Value" value={formatCurrency(stats?.avgOrderValue || 0)} icon={IndianRupee} />
+            <StatCard title="Delivered Orders" value={String(stats?.delivered || 0)} icon={Truck} />
             <StatCard title="Total Weight Sold" value={`${(stats?.totalWeight || 0).toFixed(1)} kg`} icon={Package} />
           </div>
         </div>
 
-        {/* Apartment Demand + Category Performance */}
+        {/* Top Selling Products Today + Today's Apartment Delivery Demand */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Apartment Demand */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Building2 className="h-4 w-4" /> Apartment Demand
+                <Star className="h-4 w-4" /> Top Selling Products Today
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {apartmentData.length > 0 ? (
+              {topSellingToday.length > 0 ? (
                 <div className="space-y-2">
-                  {apartmentData.map((apt) => (
-                    <div key={apt.building} className="flex items-center justify-between p-2.5 bg-muted/40 rounded-lg">
-                      <div>
-                        <p className="font-medium text-sm">{apt.building}</p>
-                        <p className="text-xs text-muted-foreground">{apt.flatsCount} flats</p>
+                  {topSellingToday.map((p, idx) => (
+                    <div key={p.name} className="flex items-center justify-between p-2.5 bg-muted/40 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-muted-foreground w-5">#{idx + 1}</span>
+                        <span className="text-sm font-medium truncate">{p.name}</span>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium text-sm">{formatCurrency(apt.revenue)}</p>
-                        <p className="text-xs text-muted-foreground">{apt.orders} orders</p>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold">{p.qty % 1 === 0 ? p.qty : p.qty.toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground">{formatCurrency(p.revenue)}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-muted-foreground py-6">No apartment data yet</p>
+                <p className="text-center text-muted-foreground py-6">No sales today yet</p>
               )}
             </CardContent>
           </Card>
 
-          {/* Category Performance */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Building2 className="h-4 w-4" /> Today's Delivery Demand
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {todayApartmentDemand.length > 0 ? (
+                <div className="space-y-2">
+                  {todayApartmentDemand.map((apt) => (
+                    <div key={apt.building} className="flex items-center justify-between p-2.5 bg-muted/40 rounded-lg">
+                      <div>
+                        <p className="font-medium text-sm">{apt.building}</p>
+                        <p className="text-xs text-muted-foreground">{apt.flatsCount} flats</p>
+                      </div>
+                      <Badge variant="secondary">{apt.deliveries} deliveries</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-6">No deliveries today yet</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Vendor Procurement Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4" /> Vendor Procurement Summary
+              <Badge variant="outline" className="ml-2 text-xs">Pending Orders</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {vendorProcurement.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {vendorProcurement.map((v) => (
+                  <div key={v.vendorName} className="border rounded-lg p-3 space-y-2">
+                    <p className="font-semibold text-sm border-b pb-1">{v.vendorName}</p>
+                    {v.items.map((item) => (
+                      <div key={item.productName} className="flex items-center justify-between text-sm">
+                        <span className="truncate mr-2 text-muted-foreground">{item.productName}</span>
+                        <span className="font-medium shrink-0">
+                          {item.qty % 1 === 0 ? item.qty : item.qty.toFixed(2)} {item.unit}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-6">No pending procurement needed</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Category Performance + Weekly Snapshot */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -319,11 +453,7 @@ export default function AdminDashboard() {
               )}
             </CardContent>
           </Card>
-        </div>
 
-        {/* Weekly Snapshot + Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Weekly Snapshot */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -347,38 +477,38 @@ export default function AdminDashboard() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => navigate('/admin/orders')}>
-                  <Plus className="h-4 w-4" />
-                  <span className="text-xs">Create Order</span>
-                </Button>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => navigate('/admin/orders')}>
-                  <FileText className="h-4 w-4" />
-                  <span className="text-xs">Generate Invoice</span>
-                </Button>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => navigate('/admin/purchase-orders')}>
-                  <Truck className="h-4 w-4" />
-                  <span className="text-xs">Purchase Order</span>
-                </Button>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => navigate('/admin/bulk-upload')}>
-                  <Upload className="h-4 w-4" />
-                  <span className="text-xs">Upload Products</span>
-                </Button>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-1 col-span-2" onClick={() => navigate('/admin/gst-reports')}>
-                  <Receipt className="h-4 w-4" />
-                  <span className="text-xs">View GST Reports</span>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </div>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => navigate('/admin/orders')}>
+                <Plus className="h-4 w-4" />
+                <span className="text-xs">Create Order</span>
+              </Button>
+              <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => navigate('/admin/orders')}>
+                <FileText className="h-4 w-4" />
+                <span className="text-xs">Generate Invoice</span>
+              </Button>
+              <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => navigate('/admin/purchase-orders')}>
+                <Truck className="h-4 w-4" />
+                <span className="text-xs">Purchase Order</span>
+              </Button>
+              <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => navigate('/admin/bulk-upload')}>
+                <Upload className="h-4 w-4" />
+                <span className="text-xs">Upload Products</span>
+              </Button>
+              <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => navigate('/admin/gst-reports')}>
+                <Receipt className="h-4 w-4" />
+                <span className="text-xs">GST Reports</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Low Stock Reminder */}
         {lowStockItems.length > 0 && (
