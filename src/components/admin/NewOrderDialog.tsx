@@ -112,6 +112,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   const [notes, setNotes] = useState('');
   const [discountType, setDiscountType] = useState<'none' | 'percentage' | 'flat'>('none');
   const [discountValue, setDiscountValue] = useState('0');
+  const [shippingCost, setShippingCost] = useState('0');
   
   // Line items
   const [lineItems, setLineItems] = useState<OrderLineItem[]>([
