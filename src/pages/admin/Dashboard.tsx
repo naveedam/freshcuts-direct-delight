@@ -138,11 +138,12 @@ export default function AdminDashboard() {
     });
     const topProduct = Object.values(productSales).sort((a, b) => b.qty - a.qty)[0]?.name || 'N/A';
 
-    // Today's vendor cost & profit
+    // Today's vendor cost, shipping cost & profit
     const todayOrderIds = new Set(todayOrders.map(o => o.id));
     const todayItems = orderItems?.filter(i => todayOrderIds.has(i.order_id)) || [];
     const vendorCostToday = todayItems.reduce((s, i) => s + (Number(i.vendor_cost || 0) * Number(i.quantity)), 0);
-    const profitToday = salesToday - vendorCostToday;
+    const shippingCostToday = todayOrders.reduce((s, o) => s + Number((o as any).shipping_cost || 0), 0);
+    const profitToday = salesToday - vendorCostToday - shippingCostToday;
 
     // Today's avg order value
     const avgOrderValueToday = todayOrders.length > 0 ? salesToday / todayOrders.length : 0;
