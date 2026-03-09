@@ -15,10 +15,9 @@ export function BulkUploadStep5({ importState, onReset }: Step5Props) {
 
   const downloadErrorReport = () => {
     if (!importLog?.errors.length) return;
-    const ws = XLSX.utils.json_to_sheet(importLog.errors);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Errors');
-    XLSX.writeFile(wb, 'import_errors.xlsx');
+    writeExcelFile('import_errors.xlsx', [
+      { name: 'Errors', data: importLog.errors }
+    ]);
   };
 
   return (
