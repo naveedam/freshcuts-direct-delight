@@ -55,20 +55,20 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               
               {/* Admin Routes */}
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/products" element={<ProductsAdmin />} />
-              <Route path="/admin/products/bulk-upload" element={<BulkUploadAdmin />} />
-              <Route path="/admin/categories" element={<CategoriesAdmin />} />
-              <Route path="/admin/orders" element={<OrdersAdmin />} />
-              <Route path="/admin/vendors" element={<VendorsAdmin />} />
-              <Route path="/admin/purchase-orders" element={<PurchaseOrdersAdmin />} />
-              <Route path="/admin/documents" element={<DocumentsAdmin />} />
-              <Route path="/admin/shipping" element={<ShippingSettings />} />
-              <Route path="/admin/gst" element={<GSTConfigAdmin />} />
-              <Route path="/admin/gst-reports" element={<GSTReportsAdmin />} />
-              <Route path="/admin/content" element={<ContentAdmin />} />
-              <Route path="/admin/settings" element={<BusinessSettings />} />
-              <Route path="/admin/financial-years" element={<FinancialYearsAdmin />} />
+              <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
+              <Route path="/admin/products" element={<RequireAdmin><ProductsAdmin /></RequireAdmin>} />
+              <Route path="/admin/products/bulk-upload" element={<RequireAdmin><BulkUploadAdmin /></RequireAdmin>} />
+              <Route path="/admin/categories" element={<RequireAdmin><CategoriesAdmin /></RequireAdmin>} />
+              <Route path="/admin/orders" element={<RequireAdmin><OrdersAdmin /></RequireAdmin>} />
+              <Route path="/admin/vendors" element={<RequireAdmin><VendorsAdmin /></RequireAdmin>} />
+              <Route path="/admin/purchase-orders" element={<RequireAdmin><PurchaseOrdersAdmin /></RequireAdmin>} />
+              <Route path="/admin/documents" element={<RequireAdmin><DocumentsAdmin /></RequireAdmin>} />
+              <Route path="/admin/shipping" element={<RequireAdmin><ShippingSettings /></RequireAdmin>} />
+              <Route path="/admin/gst" element={<RequireAdmin><GSTConfigAdmin /></RequireAdmin>} />
+              <Route path="/admin/gst-reports" element={<RequireAdmin><GSTReportsAdmin /></RequireAdmin>} />
+              <Route path="/admin/content" element={<RequireAdmin><ContentAdmin /></RequireAdmin>} />
+              <Route path="/admin/settings" element={<RequireAdmin><BusinessSettings /></RequireAdmin>} />
+              <Route path="/admin/financial-years" element={<RequireAdmin><FinancialYearsAdmin /></RequireAdmin>} />
               
               {/* Account Routes */}
               <Route path="/account" element={<UserDashboard />} />
