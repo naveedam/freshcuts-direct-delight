@@ -12,7 +12,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Loader2, AlertTriangle, Truck } from 'lucide-react';
 import { toast } from 'sonner';
-import { Input as InputUI } from '@/components/ui/input';
 
 interface OrderItem {
   id: string;
