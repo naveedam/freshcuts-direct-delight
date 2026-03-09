@@ -168,9 +168,6 @@ export default function GSTReportsAdmin() {
   const handleExportGSTR1Excel = () => {
     if (!gstr1) return;
     
-    const wb = XLSX.utils.book_new();
-    
-    // Table 4 sheet
     const table4Data = gstr1.table_4.map(row => ({
       'Rate (%)': row.rate,
       'Taxable Value': row.taxable_value,
@@ -179,20 +176,14 @@ export default function GSTReportsAdmin() {
       'IGST': row.igst,
       'Cess': row.cess,
     }));
-    const ws4 = XLSX.utils.json_to_sheet(table4Data);
-    XLSX.utils.book_append_sheet(wb, ws4, 'Table 4 - Taxable Supplies');
     
-    // Table 8 sheet
     const table8Data = gstr1.table_8.map(row => ({
       'Description': row.description,
       'Nil Rated': row.nil_rated,
       'Exempted': row.exempted,
       'Non-GST': row.non_gst,
     }));
-    const ws8 = XLSX.utils.json_to_sheet(table8Data);
-    XLSX.utils.book_append_sheet(wb, ws8, 'Table 8 - Nil/Exempt');
     
-    // HSN Summary sheet
     const hsnData = gstr1.hsn_summary.map(row => ({
       'HSN Code': row.hsn_code,
       'Description': row.description,
@@ -205,20 +196,20 @@ export default function GSTReportsAdmin() {
       'SGST': row.state_tax,
       'Cess': row.cess,
     }));
-    const wsHSN = XLSX.utils.json_to_sheet(hsnData);
-    XLSX.utils.book_append_sheet(wb, wsHSN, 'HSN Summary');
     
-    // B2CS sheet
     const b2csData = gstr1.b2cs.map(row => ({
       'Place of Supply': row.place_of_supply,
       'Rate (%)': row.rate,
       'Taxable Value': row.taxable_value,
       'Cess': row.cess,
     }));
-    const wsB2CS = XLSX.utils.json_to_sheet(b2csData);
-    XLSX.utils.book_append_sheet(wb, wsB2CS, 'B2CS - Small Invoices');
     
-    XLSX.writeFile(wb, `GSTR1_${selectedMonth}.xlsx`);
+    writeExcelFile(`GSTR1_${selectedMonth}.xlsx`, [
+      { name: 'Table 4 - Taxable Supplies', data: table4Data },
+      { name: 'Table 8 - Nil/Exempt', data: table8Data },
+      { name: 'HSN Summary', data: hsnData },
+      { name: 'B2CS - Small Invoices', data: b2csData },
+    ]);
   };
 
   const handleExportGSTR1JSON = () => {
