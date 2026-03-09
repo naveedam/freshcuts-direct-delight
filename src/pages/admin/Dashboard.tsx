@@ -295,10 +295,11 @@ export default function AdminDashboard() {
         </div>
 
         {/* Financial Overview - Today's P&L */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           <StatCard title="Sales Today" value={formatCurrency(stats?.salesToday || 0)} icon={IndianRupee} subtitle={`${stats?.ordersToday || 0} orders`} />
           <StatCard title="Vendor Cost Today" value={formatCurrency(stats?.vendorCostToday || 0)} icon={Package} subtitle="Purchase cost" />
-          <StatCard title="Profit Today" value={formatCurrency(stats?.profitToday || 0)} icon={TrendingUp} subtitle="Sales − Vendor Cost" />
+          <StatCard title="Shipping Cost Today" value={formatCurrency(stats?.shippingCostToday || 0)} icon={Truck} subtitle="Delivery expense" />
+          <StatCard title="Profit Today" value={formatCurrency(stats?.profitToday || 0)} icon={TrendingUp} subtitle="Sales − Vendor − Shipping" />
           <StatCard title="Avg Order Value" value={formatCurrency(stats?.avgOrderValueToday || 0)} icon={IndianRupee} subtitle="Today" />
           <StatCard title="Net Revenue (Month)" value={formatCurrency(stats?.netRevenue || 0)} icon={BarChart3} subtitle="Sales − Purchases" />
         </div>
