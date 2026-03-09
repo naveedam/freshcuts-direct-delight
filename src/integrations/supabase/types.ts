@@ -349,6 +349,7 @@ export type Database = {
           sale_converted_at: string | null
           shipping_address: string | null
           shipping_city: string | null
+          shipping_cost: number | null
           shipping_label_generated: boolean | null
           shipping_postal_code: string | null
           status: string
@@ -378,6 +379,7 @@ export type Database = {
           sale_converted_at?: string | null
           shipping_address?: string | null
           shipping_city?: string | null
+          shipping_cost?: number | null
           shipping_label_generated?: boolean | null
           shipping_postal_code?: string | null
           status?: string
@@ -407,6 +409,7 @@ export type Database = {
           sale_converted_at?: string | null
           shipping_address?: string | null
           shipping_city?: string | null
+          shipping_cost?: number | null
           shipping_label_generated?: boolean | null
           shipping_postal_code?: string | null
           status?: string

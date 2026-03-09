@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Loader2, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Loader2, AlertTriangle, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface OrderItem {
@@ -82,6 +82,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [items, setItems] = useState<EditableItem[]>([]);
+  const [shippingCost, setShippingCost] = useState('0');
 
   // Fetch products for dropdown
   const { data: products } = useQuery({
@@ -134,8 +135,9 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
           };
         })
       );
+      setShippingCost(String(Number((order as any)?.shipping_cost) || 0));
     }
-  }, [open, orderItems, vendorProducts]);
+  }, [open, orderItems, vendorProducts, order]);
 
   const lockReason = isOrderLocked(order);
   const isIGST = order?.is_igst ?? false;
@@ -324,10 +326,10 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
         if (error) throw error;
       }
 
-      // Update order total
+      // Update order total and shipping cost
       const { error: orderErr } = await supabase
         .from('orders')
-        .update({ total_amount: totals.total })
+        .update({ total_amount: totals.total, shipping_cost: parseFloat(shippingCost) || 0 })
         .eq('id', order.id);
       if (orderErr) throw orderErr;
 
@@ -630,6 +632,22 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
                     <span>Total</span>
                     <span>₹{totals.total.toFixed(2)}</span>
                   </div>
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Shipping Cost (₹)</span>
+                    </div>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={shippingCost}
+                      onChange={(e) => setShippingCost(e.target.value)}
+                      className="h-8 w-28 text-xs text-right"
+                      placeholder="0"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Internal only — not shown on customer invoice</p>
                 </div>
               </div>
             </ScrollArea>

@@ -561,6 +561,12 @@ export default function OrdersAdmin() {
                       </p>
                     )}
                   </div>
+                  {Number(selectedOrder.shipping_cost) > 0 && (
+                    <div>
+                      <p className="text-muted-foreground">Shipping Cost</p>
+                      <p className="font-medium text-sm">₹{Number(selectedOrder.shipping_cost).toFixed(0)}</p>
+                    </div>
+                  )}
                   {selectedOrder.invoice_number && (
                     <div>
                       <p className="text-muted-foreground">Invoice Number</p>

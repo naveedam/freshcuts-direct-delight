@@ -1,0 +1,1 @@
+ALTER TABLE public.orders ADD COLUMN shipping_cost numeric DEFAULT 0;

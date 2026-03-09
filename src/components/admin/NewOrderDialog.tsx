@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Loader2, PackagePlus, Percent, IndianRupee } from 'lucide-react';
+import { Plus, Trash2, Loader2, PackagePlus, Percent, IndianRupee, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/currency';
@@ -112,6 +112,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   const [notes, setNotes] = useState('');
   const [discountType, setDiscountType] = useState<'none' | 'percentage' | 'flat'>('none');
   const [discountValue, setDiscountValue] = useState('0');
+  const [shippingCost, setShippingCost] = useState('0');
   
   // Line items
   const [lineItems, setLineItems] = useState<OrderLineItem[]>([
@@ -202,6 +203,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
     setNotes('');
     setDiscountType('none');
     setDiscountValue('0');
+    setShippingCost('0');
     setLineItems([{ product_id: null, product_name: '', quantity: 1, unit_price: 0, vendor_cost: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }]);
   };
 
@@ -402,6 +404,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
           discount_type: discountType,
           discount_value: parseFloat(discountValue) || 0,
           discount_amount: discountAmount,
+          shipping_cost: parseFloat(shippingCost) || 0,
         })
         .select()
         .single();
@@ -791,7 +794,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
               </Table>
             </div>
 
-            {/* Discount */}
+            {/* Discount & Shipping Cost */}
             <div className="p-4 bg-muted/30 rounded-lg space-y-3">
               <Label className="font-medium">Order Discount</Label>
               <div className="flex items-center gap-3">
@@ -824,6 +827,22 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                     −{formatCurrency(discountAmount)}
                   </span>
                 )}
+              </div>
+              <div className="flex items-center gap-3 pt-2">
+                <Label className="font-medium whitespace-nowrap">Shipping Cost (₹)</Label>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={shippingCost}
+                    onChange={(e) => setShippingCost(e.target.value)}
+                    className="w-28"
+                    placeholder="0"
+                  />
+                  <Truck className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <span className="text-xs text-muted-foreground">Internal only — not shown on invoice</span>
               </div>
             </div>
 

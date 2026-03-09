@@ -41,7 +41,7 @@ export default function AdminDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('orders')
-        .select('id, total_amount, status, created_at, building_name, flat_number, discount_amount')
+        .select('id, total_amount, status, created_at, building_name, flat_number, discount_amount, shipping_cost')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -138,11 +138,12 @@ export default function AdminDashboard() {
     });
     const topProduct = Object.values(productSales).sort((a, b) => b.qty - a.qty)[0]?.name || 'N/A';
 
-    // Today's vendor cost & profit
+    // Today's vendor cost, shipping cost & profit
     const todayOrderIds = new Set(todayOrders.map(o => o.id));
     const todayItems = orderItems?.filter(i => todayOrderIds.has(i.order_id)) || [];
     const vendorCostToday = todayItems.reduce((s, i) => s + (Number(i.vendor_cost || 0) * Number(i.quantity)), 0);
-    const profitToday = salesToday - vendorCostToday;
+    const shippingCostToday = todayOrders.reduce((s, o) => s + Number((o as any).shipping_cost || 0), 0);
+    const profitToday = salesToday - vendorCostToday - shippingCostToday;
 
     // Today's avg order value
     const avgOrderValueToday = todayOrders.length > 0 ? salesToday / todayOrders.length : 0;
@@ -153,7 +154,7 @@ export default function AdminDashboard() {
       ordersToday: todayOrders.length,
       pending, delivered, avgOrderValue, totalWeight,
       weekOrders: weekOrders.length, weekRevenue, topProduct,
-      vendorCostToday, profitToday, avgOrderValueToday,
+      vendorCostToday, shippingCostToday, profitToday, avgOrderValueToday,
     };
   }, [orders, orderItems, purchaseOrders, today, monthStart, weekStart]);
 
@@ -294,10 +295,11 @@ export default function AdminDashboard() {
         </div>
 
         {/* Financial Overview - Today's P&L */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           <StatCard title="Sales Today" value={formatCurrency(stats?.salesToday || 0)} icon={IndianRupee} subtitle={`${stats?.ordersToday || 0} orders`} />
           <StatCard title="Vendor Cost Today" value={formatCurrency(stats?.vendorCostToday || 0)} icon={Package} subtitle="Purchase cost" />
-          <StatCard title="Profit Today" value={formatCurrency(stats?.profitToday || 0)} icon={TrendingUp} subtitle="Sales − Vendor Cost" />
+          <StatCard title="Shipping Cost Today" value={formatCurrency(stats?.shippingCostToday || 0)} icon={Truck} subtitle="Delivery expense" />
+          <StatCard title="Profit Today" value={formatCurrency(stats?.profitToday || 0)} icon={TrendingUp} subtitle="Sales − Vendor − Shipping" />
           <StatCard title="Avg Order Value" value={formatCurrency(stats?.avgOrderValueToday || 0)} icon={IndianRupee} subtitle="Today" />
           <StatCard title="Net Revenue (Month)" value={formatCurrency(stats?.netRevenue || 0)} icon={BarChart3} subtitle="Sales − Purchases" />
         </div>
