@@ -327,10 +327,10 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
         if (error) throw error;
       }
 
-      // Update order total
+      // Update order total and shipping cost
       const { error: orderErr } = await supabase
         .from('orders')
-        .update({ total_amount: totals.total })
+        .update({ total_amount: totals.total, shipping_cost: parseFloat(shippingCost) || 0 })
         .eq('id', order.id);
       if (orderErr) throw orderErr;
 
