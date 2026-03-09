@@ -32,6 +32,7 @@ import ProfileSettings from "./pages/account/ProfileSettings";
 import UserDashboard from "./pages/account/UserDashboard";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import { RequireAdmin } from "./components/auth/RequireAdmin";
 
 const queryClient = new QueryClient();
 
