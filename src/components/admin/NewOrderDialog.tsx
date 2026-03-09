@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Loader2, PackagePlus, Percent, IndianRupee } from 'lucide-react';
+import { Plus, Trash2, Loader2, PackagePlus, Percent, IndianRupee, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/currency';
