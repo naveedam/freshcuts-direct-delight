@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Upload, FileSpreadsheet, Download } from 'lucide-react';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
+import { readExcelFile, writeExcelFile } from '@/lib/excel-utils';
 import { SYSTEM_FIELDS } from '@/types/bulk-upload';
 
 interface Step1Props {
@@ -20,21 +20,18 @@ export function BulkUploadStep1({ onFileLoaded }: Step1Props) {
     }
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+        const buffer = e.target?.result as ArrayBuffer;
+        const { headers, rows } = await readExcelFile(buffer);
 
-        if (json.length === 0) {
+        if (rows.length === 0) {
           toast.error('The file appears to be empty');
           return;
         }
 
-        const headers = Object.keys(json[0]);
-        onFileLoaded(file.name, headers, json);
-        toast.success(`Loaded ${json.length} rows with ${headers.length} columns`);
+        onFileLoaded(file.name, headers, rows);
+        toast.success(`Loaded ${rows.length} rows with ${headers.length} columns`);
       } catch {
         toast.error('Failed to parse file');
       }
@@ -50,12 +47,10 @@ export function BulkUploadStep1({ onFileLoaded }: Step1Props) {
   }, [processFile]);
 
   const downloadTemplate = () => {
-    const ws = XLSX.utils.json_to_sheet([
-      SYSTEM_FIELDS.reduce((acc, f) => ({ ...acc, [f.label]: '' }), {}),
+    const templateRow = SYSTEM_FIELDS.reduce((acc, f) => ({ ...acc, [f.label]: '' }), {});
+    writeExcelFile('FreshCutsDaily_Product_Template.xlsx', [
+      { name: 'Products', data: [templateRow] }
     ]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Products');
-    XLSX.writeFile(wb, 'FreshCutsDaily_Product_Template.xlsx');
   };
 
   return (

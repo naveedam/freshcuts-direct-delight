@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle, AlertTriangle, RotateCcw, Download } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import { writeExcelFile } from '@/lib/excel-utils';
 import type { ImportState } from '@/types/bulk-upload';
 
 interface Step5Props {
@@ -15,10 +15,9 @@ export function BulkUploadStep5({ importState, onReset }: Step5Props) {
 
   const downloadErrorReport = () => {
     if (!importLog?.errors.length) return;
-    const ws = XLSX.utils.json_to_sheet(importLog.errors);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Errors');
-    XLSX.writeFile(wb, 'import_errors.xlsx');
+    writeExcelFile('import_errors.xlsx', [
+      { name: 'Errors', data: importLog.errors }
+    ]);
   };
 
   return (

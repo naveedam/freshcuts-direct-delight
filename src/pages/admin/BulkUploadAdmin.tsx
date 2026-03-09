@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
+
 import { BulkUploadStep1 } from '@/components/admin/bulk-upload/Step1Upload';
 import { BulkUploadStep2 } from '@/components/admin/bulk-upload/Step2Map';
 import { BulkUploadStep3 } from '@/components/admin/bulk-upload/Step3Validate';

@@ -20,7 +20,7 @@ import { format } from 'date-fns';
 import { PurchaseOrderDialog } from '@/components/admin/PurchaseOrderDialog';
 import { PurchaseOrderDetailsDialog } from '@/components/admin/PurchaseOrderDetailsDialog';
 import { ReceiveOrderDialog } from '@/components/admin/ReceiveOrderDialog';
-import * as XLSX from 'xlsx';
+import { writeExcelFile } from '@/lib/excel-utils';
 
 type POStatus = 'draft' | 'sent' | 'confirmed' | 'partially_received' | 'received' | 'cancelled';
 type PaymentStatus = 'pending' | 'partial' | 'paid';
@@ -118,17 +118,9 @@ export default function PurchaseOrdersAdmin() {
       'Notes': po.notes || '',
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Purchase Orders');
-
-    // Auto-size columns
-    const colWidths = Object.keys(exportData[0]).map(key => ({
-      wch: Math.max(key.length, ...exportData.map(row => String(row[key as keyof typeof row]).length))
-    }));
-    worksheet['!cols'] = colWidths;
-
-    XLSX.writeFile(workbook, `Purchase_Orders_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    writeExcelFile(`Purchase_Orders_${format(new Date(), 'yyyy-MM-dd')}.xlsx`, [
+      { name: 'Purchase Orders', data: exportData }
+    ]);
     toast.success('Purchase orders exported successfully');
   };
 
