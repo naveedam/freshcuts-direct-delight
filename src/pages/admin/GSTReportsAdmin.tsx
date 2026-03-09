@@ -35,7 +35,7 @@ import {
   IndianRupee,
   CalendarDays,
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import { writeExcelFile } from '@/lib/excel-utils';
 import { useFinancialYears } from '@/hooks/useFinancialYears';
 
 export default function GSTReportsAdmin() {
