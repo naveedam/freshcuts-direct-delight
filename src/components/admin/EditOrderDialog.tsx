@@ -633,6 +633,22 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
                     <span>Total</span>
                     <span>₹{totals.total.toFixed(2)}</span>
                   </div>
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Shipping Cost (₹)</span>
+                    </div>
+                    <InputUI
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={shippingCost}
+                      onChange={(e) => setShippingCost(e.target.value)}
+                      className="h-8 w-28 text-xs text-right"
+                      placeholder="0"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Internal only — not shown on customer invoice</p>
                 </div>
               </div>
             </ScrollArea>
