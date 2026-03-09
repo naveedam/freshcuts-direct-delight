@@ -136,8 +136,9 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
           };
         })
       );
+      setShippingCost(String(Number((order as any)?.shipping_cost) || 0));
     }
-  }, [open, orderItems, vendorProducts]);
+  }, [open, orderItems, vendorProducts, order]);
 
   const lockReason = isOrderLocked(order);
   const isIGST = order?.is_igst ?? false;
