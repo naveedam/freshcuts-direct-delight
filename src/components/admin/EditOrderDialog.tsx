@@ -637,7 +637,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
                       <Truck className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Shipping Cost (₹)</span>
                     </div>
-                    <InputUI
+                    <Input
                       type="number"
                       min="0"
                       step="0.01"
