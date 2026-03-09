@@ -118,17 +118,9 @@ export default function PurchaseOrdersAdmin() {
       'Notes': po.notes || '',
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Purchase Orders');
-
-    // Auto-size columns
-    const colWidths = Object.keys(exportData[0]).map(key => ({
-      wch: Math.max(key.length, ...exportData.map(row => String(row[key as keyof typeof row]).length))
-    }));
-    worksheet['!cols'] = colWidths;
-
-    XLSX.writeFile(workbook, `Purchase_Orders_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    writeExcelFile(`Purchase_Orders_${format(new Date(), 'yyyy-MM-dd')}.xlsx`, [
+      { name: 'Purchase Orders', data: exportData }
+    ]);
     toast.success('Purchase orders exported successfully');
   };
 

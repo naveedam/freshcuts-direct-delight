@@ -227,32 +227,29 @@ export default function GSTReportsAdmin() {
   const handleExportGSTR3BExcel = () => {
     if (!gstr3b) return;
     
-    const wb = XLSX.utils.book_new();
-    
-    // Summary sheet
     const summaryData = [
-      { 'Description': 'Table 3.1(a) - Taxable Outward Supplies' },
+      { 'Description': 'Table 3.1(a) - Taxable Outward Supplies', 'Amount': '' },
       { 'Description': 'Taxable Value', 'Amount': gstr3b.table_3_1_a.taxable_value },
       { 'Description': 'Integrated Tax (IGST)', 'Amount': gstr3b.table_3_1_a.integrated_tax },
       { 'Description': 'Central Tax (CGST)', 'Amount': gstr3b.table_3_1_a.central_tax },
       { 'Description': 'State Tax (SGST)', 'Amount': gstr3b.table_3_1_a.state_tax },
       { 'Description': 'Cess', 'Amount': gstr3b.table_3_1_a.cess },
-      { 'Description': '' },
-      { 'Description': 'Table 3.1(c) - Exempt/Nil Supplies' },
+      { 'Description': '', 'Amount': '' },
+      { 'Description': 'Table 3.1(c) - Exempt/Nil Supplies', 'Amount': '' },
       { 'Description': 'Nil Rated', 'Amount': gstr3b.table_3_1_c.nil_rated },
       { 'Description': 'Exempted', 'Amount': gstr3b.table_3_1_c.exempted },
       { 'Description': 'Non-GST', 'Amount': gstr3b.table_3_1_c.non_gst },
-      { 'Description': '' },
-      { 'Description': 'Tax Payable' },
+      { 'Description': '', 'Amount': '' },
+      { 'Description': 'Tax Payable', 'Amount': '' },
       { 'Description': 'IGST', 'Amount': gstr3b.tax_payable.igst },
       { 'Description': 'CGST', 'Amount': gstr3b.tax_payable.cgst },
       { 'Description': 'SGST', 'Amount': gstr3b.tax_payable.sgst },
       { 'Description': 'Total', 'Amount': gstr3b.tax_payable.total },
     ];
-    const ws = XLSX.utils.json_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(wb, ws, 'GSTR-3B Summary');
     
-    XLSX.writeFile(wb, `GSTR3B_${selectedMonth}.xlsx`);
+    writeExcelFile(`GSTR3B_${selectedMonth}.xlsx`, [
+      { name: 'GSTR-3B Summary', data: summaryData }
+    ]);
   };
 
   const handleExportGSTR3BJSON = () => {
