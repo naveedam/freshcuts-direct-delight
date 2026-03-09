@@ -83,6 +83,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [items, setItems] = useState<EditableItem[]>([]);
+  const [shippingCost, setShippingCost] = useState('0');
 
   // Fetch products for dropdown
   const { data: products } = useQuery({
