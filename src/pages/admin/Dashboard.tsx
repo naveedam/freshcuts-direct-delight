@@ -154,7 +154,7 @@ export default function AdminDashboard() {
       ordersToday: todayOrders.length,
       pending, delivered, avgOrderValue, totalWeight,
       weekOrders: weekOrders.length, weekRevenue, topProduct,
-      vendorCostToday, profitToday, avgOrderValueToday,
+      vendorCostToday, shippingCostToday, profitToday, avgOrderValueToday,
     };
   }, [orders, orderItems, purchaseOrders, today, monthStart, weekStart]);
 
