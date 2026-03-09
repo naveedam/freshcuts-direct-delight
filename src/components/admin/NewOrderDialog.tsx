@@ -404,6 +404,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
           discount_type: discountType,
           discount_value: parseFloat(discountValue) || 0,
           discount_amount: discountAmount,
+          shipping_cost: parseFloat(shippingCost) || 0,
         })
         .select()
         .single();
