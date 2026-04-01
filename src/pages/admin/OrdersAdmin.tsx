@@ -500,15 +500,10 @@ export default function OrdersAdmin() {
                           <Button 
                             size="sm" 
                             variant="outline"
-                            onClick={() => handleGenerateInvoice(order.id)}
-                            disabled={processingAction === `invoice-${order.id}`}
-                            title="Generate Invoice"
+                            onClick={() => setInvoiceEditOrder(order)}
+                            title="Preview & Edit Invoice"
                           >
-                            {processingAction === `invoice-${order.id}` ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <FileText className="h-4 w-4" />
-                            )}
+                            <FileEdit className="h-4 w-4" />
                           </Button>
                         )}
                         
