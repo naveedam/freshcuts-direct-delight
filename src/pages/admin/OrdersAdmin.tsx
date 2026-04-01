@@ -699,6 +699,14 @@ export default function OrdersAdmin() {
           order={editOrder}
           orderItems={editOrderItems || []}
         />
+
+        {/* Invoice Edit Dialog */}
+        <InvoiceEditDialog
+          open={!!invoiceEditOrder}
+          onOpenChange={(open) => !open && setInvoiceEditOrder(null)}
+          order={invoiceEditOrder}
+          orderItems={invoiceEditItems || []}
+        />
       </div>
     </AdminLayout>
   );
