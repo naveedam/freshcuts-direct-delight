@@ -111,6 +111,9 @@ function calculateLineItemGST(
 function buildHSNSummary(items: OrderItem[], isIGST: boolean): HSNSummary[] {
   const hsnMap = new Map<string, HSNSummary>();
   items.forEach(item => {
+    // Only include taxable items in HSN summary
+    const nt = normalizeGstType(item.gst_type);
+    if (nt !== 'taxable') return;
     const hsnCode = item.hsn_code || 'N/A';
     const existing = hsnMap.get(hsnCode);
     if (existing) {
