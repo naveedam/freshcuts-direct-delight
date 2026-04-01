@@ -88,11 +88,17 @@ interface GSTSummary {
   grand_total: number;
 }
 
+function normalizeGstType(raw: string): string {
+  const lower = String(raw || '').toLowerCase();
+  return lower === 'nil-rated' ? 'nil' : lower;
+}
+
 function calculateLineItemGST(
   quantity: number, unitPrice: number, gstType: string, gstRate: number, isIGST: boolean
 ): { taxableValue: number; cgst: number; sgst: number; igst: number } {
   const lineValue = quantity * unitPrice;
-  if (gstType === 'exempt' || gstType === 'nil' || gstRate === 0) {
+  const nt = normalizeGstType(gstType);
+  if (nt === 'exempt' || nt === 'nil' || gstRate === 0) {
     return { taxableValue: 0, cgst: 0, sgst: 0, igst: 0 };
   }
   const taxableValue = lineValue;
