@@ -368,17 +368,24 @@ Deno.serve(async (req) => {
       </thead>
       <tbody>
         ${items.map((item, index) => {
-          const lineValue = Number(item.quantity) * Number(item.unit_price);
-          const taxAmount = Number(item.cgst_amount) + Number(item.sgst_amount) + Number(item.igst_amount);
+          const displayQty = getDisplayQty(item);
+          const lineValue = displayQty * Number(item.unit_price);
+          const nt = normalizeGstType(item.gst_type);
+          const gstRate = Number(item.gst_rate);
+          let taxAmount = 0;
+          if (nt === 'taxable' && gstRate > 0) {
+            taxAmount = (lineValue * gstRate) / 100;
+          }
           const total = lineValue + taxAmount;
-          const gstLabel = getGSTTypeLabel(item.gst_type, Number(item.gst_rate));
-          const gstClass = item.gst_type === 'exempt' ? 'gst-exempt' : item.gst_type === 'nil' ? 'gst-nil' : 'gst-taxable';
+          const gstLabel = getGSTTypeLabel(nt, gstRate);
+          const gstClass = nt === 'exempt' ? 'gst-exempt' : nt === 'nil' ? 'gst-nil' : 'gst-taxable';
+          const qtyMismatch = item.actual_weight != null && item.actual_weight > 0 && Math.abs(item.actual_weight - item.quantity) > 0.001;
           return `
           <tr>
             <td>${index + 1}</td>
-            <td>${escapeHtml(item.product_name)}</td>
+            <td>${escapeHtml(item.product_name)}${qtyMismatch ? `<br/><span style="font-size:9px;color:#999;">Ordered: ${formatQty(Number(item.quantity))} kg</span>` : ''}</td>
             <td>${escapeHtml(item.hsn_code) || '-'}</td>
-            <td class="text-center">${Number(item.quantity)}</td>
+            <td class="text-center">${formatQty(displayQty)}</td>
             <td class="text-right">${formatCurrency(Number(item.unit_price))}</td>
             <td class="text-right">${formatCurrency(lineValue)}</td>
             <td class="text-center"><span class="gst-tag ${gstClass}">${gstLabel}</span></td>
