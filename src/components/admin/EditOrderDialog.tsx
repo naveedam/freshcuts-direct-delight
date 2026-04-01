@@ -78,6 +78,8 @@ function calculateLineGST(item: EditableItem, isIGST: boolean) {
   return { taxableValue, cgst: halfGst, sgst: halfGst, igst: 0, total: taxableValue + gstAmount };
 }
 
+const gstTypeToDb = (t: string) => t === 'Nil-rated' ? 'nil' : t.toLowerCase();
+
 export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditOrderDialogProps) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
