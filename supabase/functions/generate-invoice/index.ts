@@ -28,6 +28,25 @@ interface OrderItem {
   cgst_amount: number;
   sgst_amount: number;
   igst_amount: number;
+  actual_weight: number | null;
+}
+
+/**
+ * Get the display quantity for an order item.
+ * Priority: actual_weight (fulfilled/delivered qty) → quantity (ordered qty)
+ */
+function getDisplayQty(item: OrderItem): number {
+  if (item.actual_weight != null && item.actual_weight > 0) {
+    return Number(item.actual_weight);
+  }
+  return Number(item.quantity);
+}
+
+/**
+ * Format quantity for invoice display — always in kg with 3 decimal precision
+ */
+function formatQty(qty: number): string {
+  return qty.toFixed(3);
 }
 
 interface Order {
