@@ -358,8 +358,8 @@ Deno.serve(async (req) => {
           <th style="width: 5%">#</th>
           <th style="width: 25%">Product</th>
           <th style="width: 10%">HSN</th>
-          <th class="text-center" style="width: 8%">Qty</th>
-          <th class="text-right" style="width: 10%">Rate</th>
+          <th class="text-center" style="width: 8%">Qty (kg)</th>
+          <th class="text-right" style="width: 10%">Rate/kg</th>
           <th class="text-right" style="width: 12%">Value</th>
           <th class="text-center" style="width: 10%">GST</th>
           <th class="text-right" style="width: 10%">Tax Amt</th>
