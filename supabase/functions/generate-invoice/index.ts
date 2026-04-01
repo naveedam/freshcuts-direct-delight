@@ -242,7 +242,7 @@ Deno.serve(async (req) => {
     const items = (orderItems || []) as OrderItem[];
     const isIGST = order.is_igst;
     const hsnSummary = buildHSNSummary(items, isIGST);
-    const gstSummary = calculateGSTSummary(items);
+    const gstSummary = calculateGSTSummary(items, isIGST);
 
     const discountAmount = Number(order.discount_amount) || 0;
     const discountType = order.discount_type || 'none';
