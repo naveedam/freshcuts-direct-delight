@@ -163,7 +163,7 @@ function buildHSNSummary(items: OrderItem[], isIGST: boolean): HSNSummary[] {
   return Array.from(hsnMap.values());
 }
 
-function calculateGSTSummary(items: OrderItem[]): GSTSummary {
+function calculateGSTSummary(items: OrderItem[], isIGST: boolean): GSTSummary {
   let totalTaxableValue = 0, totalExemptValue = 0, totalNilRatedValue = 0;
   let totalCGST = 0, totalSGST = 0, totalIGST = 0;
   items.forEach(item => {
@@ -176,12 +176,8 @@ function calculateGSTSummary(items: OrderItem[]): GSTSummary {
     else if (nt === 'taxable') {
       totalTaxableValue += lineValue;
       const totalGST = (lineValue * gstRate) / 100;
-      if (items[0] && (items[0] as any).__isIGST) {
-        totalIGST += totalGST;
-      } else {
-        totalCGST += totalGST / 2;
-        totalSGST += totalGST / 2;
-      }
+      if (isIGST) { totalIGST += totalGST; }
+      else { totalCGST += totalGST / 2; totalSGST += totalGST / 2; }
     }
   });
   const totalTax = totalCGST + totalSGST + totalIGST;
