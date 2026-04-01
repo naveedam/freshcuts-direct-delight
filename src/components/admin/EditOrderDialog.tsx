@@ -78,6 +78,8 @@ function calculateLineGST(item: EditableItem, isIGST: boolean) {
   return { taxableValue, cgst: halfGst, sgst: halfGst, igst: 0, total: taxableValue + gstAmount };
 }
 
+const gstTypeToDb = (t: string) => t === 'Nil-rated' ? 'nil' : t.toLowerCase();
+
 export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditOrderDialogProps) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -289,7 +291,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
             vendor_cost: item.vendor_cost || null,
             total_price: gst.total,
             hsn_code: item.hsn_code || null,
-            gst_type: item.gst_type,
+            gst_type: gstTypeToDb(item.gst_type),
             gst_rate: item.gst_rate,
             taxable_value: gst.taxableValue,
             cgst_amount: gst.cgst,
@@ -314,7 +316,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
             vendor_cost: item.vendor_cost || null,
             total_price: gst.total,
             hsn_code: item.hsn_code || null,
-            gst_type: item.gst_type,
+            gst_type: gstTypeToDb(item.gst_type),
             gst_rate: item.gst_rate,
             taxable_value: gst.taxableValue,
             cgst_amount: gst.cgst,
