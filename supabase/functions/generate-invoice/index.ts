@@ -230,7 +230,7 @@ Deno.serve(async (req) => {
 
     if (recalculate && orderItems && orderItems.length > 0) {
       for (const item of orderItems) {
-        const gst = calculateLineItemGST(Number(item.quantity), Number(item.unit_price), item.gst_type || 'exempt', Number(item.gst_rate) || 0, order.is_igst);
+        const gst = calculateLineItemGST(item as OrderItem, order.is_igst);
         await supabase.from('order_items').update({ taxable_value: gst.taxableValue, cgst_amount: gst.cgst, sgst_amount: gst.sgst, igst_amount: gst.igst }).eq('id', item.id);
         item.taxable_value = gst.taxableValue; item.cgst_amount = gst.cgst; item.sgst_amount = gst.sgst; item.igst_amount = gst.igst;
       }
