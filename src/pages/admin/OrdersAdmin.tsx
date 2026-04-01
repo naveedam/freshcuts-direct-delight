@@ -116,6 +116,20 @@ export default function OrdersAdmin() {
     enabled: !!editOrder
   });
 
+  const { data: invoiceEditItems } = useQuery({
+    queryKey: ['admin', 'orderItems', invoiceEditOrder?.id],
+    queryFn: async () => {
+      if (!invoiceEditOrder) return [];
+      const { data, error } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', invoiceEditOrder.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!invoiceEditOrder
+  });
+
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { error } = await supabase.from('orders').update({ status }).eq('id', id);
