@@ -14,6 +14,7 @@ import { ShipmentTrackingModal } from '@/components/admin/ShipmentTrackingModal'
 import { NewOrderDialog } from '@/components/admin/NewOrderDialog';
 import { WeightAdjustmentDialog } from '@/components/admin/WeightAdjustmentDialog';
 import { EditOrderDialog } from '@/components/admin/EditOrderDialog';
+import { InvoiceEditDialog } from '@/components/admin/InvoiceEditDialog';
 import { Input } from '@/components/ui/input';
 import { useFinancialYears } from '@/hooks/useFinancialYears';
 
