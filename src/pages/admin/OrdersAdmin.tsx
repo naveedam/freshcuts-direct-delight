@@ -28,6 +28,7 @@ export default function OrdersAdmin() {
   const [newOrderOpen, setNewOrderOpen] = useState(false);
   const [weightAdjustOrder, setWeightAdjustOrder] = useState<any>(null);
   const [editOrder, setEditOrder] = useState<any>(null);
+  const [invoiceEditOrder, setInvoiceEditOrder] = useState<any>(null);
   const [buildingFilter, setBuildingFilter] = useState('');
   const [fyFilter, setFyFilter] = useState<string>('all');
   const { data: financialYears } = useFinancialYears();
