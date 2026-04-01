@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays } from 'lucide-react';
+import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays, FileEdit } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import { ShipmentTrackingModal } from '@/components/admin/ShipmentTrackingModal'
 import { NewOrderDialog } from '@/components/admin/NewOrderDialog';
 import { WeightAdjustmentDialog } from '@/components/admin/WeightAdjustmentDialog';
 import { EditOrderDialog } from '@/components/admin/EditOrderDialog';
+import { InvoiceEditDialog } from '@/components/admin/InvoiceEditDialog';
 import { Input } from '@/components/ui/input';
 import { useFinancialYears } from '@/hooks/useFinancialYears';
 
@@ -27,6 +28,7 @@ export default function OrdersAdmin() {
   const [newOrderOpen, setNewOrderOpen] = useState(false);
   const [weightAdjustOrder, setWeightAdjustOrder] = useState<any>(null);
   const [editOrder, setEditOrder] = useState<any>(null);
+  const [invoiceEditOrder, setInvoiceEditOrder] = useState<any>(null);
   const [buildingFilter, setBuildingFilter] = useState('');
   const [fyFilter, setFyFilter] = useState<string>('all');
   const { data: financialYears } = useFinancialYears();
@@ -112,6 +114,20 @@ export default function OrdersAdmin() {
       return data;
     },
     enabled: !!editOrder
+  });
+
+  const { data: invoiceEditItems } = useQuery({
+    queryKey: ['admin', 'orderItems', invoiceEditOrder?.id],
+    queryFn: async () => {
+      if (!invoiceEditOrder) return [];
+      const { data, error } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', invoiceEditOrder.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!invoiceEditOrder
   });
 
   const updateStatusMutation = useMutation({
@@ -484,15 +500,10 @@ export default function OrdersAdmin() {
                           <Button 
                             size="sm" 
                             variant="outline"
-                            onClick={() => handleGenerateInvoice(order.id)}
-                            disabled={processingAction === `invoice-${order.id}`}
-                            title="Generate Invoice"
+                            onClick={() => setInvoiceEditOrder(order)}
+                            title="Preview & Edit Invoice"
                           >
-                            {processingAction === `invoice-${order.id}` ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <FileText className="h-4 w-4" />
-                            )}
+                            <FileEdit className="h-4 w-4" />
                           </Button>
                         )}
                         
@@ -637,15 +648,10 @@ export default function OrdersAdmin() {
                   {selectedOrder.converted_to_sale && (
                     <Button 
                       variant="outline"
-                      onClick={() => handleGenerateInvoice(selectedOrder.id)}
-                      disabled={processingAction === `invoice-${selectedOrder.id}`}
+                      onClick={() => { setSelectedOrder(null); setInvoiceEditOrder(selectedOrder); }}
                       className="flex-1"
                     >
-                      {processingAction === `invoice-${selectedOrder.id}` ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <FileText className="h-4 w-4 mr-2" />
-                      )}
+                      <FileEdit className="h-4 w-4 mr-2" />
                       Invoice
                     </Button>
                   )}
@@ -692,6 +698,14 @@ export default function OrdersAdmin() {
           onOpenChange={(open) => !open && setEditOrder(null)}
           order={editOrder}
           orderItems={editOrderItems || []}
+        />
+
+        {/* Invoice Edit Dialog */}
+        <InvoiceEditDialog
+          open={!!invoiceEditOrder}
+          onOpenChange={(open) => !open && setInvoiceEditOrder(null)}
+          order={invoiceEditOrder}
+          orderItems={invoiceEditItems || []}
         />
       </div>
     </AdminLayout>

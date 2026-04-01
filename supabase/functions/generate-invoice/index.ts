@@ -28,6 +28,25 @@ interface OrderItem {
   cgst_amount: number;
   sgst_amount: number;
   igst_amount: number;
+  actual_weight: number | null;
+}
+
+/**
+ * Get the display quantity for an order item.
+ * Priority: actual_weight (fulfilled/delivered qty) → quantity (ordered qty)
+ */
+function getDisplayQty(item: OrderItem): number {
+  if (item.actual_weight != null && item.actual_weight > 0) {
+    return Number(item.actual_weight);
+  }
+  return Number(item.quantity);
+}
+
+/**
+ * Format quantity for invoice display — always in kg with 3 decimal precision
+ */
+function formatQty(qty: number): string {
+  return qty.toFixed(3);
 }
 
 interface Order {
@@ -94,62 +113,72 @@ function normalizeGstType(raw: string): string {
 }
 
 function calculateLineItemGST(
-  quantity: number, unitPrice: number, gstType: string, gstRate: number, isIGST: boolean
-): { taxableValue: number; cgst: number; sgst: number; igst: number } {
-  const lineValue = quantity * unitPrice;
-  const nt = normalizeGstType(gstType);
-  if (nt === 'exempt' || nt === 'nil' || gstRate === 0) {
-    return { taxableValue: 0, cgst: 0, sgst: 0, igst: 0 };
+  item: OrderItem, isIGST: boolean
+): { taxableValue: number; cgst: number; sgst: number; igst: number; displayQty: number } {
+  const displayQty = getDisplayQty(item);
+  const lineValue = displayQty * Number(item.unit_price);
+  const nt = normalizeGstType(item.gst_type);
+  if (nt === 'exempt' || nt === 'nil' || Number(item.gst_rate) === 0) {
+    return { taxableValue: 0, cgst: 0, sgst: 0, igst: 0, displayQty };
   }
   const taxableValue = lineValue;
-  const totalGST = (taxableValue * gstRate) / 100;
-  if (isIGST) return { taxableValue, cgst: 0, sgst: 0, igst: totalGST };
+  const totalGST = (taxableValue * Number(item.gst_rate)) / 100;
+  if (isIGST) return { taxableValue, cgst: 0, sgst: 0, igst: totalGST, displayQty };
   const halfGST = totalGST / 2;
-  return { taxableValue, cgst: halfGST, sgst: halfGST, igst: 0 };
+  return { taxableValue, cgst: halfGST, sgst: halfGST, igst: 0, displayQty };
 }
 
 function buildHSNSummary(items: OrderItem[], isIGST: boolean): HSNSummary[] {
   const hsnMap = new Map<string, HSNSummary>();
   items.forEach(item => {
-    // Only include taxable items in HSN summary
     const nt = normalizeGstType(item.gst_type);
     if (nt !== 'taxable') return;
+    const displayQty = getDisplayQty(item);
     const hsnCode = item.hsn_code || 'N/A';
+    const lineValue = displayQty * Number(item.unit_price);
+    const gstRate = Number(item.gst_rate);
+    const totalGST = (lineValue * gstRate) / 100;
+    const cgst = isIGST ? 0 : totalGST / 2;
+    const sgst = isIGST ? 0 : totalGST / 2;
+    const igst = isIGST ? totalGST : 0;
     const existing = hsnMap.get(hsnCode);
     if (existing) {
-      existing.quantity += Number(item.quantity);
-      existing.taxable_value += Number(item.taxable_value);
-      existing.cgst_amount += Number(item.cgst_amount);
-      existing.sgst_amount += Number(item.sgst_amount);
-      existing.igst_amount += Number(item.igst_amount);
+      existing.quantity += displayQty;
+      existing.taxable_value += lineValue;
+      existing.cgst_amount += cgst;
+      existing.sgst_amount += sgst;
+      existing.igst_amount += igst;
       existing.total_tax = existing.cgst_amount + existing.sgst_amount + existing.igst_amount;
     } else {
-      const gstRate = Number(item.gst_rate);
       hsnMap.set(hsnCode, {
-        hsn_code: hsnCode, description: item.product_name, quantity: Number(item.quantity),
-        taxable_value: Number(item.taxable_value),
-        cgst_rate: isIGST ? 0 : gstRate / 2, cgst_amount: Number(item.cgst_amount),
-        sgst_rate: isIGST ? 0 : gstRate / 2, sgst_amount: Number(item.sgst_amount),
-        igst_rate: isIGST ? gstRate : 0, igst_amount: Number(item.igst_amount),
-        total_tax: Number(item.cgst_amount) + Number(item.sgst_amount) + Number(item.igst_amount),
+        hsn_code: hsnCode, description: item.product_name, quantity: displayQty,
+        taxable_value: lineValue,
+        cgst_rate: isIGST ? 0 : gstRate / 2, cgst_amount: cgst,
+        sgst_rate: isIGST ? 0 : gstRate / 2, sgst_amount: sgst,
+        igst_rate: isIGST ? gstRate : 0, igst_amount: igst,
+        total_tax: cgst + sgst + igst,
       });
     }
   });
   return Array.from(hsnMap.values());
 }
 
-function calculateGSTSummary(items: OrderItem[]): GSTSummary {
+function calculateGSTSummary(items: OrderItem[], isIGST: boolean): GSTSummary {
   let totalTaxableValue = 0, totalExemptValue = 0, totalNilRatedValue = 0;
   let totalCGST = 0, totalSGST = 0, totalIGST = 0;
   items.forEach(item => {
-    const lineValue = Number(item.quantity) * Number(item.unit_price);
+    const displayQty = getDisplayQty(item);
+    const lineValue = displayQty * Number(item.unit_price);
     const nt = normalizeGstType(item.gst_type);
-    if (nt === 'exempt') totalExemptValue += lineValue;
-    else if (nt === 'nil') totalNilRatedValue += lineValue;
-    else if (nt === 'taxable') totalTaxableValue += Number(item.taxable_value);
-    totalCGST += Number(item.cgst_amount);
-    totalSGST += Number(item.sgst_amount);
-    totalIGST += Number(item.igst_amount);
+    const gstRate = Number(item.gst_rate);
+    if (nt === 'exempt') { totalExemptValue += lineValue; }
+    else if (nt === 'nil') { totalNilRatedValue += lineValue; }
+    else if (nt === 'taxable') {
+      totalTaxableValue += lineValue;
+      const totalGST = (lineValue * gstRate) / 100;
+      if (isIGST) { totalIGST += totalGST; }
+      else { totalCGST += totalGST / 2; totalSGST += totalGST / 2; }
+    }
   });
   const totalTax = totalCGST + totalSGST + totalIGST;
   const grandTotal = totalTaxableValue + totalExemptValue + totalNilRatedValue + totalTax;
@@ -201,7 +230,7 @@ Deno.serve(async (req) => {
 
     if (recalculate && orderItems && orderItems.length > 0) {
       for (const item of orderItems) {
-        const gst = calculateLineItemGST(Number(item.quantity), Number(item.unit_price), item.gst_type || 'exempt', Number(item.gst_rate) || 0, order.is_igst);
+        const gst = calculateLineItemGST(item as OrderItem, order.is_igst);
         await supabase.from('order_items').update({ taxable_value: gst.taxableValue, cgst_amount: gst.cgst, sgst_amount: gst.sgst, igst_amount: gst.igst }).eq('id', item.id);
         item.taxable_value = gst.taxableValue; item.cgst_amount = gst.cgst; item.sgst_amount = gst.sgst; item.igst_amount = gst.igst;
       }
@@ -213,7 +242,7 @@ Deno.serve(async (req) => {
     const items = (orderItems || []) as OrderItem[];
     const isIGST = order.is_igst;
     const hsnSummary = buildHSNSummary(items, isIGST);
-    const gstSummary = calculateGSTSummary(items);
+    const gstSummary = calculateGSTSummary(items, isIGST);
 
     const discountAmount = Number(order.discount_amount) || 0;
     const discountType = order.discount_type || 'none';
@@ -329,8 +358,8 @@ Deno.serve(async (req) => {
           <th style="width: 5%">#</th>
           <th style="width: 25%">Product</th>
           <th style="width: 10%">HSN</th>
-          <th class="text-center" style="width: 8%">Qty</th>
-          <th class="text-right" style="width: 10%">Rate</th>
+          <th class="text-center" style="width: 8%">Qty (kg)</th>
+          <th class="text-right" style="width: 10%">Rate/kg</th>
           <th class="text-right" style="width: 12%">Value</th>
           <th class="text-center" style="width: 10%">GST</th>
           <th class="text-right" style="width: 10%">Tax Amt</th>
@@ -339,17 +368,24 @@ Deno.serve(async (req) => {
       </thead>
       <tbody>
         ${items.map((item, index) => {
-          const lineValue = Number(item.quantity) * Number(item.unit_price);
-          const taxAmount = Number(item.cgst_amount) + Number(item.sgst_amount) + Number(item.igst_amount);
+          const displayQty = getDisplayQty(item);
+          const lineValue = displayQty * Number(item.unit_price);
+          const nt = normalizeGstType(item.gst_type);
+          const gstRate = Number(item.gst_rate);
+          let taxAmount = 0;
+          if (nt === 'taxable' && gstRate > 0) {
+            taxAmount = (lineValue * gstRate) / 100;
+          }
           const total = lineValue + taxAmount;
-          const gstLabel = getGSTTypeLabel(item.gst_type, Number(item.gst_rate));
-          const gstClass = item.gst_type === 'exempt' ? 'gst-exempt' : item.gst_type === 'nil' ? 'gst-nil' : 'gst-taxable';
+          const gstLabel = getGSTTypeLabel(nt, gstRate);
+          const gstClass = nt === 'exempt' ? 'gst-exempt' : nt === 'nil' ? 'gst-nil' : 'gst-taxable';
+          const qtyMismatch = item.actual_weight != null && item.actual_weight > 0 && Math.abs(item.actual_weight - item.quantity) > 0.001;
           return `
           <tr>
             <td>${index + 1}</td>
-            <td>${escapeHtml(item.product_name)}</td>
+            <td>${escapeHtml(item.product_name)}${qtyMismatch ? `<br/><span style="font-size:9px;color:#999;">Ordered: ${formatQty(Number(item.quantity))} kg</span>` : ''}</td>
             <td>${escapeHtml(item.hsn_code) || '-'}</td>
-            <td class="text-center">${Number(item.quantity)}</td>
+            <td class="text-center">${formatQty(displayQty)}</td>
             <td class="text-right">${formatCurrency(Number(item.unit_price))}</td>
             <td class="text-right">${formatCurrency(lineValue)}</td>
             <td class="text-center"><span class="gst-tag ${gstClass}">${gstLabel}</span></td>
