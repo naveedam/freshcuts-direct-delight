@@ -143,9 +143,10 @@ function calculateGSTSummary(items: OrderItem[]): GSTSummary {
   let totalCGST = 0, totalSGST = 0, totalIGST = 0;
   items.forEach(item => {
     const lineValue = Number(item.quantity) * Number(item.unit_price);
-    if (item.gst_type === 'exempt') totalExemptValue += lineValue;
-    else if (item.gst_type === 'nil') totalNilRatedValue += lineValue;
-    else if (item.gst_type === 'taxable') totalTaxableValue += Number(item.taxable_value);
+    const nt = normalizeGstType(item.gst_type);
+    if (nt === 'exempt') totalExemptValue += lineValue;
+    else if (nt === 'nil') totalNilRatedValue += lineValue;
+    else if (nt === 'taxable') totalTaxableValue += Number(item.taxable_value);
     totalCGST += Number(item.cgst_amount);
     totalSGST += Number(item.sgst_amount);
     totalIGST += Number(item.igst_amount);

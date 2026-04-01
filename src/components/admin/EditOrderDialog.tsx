@@ -314,7 +314,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
             vendor_cost: item.vendor_cost || null,
             total_price: gst.total,
             hsn_code: item.hsn_code || null,
-            gst_type: item.gst_type,
+            gst_type: gstTypeToDb(item.gst_type),
             gst_rate: item.gst_rate,
             taxable_value: gst.taxableValue,
             cgst_amount: gst.cgst,
