@@ -648,15 +648,10 @@ export default function OrdersAdmin() {
                   {selectedOrder.converted_to_sale && (
                     <Button 
                       variant="outline"
-                      onClick={() => handleGenerateInvoice(selectedOrder.id)}
-                      disabled={processingAction === `invoice-${selectedOrder.id}`}
+                      onClick={() => { setSelectedOrder(null); setInvoiceEditOrder(selectedOrder); }}
                       className="flex-1"
                     >
-                      {processingAction === `invoice-${selectedOrder.id}` ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <FileText className="h-4 w-4 mr-2" />
-                      )}
+                      <FileEdit className="h-4 w-4 mr-2" />
                       Invoice
                     </Button>
                   )}
