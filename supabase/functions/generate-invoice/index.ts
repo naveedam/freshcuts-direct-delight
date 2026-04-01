@@ -113,18 +113,19 @@ function normalizeGstType(raw: string): string {
 }
 
 function calculateLineItemGST(
-  quantity: number, unitPrice: number, gstType: string, gstRate: number, isIGST: boolean
-): { taxableValue: number; cgst: number; sgst: number; igst: number } {
-  const lineValue = quantity * unitPrice;
-  const nt = normalizeGstType(gstType);
-  if (nt === 'exempt' || nt === 'nil' || gstRate === 0) {
-    return { taxableValue: 0, cgst: 0, sgst: 0, igst: 0 };
+  item: OrderItem, isIGST: boolean
+): { taxableValue: number; cgst: number; sgst: number; igst: number; displayQty: number } {
+  const displayQty = getDisplayQty(item);
+  const lineValue = displayQty * Number(item.unit_price);
+  const nt = normalizeGstType(item.gst_type);
+  if (nt === 'exempt' || nt === 'nil' || Number(item.gst_rate) === 0) {
+    return { taxableValue: 0, cgst: 0, sgst: 0, igst: 0, displayQty };
   }
   const taxableValue = lineValue;
-  const totalGST = (taxableValue * gstRate) / 100;
-  if (isIGST) return { taxableValue, cgst: 0, sgst: 0, igst: totalGST };
+  const totalGST = (taxableValue * Number(item.gst_rate)) / 100;
+  if (isIGST) return { taxableValue, cgst: 0, sgst: 0, igst: totalGST, displayQty };
   const halfGST = totalGST / 2;
-  return { taxableValue, cgst: halfGST, sgst: halfGST, igst: 0 };
+  return { taxableValue, cgst: halfGST, sgst: halfGST, igst: 0, displayQty };
 }
 
 function buildHSNSummary(items: OrderItem[], isIGST: boolean): HSNSummary[] {
