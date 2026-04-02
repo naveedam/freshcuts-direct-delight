@@ -155,13 +155,19 @@ export default function OrdersAdmin() {
       if (invoiceError) throw invoiceError;
 
       // Update order with invoice number and conversion status
+      const order = await supabase.from('orders').select('total_amount, amount_paid').eq('id', orderId).single();
+      const totalAmount = Number(order.data?.total_amount) || 0;
+      const amountPaid = Number(order.data?.amount_paid) || 0;
+
       const { error: updateError } = await supabase
         .from('orders')
         .update({
           converted_to_sale: true,
           sale_converted_at: new Date().toISOString(),
           invoice_number: invoiceNumber,
-          status: 'processing'
+          status: 'processing',
+          balance_due: Math.max(0, totalAmount - amountPaid),
+          payment_status: amountPaid >= totalAmount ? 'paid' : amountPaid > 0 ? 'partial' : 'unpaid',
         })
         .eq('id', orderId);
 
