@@ -467,6 +467,22 @@ export default function OrdersAdmin() {
                         )}
                       </div>
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 gap-1 text-xs"
+                        onClick={() => setPaymentOrder(order)}
+                      >
+                        <CreditCard className="h-3 w-3" />
+                        {order.payment_status === 'paid' ? (
+                          <Badge className="bg-green-600 text-xs">Paid</Badge>
+                        ) : order.payment_status === 'partial' ? (
+                          <Badge className="bg-yellow-500 text-xs">Partial</Badge>
+                        ) : (
+                          <span>Pay</span>
+                        )}
+                      </Button>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button size="sm" variant="ghost" onClick={() => setSelectedOrder(order)}>
