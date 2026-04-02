@@ -354,6 +354,7 @@ export default function OrdersAdmin() {
                 <TableHead>Weight</TableHead>
                 <TableHead>Delivery</TableHead>
                 <TableHead>Sale</TableHead>
+                <TableHead>Payment</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
