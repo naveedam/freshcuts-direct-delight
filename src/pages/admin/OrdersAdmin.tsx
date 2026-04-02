@@ -727,6 +727,13 @@ export default function OrdersAdmin() {
           order={invoiceEditOrder}
           orderItems={invoiceEditItems || []}
         />
+
+        {/* Payment Dialog */}
+        <OrderPaymentDialog
+          open={!!paymentOrder}
+          onOpenChange={(open) => !open && setPaymentOrder(null)}
+          order={paymentOrder}
+        />
       </div>
     </AdminLayout>
   );
