@@ -315,6 +315,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
             quantity: item.quantity,
             unit_price: item.unit_price,
             vendor_cost: item.vendor_cost || null,
+            vendor_id: item.vendor_id || null,
             total_price: gst.total,
             hsn_code: item.hsn_code || null,
             gst_type: gstTypeToDb(item.gst_type),
