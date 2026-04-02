@@ -395,11 +395,21 @@ export function InvoiceEditDialog({ open, onOpenChange, order, orderItems }: Inv
         {/* Generate Button */}
         <div className="flex justify-end gap-2 pt-2 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => setShareOpen(true)} disabled={editMode}>
+            <Share2 className="h-4 w-4 mr-2" />
+            Share
+          </Button>
           <Button onClick={handleGenerate} disabled={generating || editMode}>
             {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
             Generate Invoice PDF
           </Button>
         </div>
+
+        <ShareInvoiceDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          order={order}
+        />
       </DialogContent>
     </Dialog>
   );
