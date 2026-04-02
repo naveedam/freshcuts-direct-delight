@@ -483,6 +483,7 @@ export default function OrdersAdmin() {
                           <span>Pay</span>
                         )}
                       </Button>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button size="sm" variant="ghost" onClick={() => setSelectedOrder(order)}>
