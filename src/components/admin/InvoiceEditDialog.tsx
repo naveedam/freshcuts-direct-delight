@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, FileText, Pencil, Save, X } from 'lucide-react';
+import { Loader2, FileText, Pencil, Save, X, Share2 } from 'lucide-react';
+import { ShareInvoiceDialog } from './ShareInvoiceDialog';
 import { useAuth } from '@/context/AuthContext';
 
 interface OrderItem {
@@ -57,6 +58,7 @@ export function InvoiceEditDialog({ open, onOpenChange, order, orderItems }: Inv
   const [items, setItems] = useState<EditableItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     if (open && orderItems.length > 0) {
@@ -393,11 +395,21 @@ export function InvoiceEditDialog({ open, onOpenChange, order, orderItems }: Inv
         {/* Generate Button */}
         <div className="flex justify-end gap-2 pt-2 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => setShareOpen(true)} disabled={editMode}>
+            <Share2 className="h-4 w-4 mr-2" />
+            Share
+          </Button>
           <Button onClick={handleGenerate} disabled={generating || editMode}>
             {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
             Generate Invoice PDF
           </Button>
         </div>
+
+        <ShareInvoiceDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          order={order}
+        />
       </DialogContent>
     </Dialog>
   );
