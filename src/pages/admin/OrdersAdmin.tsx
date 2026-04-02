@@ -546,7 +546,7 @@ export default function OrdersAdmin() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                     No orders yet
                   </TableCell>
                 </TableRow>
