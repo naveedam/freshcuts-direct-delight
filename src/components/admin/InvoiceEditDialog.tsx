@@ -58,6 +58,7 @@ export function InvoiceEditDialog({ open, onOpenChange, order, orderItems }: Inv
   const [items, setItems] = useState<EditableItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     if (open && orderItems.length > 0) {
