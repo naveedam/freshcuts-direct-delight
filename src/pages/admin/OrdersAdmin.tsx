@@ -15,6 +15,7 @@ import { NewOrderDialog } from '@/components/admin/NewOrderDialog';
 import { WeightAdjustmentDialog } from '@/components/admin/WeightAdjustmentDialog';
 import { EditOrderDialog } from '@/components/admin/EditOrderDialog';
 import { InvoiceEditDialog } from '@/components/admin/InvoiceEditDialog';
+import { OrderPaymentDialog } from '@/components/admin/OrderPaymentDialog';
 import { Input } from '@/components/ui/input';
 import { useFinancialYears } from '@/hooks/useFinancialYears';
 
