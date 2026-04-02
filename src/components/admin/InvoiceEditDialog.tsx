@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, FileText, Pencil, Save, X } from 'lucide-react';
+import { Loader2, FileText, Pencil, Save, X, Share2 } from 'lucide-react';
+import { ShareInvoiceDialog } from './ShareInvoiceDialog';
 import { useAuth } from '@/context/AuthContext';
 
 interface OrderItem {
