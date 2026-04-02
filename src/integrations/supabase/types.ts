@@ -140,6 +140,50 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          order_id: string
+          payment_date: string
+          payment_method: string
+          recorded_by: string | null
+          reference_number: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id: string
+          payment_date?: string
+          payment_method?: string
+          recorded_by?: string | null
+          reference_number?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id?: string
+          payment_date?: string
+          payment_method?: string
+          recorded_by?: string | null
+          reference_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_years: {
         Row: {
           created_at: string
@@ -269,6 +313,7 @@ export type Database = {
           total_price: number
           unit_price: number
           vendor_cost: number | null
+          vendor_id: string | null
           weight_adjusted_at: string | null
         }
         Insert: {
@@ -289,6 +334,7 @@ export type Database = {
           total_price: number
           unit_price: number
           vendor_cost?: number | null
+          vendor_id?: string | null
           weight_adjusted_at?: string | null
         }
         Update: {
@@ -309,6 +355,7 @@ export type Database = {
           total_price?: number
           unit_price?: number
           vendor_cost?: number | null
+          vendor_id?: string | null
           weight_adjusted_at?: string | null
         }
         Relationships: [
@@ -326,10 +373,19 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "order_items_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
         ]
       }
       orders: {
         Row: {
+          amount_paid: number
+          balance_due: number
           building_name: string | null
           converted_to_sale: boolean | null
           created_at: string
@@ -344,6 +400,7 @@ export type Database = {
           is_igst: boolean
           notes: string | null
           order_source: string | null
+          payment_status: string
           phone: string | null
           place_of_supply: string | null
           sale_converted_at: string | null
@@ -360,6 +417,8 @@ export type Database = {
           weight_finalized_at: string | null
         }
         Insert: {
+          amount_paid?: number
+          balance_due?: number
           building_name?: string | null
           converted_to_sale?: boolean | null
           created_at?: string
@@ -374,6 +433,7 @@ export type Database = {
           is_igst?: boolean
           notes?: string | null
           order_source?: string | null
+          payment_status?: string
           phone?: string | null
           place_of_supply?: string | null
           sale_converted_at?: string | null
@@ -390,6 +450,8 @@ export type Database = {
           weight_finalized_at?: string | null
         }
         Update: {
+          amount_paid?: number
+          balance_due?: number
           building_name?: string | null
           converted_to_sale?: boolean | null
           created_at?: string
@@ -404,6 +466,7 @@ export type Database = {
           is_igst?: boolean
           notes?: string | null
           order_source?: string | null
+          payment_status?: string
           phone?: string | null
           place_of_supply?: string | null
           sale_converted_at?: string | null
