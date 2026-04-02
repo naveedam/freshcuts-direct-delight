@@ -32,6 +32,7 @@ export default function OrdersAdmin() {
   const [invoiceEditOrder, setInvoiceEditOrder] = useState<any>(null);
   const [buildingFilter, setBuildingFilter] = useState('');
   const [fyFilter, setFyFilter] = useState<string>('all');
+  const [paymentOrder, setPaymentOrder] = useState<any>(null);
   const { data: financialYears } = useFinancialYears();
 
   const { data: orders, isLoading } = useQuery({
