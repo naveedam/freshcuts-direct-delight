@@ -320,6 +320,7 @@ export default function PurchaseOrdersAdmin() {
                             >
                               <CreditCard className="h-4 w-4" />
                             </Button>
+                          )}
                           {po.status === 'draft' && (
                             <>
                               <Button
