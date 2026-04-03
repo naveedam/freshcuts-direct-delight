@@ -20,6 +20,7 @@ import { format } from 'date-fns';
 import { PurchaseOrderDialog } from '@/components/admin/PurchaseOrderDialog';
 import { PurchaseOrderDetailsDialog } from '@/components/admin/PurchaseOrderDetailsDialog';
 import { ReceiveOrderDialog } from '@/components/admin/ReceiveOrderDialog';
+import { VendorPaymentsDialog } from '@/components/admin/VendorPaymentsDialog';
 import { writeExcelFile } from '@/lib/excel-utils';
 
 type POStatus = 'draft' | 'sent' | 'confirmed' | 'partially_received' | 'received' | 'cancelled';
