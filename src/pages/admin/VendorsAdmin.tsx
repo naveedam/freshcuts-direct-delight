@@ -70,6 +70,23 @@ export default function VendorsAdmin() {
     }
   });
 
+  // Financial stats across all vendors
+  const { data: financialStats } = useQuery({
+    queryKey: ['admin', 'vendor-financial-stats'],
+    queryFn: async () => {
+      const [posRes, paymentsRes] = await Promise.all([
+        supabase.from('purchase_orders').select('total_amount').neq('status', 'cancelled'),
+        supabase.from('vendor_payments').select('amount')
+      ]);
+      if (posRes.error) throw posRes.error;
+      if (paymentsRes.error) throw paymentsRes.error;
+      
+      const totalPayable = posRes.data.reduce((sum, po) => sum + Number(po.total_amount), 0);
+      const totalPaid = paymentsRes.data.reduce((sum, p) => sum + Number(p.amount), 0);
+      return { totalPayable, totalPaid, outstanding: totalPayable - totalPaid };
+    }
+  });
+
   const createMutation = useMutation({
     mutationFn: async (data: VendorForm) => {
       const { error } = await supabase.from('vendors').insert({
