@@ -34,6 +34,7 @@ export default function PurchaseOrdersAdmin() {
   const [receivingPO, setReceivingPO] = useState<PurchaseOrder | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
+  const [payingPO, setPayingPO] = useState<PurchaseOrder | null>(null);
 
   const { data: purchaseOrders, isLoading } = useQuery({
     queryKey: ['admin', 'purchase-orders', statusFilter, paymentFilter],
