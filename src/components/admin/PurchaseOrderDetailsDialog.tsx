@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -5,12 +6,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Send, XCircle, CheckCircle, Loader2, TrendingDown, TrendingUp, Minus, AlertTriangle } from 'lucide-react';
+import { Send, XCircle, CheckCircle, Loader2, TrendingDown, TrendingUp, Minus, AlertTriangle, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
 import { PurchaseOrder } from '@/types/vendor';
 import { format } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { VendorPaymentsDialog } from '@/components/admin/VendorPaymentsDialog';
 
 interface PurchaseOrderDetailsDialogProps {
   purchaseOrder: PurchaseOrder | null;
@@ -19,6 +21,7 @@ interface PurchaseOrderDetailsDialogProps {
 
 export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseOrderDetailsDialogProps) {
   const queryClient = useQueryClient();
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
   // Fetch products for pricing model info
   const { data: products } = useQuery({
@@ -104,6 +107,7 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
   const valueVariance = actualValue - orderedValue;
 
   return (
+    <>
     <Dialog open={!!purchaseOrder} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
@@ -307,6 +311,11 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose}>Close</Button>
+          {purchaseOrder.payment_status !== 'paid' && purchaseOrder.vendor && (
+            <Button variant="secondary" onClick={() => setPaymentDialogOpen(true)}>
+              <CreditCard className="h-4 w-4 mr-2" /> Pay Vendor
+            </Button>
+          )}
           {canCancel && (
             <Button variant="destructive" onClick={() => updateStatusMutation.mutate({ id: purchaseOrder.id, status: 'cancelled' })} disabled={updateStatusMutation.isPending}>
               {updateStatusMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -328,5 +337,16 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Vendor Payment Dialog */}
+    {purchaseOrder.vendor && (
+      <VendorPaymentsDialog
+        vendor={purchaseOrder.vendor}
+        open={paymentDialogOpen}
+        onOpenChange={setPaymentDialogOpen}
+        preselectedPoId={purchaseOrder.id}
+      />
+    )}
+    </>
   );
 }

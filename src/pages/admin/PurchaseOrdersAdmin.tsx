@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Loader2, Eye, Package, Trash2, FileText, PackageCheck, Calendar, Download } from 'lucide-react';
+import { Plus, Loader2, Eye, Package, Trash2, FileText, PackageCheck, Calendar, Download, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -20,6 +20,7 @@ import { format } from 'date-fns';
 import { PurchaseOrderDialog } from '@/components/admin/PurchaseOrderDialog';
 import { PurchaseOrderDetailsDialog } from '@/components/admin/PurchaseOrderDetailsDialog';
 import { ReceiveOrderDialog } from '@/components/admin/ReceiveOrderDialog';
+import { VendorPaymentsDialog } from '@/components/admin/VendorPaymentsDialog';
 import { writeExcelFile } from '@/lib/excel-utils';
 
 type POStatus = 'draft' | 'sent' | 'confirmed' | 'partially_received' | 'received' | 'cancelled';
@@ -33,6 +34,7 @@ export default function PurchaseOrdersAdmin() {
   const [receivingPO, setReceivingPO] = useState<PurchaseOrder | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
+  const [payingPO, setPayingPO] = useState<PurchaseOrder | null>(null);
 
   const { data: purchaseOrders, isLoading } = useQuery({
     queryKey: ['admin', 'purchase-orders', statusFilter, paymentFilter],
@@ -309,6 +311,16 @@ export default function PurchaseOrdersAdmin() {
                               <PackageCheck className="h-4 w-4" />
                             </Button>
                           )}
+                          {po.payment_status !== 'paid' && po.status !== 'cancelled' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setPayingPO(po)}
+                              title="Pay Vendor"
+                            >
+                              <CreditCard className="h-4 w-4" />
+                            </Button>
+                          )}
                           {po.status === 'draft' && (
                             <>
                               <Button
@@ -367,6 +379,16 @@ export default function PurchaseOrdersAdmin() {
         purchaseOrder={receivingPO}
         onClose={() => setReceivingPO(null)}
       />
+
+      {/* Vendor Payment Dialog */}
+      {payingPO && payingPO.vendor && (
+        <VendorPaymentsDialog
+          vendor={payingPO.vendor as any}
+          open={!!payingPO}
+          onOpenChange={(open) => { if (!open) setPayingPO(null); }}
+          preselectedPoId={payingPO.id}
+        />
+      )}
     </AdminLayout>
   );
 }

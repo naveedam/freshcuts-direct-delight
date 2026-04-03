@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Pencil, Trash2, Loader2, Eye, Package, CreditCard, Building2, Phone, Mail, MapPin } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Eye, Package, CreditCard, Building2, Phone, Mail, MapPin, IndianRupee, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -67,6 +67,23 @@ export default function VendorsAdmin() {
       };
 
       return stats;
+    }
+  });
+
+  // Financial stats across all vendors
+  const { data: financialStats } = useQuery({
+    queryKey: ['admin', 'vendor-financial-stats'],
+    queryFn: async () => {
+      const [posRes, paymentsRes] = await Promise.all([
+        supabase.from('purchase_orders').select('total_amount').neq('status', 'cancelled'),
+        supabase.from('vendor_payments').select('amount')
+      ]);
+      if (posRes.error) throw posRes.error;
+      if (paymentsRes.error) throw paymentsRes.error;
+      
+      const totalPayable = posRes.data.reduce((sum, po) => sum + Number(po.total_amount), 0);
+      const totalPaid = paymentsRes.data.reduce((sum, p) => sum + Number(p.amount), 0);
+      return { totalPayable, totalPaid, outstanding: totalPayable - totalPaid };
     }
   });
 
@@ -421,7 +438,7 @@ export default function VendorsAdmin() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-7">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Vendors</CardTitle>
@@ -456,6 +473,35 @@ export default function VendorsAdmin() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">{vendorStats?.blacklisted || 0}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Payable</CardTitle>
+              <IndianRupee className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(financialStats?.totalPayable || 0)}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Paid</CardTitle>
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{formatCurrency(financialStats?.totalPaid || 0)}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${(financialStats?.outstanding || 0) > 0 ? 'text-destructive' : 'text-green-600'}`}>
+                {formatCurrency(Math.max(0, financialStats?.outstanding || 0))}
+              </div>
             </CardContent>
           </Card>
         </div>
