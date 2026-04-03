@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Pencil, Trash2, Loader2, Eye, Package, CreditCard, Building2, Phone, Mail, MapPin } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Eye, Package, CreditCard, Building2, Phone, Mail, MapPin, IndianRupee, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
