@@ -121,19 +121,24 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
     if (open && orderItems.length > 0) {
       setItems(
         orderItems.map((oi) => {
-          const preferredVp = oi.product_id ? vendorProducts?.find(vp => vp.product_id === oi.product_id && vp.is_preferred_vendor) : null;
-          const anyVp = oi.product_id ? vendorProducts?.find(vp => vp.product_id === oi.product_id) : null;
+          const dbVendorId = (oi as any).vendor_id || null;
+          const dbVendorCost = Number((oi as any).vendor_cost) || 0;
+          // Only fall back to vendor-product mappings if DB has no vendor_id
+          const preferredVp = !dbVendorId && oi.product_id ? vendorProducts?.find(vp => vp.product_id === oi.product_id && vp.is_preferred_vendor) : null;
+          const anyVp = !dbVendorId && oi.product_id ? vendorProducts?.find(vp => vp.product_id === oi.product_id) : null;
+          const finalVendorId = dbVendorId || preferredVp?.vendor_id || anyVp?.vendor_id || null;
+          const finalVendorCost = dbVendorCost || preferredVp?.cost_price || anyVp?.cost_price || 0;
           return {
             id: oi.id,
             product_id: oi.product_id,
             product_name: oi.product_name,
             quantity: Number(oi.quantity),
             unit_price: Number(oi.unit_price),
-            vendor_cost: Number((oi as any).vendor_cost) || preferredVp?.cost_price || anyVp?.cost_price || 0,
+            vendor_cost: finalVendorCost,
             hsn_code: oi.hsn_code || '',
             gst_type: oi.gst_type,
             gst_rate: Number(oi.gst_rate),
-            vendor_id: preferredVp?.vendor_id || anyVp?.vendor_id || null,
+            vendor_id: finalVendorId,
           };
         })
       );
