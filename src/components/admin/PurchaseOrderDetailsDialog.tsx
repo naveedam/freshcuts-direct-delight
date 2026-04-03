@@ -310,6 +310,11 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose}>Close</Button>
+          {purchaseOrder.payment_status !== 'paid' && purchaseOrder.vendor && (
+            <Button variant="secondary" onClick={() => setPaymentDialogOpen(true)}>
+              <CreditCard className="h-4 w-4 mr-2" /> Pay Vendor
+            </Button>
+          )}
           {canCancel && (
             <Button variant="destructive" onClick={() => updateStatusMutation.mutate({ id: purchaseOrder.id, status: 'cancelled' })} disabled={updateStatusMutation.isPending}>
               {updateStatusMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -331,5 +336,16 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Vendor Payment Dialog */}
+    {purchaseOrder.vendor && (
+      <VendorPaymentsDialog
+        vendor={purchaseOrder.vendor}
+        open={paymentDialogOpen}
+        onOpenChange={setPaymentDialogOpen}
+        preselectedPoId={purchaseOrder.id}
+      />
+    )}
+    </>
   );
 }
