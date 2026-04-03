@@ -107,6 +107,7 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
   const valueVariance = actualValue - orderedValue;
 
   return (
+    <>
     <Dialog open={!!purchaseOrder} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
