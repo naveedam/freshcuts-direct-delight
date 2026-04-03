@@ -378,6 +378,16 @@ export default function PurchaseOrdersAdmin() {
         purchaseOrder={receivingPO}
         onClose={() => setReceivingPO(null)}
       />
+
+      {/* Vendor Payment Dialog */}
+      {payingPO && payingPO.vendor && (
+        <VendorPaymentsDialog
+          vendor={payingPO.vendor as any}
+          open={!!payingPO}
+          onOpenChange={(open) => { if (!open) setPayingPO(null); }}
+          preselectedPoId={payingPO.id}
+        />
+      )}
     </AdminLayout>
   );
 }
