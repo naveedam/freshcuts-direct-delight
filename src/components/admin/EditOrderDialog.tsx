@@ -121,19 +121,24 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
     if (open && orderItems.length > 0) {
       setItems(
         orderItems.map((oi) => {
-          const preferredVp = oi.product_id ? vendorProducts?.find(vp => vp.product_id === oi.product_id && vp.is_preferred_vendor) : null;
-          const anyVp = oi.product_id ? vendorProducts?.find(vp => vp.product_id === oi.product_id) : null;
+          const dbVendorId = (oi as any).vendor_id || null;
+          const dbVendorCost = Number((oi as any).vendor_cost) || 0;
+          // Only fall back to vendor-product mappings if DB has no vendor_id
+          const preferredVp = !dbVendorId && oi.product_id ? vendorProducts?.find(vp => vp.product_id === oi.product_id && vp.is_preferred_vendor) : null;
+          const anyVp = !dbVendorId && oi.product_id ? vendorProducts?.find(vp => vp.product_id === oi.product_id) : null;
+          const finalVendorId = dbVendorId || preferredVp?.vendor_id || anyVp?.vendor_id || null;
+          const finalVendorCost = dbVendorCost || preferredVp?.cost_price || anyVp?.cost_price || 0;
           return {
             id: oi.id,
             product_id: oi.product_id,
             product_name: oi.product_name,
             quantity: Number(oi.quantity),
             unit_price: Number(oi.unit_price),
-            vendor_cost: Number((oi as any).vendor_cost) || preferredVp?.cost_price || anyVp?.cost_price || 0,
+            vendor_cost: finalVendorCost,
             hsn_code: oi.hsn_code || '',
             gst_type: oi.gst_type,
             gst_rate: Number(oi.gst_rate),
-            vendor_id: preferredVp?.vendor_id || anyVp?.vendor_id || null,
+            vendor_id: finalVendorId,
           };
         })
       );
@@ -394,7 +399,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
         if (logErr) console.error('Audit log failed:', logErr);
       }
 
-      // Auto-generate purchase orders grouped by vendor
+      // Auto-generate purchase orders grouped by vendor (skip if PO already exists for this order+vendor)
       const vendorItemsMap = activeItems
         .filter(item => item.product_name && item.vendor_id)
         .reduce((acc, item) => {
@@ -406,6 +411,45 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
 
       for (const [vendorId, vItems] of Object.entries(vendorItemsMap)) {
         try {
+          // Check if a PO already exists for this order + vendor
+          const { data: existingPOs } = await supabase
+            .from('purchase_orders')
+            .select('id')
+            .eq('vendor_id', vendorId)
+            .ilike('notes', `%${order.id.slice(0, 8)}%`)
+            .neq('status', 'cancelled');
+
+          if (existingPOs && existingPOs.length > 0) {
+            // PO already exists — update items instead of creating duplicate
+            const existingPoId = existingPOs[0].id;
+            const subtotal = vItems.reduce((sum, it) => sum + (it.quantity * (it.vendor_cost || it.unit_price)), 0);
+            const taxAmount = vItems.reduce((sum, it) => {
+              const gst = calculateLineGST(it, isIGST);
+              return sum + gst.cgst + gst.sgst + gst.igst;
+            }, 0);
+
+            // Update PO totals
+            await supabase.from('purchase_orders').update({
+              subtotal,
+              tax_amount: taxAmount,
+              total_amount: subtotal + taxAmount,
+            }).eq('id', existingPoId);
+
+            // Delete old items and re-insert
+            await supabase.from('purchase_order_items').delete().eq('purchase_order_id', existingPoId);
+            const poItems = vItems.map(it => ({
+              purchase_order_id: existingPoId,
+              product_id: it.product_id || null,
+              product_name: it.product_name,
+              quantity: it.quantity,
+              unit_cost: it.vendor_cost || it.unit_price,
+              total_cost: it.quantity * (it.vendor_cost || it.unit_price),
+            }));
+            await supabase.from('purchase_order_items').insert(poItems);
+            continue;
+          }
+
+          // Create new PO
           const { data: poNumber } = await supabase.rpc('generate_po_number');
           const subtotal = vItems.reduce((sum, it) => sum + (it.quantity * (it.vendor_cost || it.unit_price)), 0);
           const taxAmount = vItems.reduce((sum, it) => {
