@@ -26,6 +26,7 @@ const menuItems = [
   { title: 'Purchase Orders', url: '/admin/purchase-orders', icon: ClipboardList },
   { title: 'Documents', url: '/admin/documents', icon: FolderOpen },
   { title: 'Shipping', url: '/admin/shipping', icon: Truck },
+  { title: 'Delivery Runs', url: '/admin/delivery-runs', icon: Route },
   { title: 'GST Config', url: '/admin/gst', icon: Receipt },
   { title: 'GST Reports', url: '/admin/gst-reports', icon: BarChart3 },
   { title: 'Page Content', url: '/admin/content', icon: FileText },

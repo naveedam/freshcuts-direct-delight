@@ -70,6 +70,7 @@ const App = () => (
               <Route path="/admin/content" element={<RequireAdmin><ContentAdmin /></RequireAdmin>} />
               <Route path="/admin/settings" element={<RequireAdmin><BusinessSettings /></RequireAdmin>} />
               <Route path="/admin/financial-years" element={<RequireAdmin><FinancialYearsAdmin /></RequireAdmin>} />
+              <Route path="/admin/delivery-runs" element={<RequireAdmin><DeliveryRunsAdmin /></RequireAdmin>} />
               
               {/* Account Routes */}
               <Route path="/account" element={<UserDashboard />} />
