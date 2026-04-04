@@ -29,6 +29,7 @@ interface OrderItem {
   sgst_amount: number;
   igst_amount: number;
   actual_weight: number | null;
+  billed_weight: number | null;
 }
 
 /**
