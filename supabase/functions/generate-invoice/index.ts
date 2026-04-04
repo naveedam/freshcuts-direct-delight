@@ -34,9 +34,12 @@ interface OrderItem {
 
 /**
  * Get the display quantity for an order item.
- * Priority: actual_weight (fulfilled/delivered qty) → quantity (ordered qty)
+ * Priority: billed_weight → actual_weight (fulfilled/delivered qty) → quantity (ordered qty)
  */
 function getDisplayQty(item: OrderItem): number {
+  if (item.billed_weight != null && item.billed_weight > 0) {
+    return Number(item.billed_weight);
+  }
   if (item.actual_weight != null && item.actual_weight > 0) {
     return Number(item.actual_weight);
   }
