@@ -41,7 +41,7 @@ export default function AdminDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('orders')
-        .select('id, total_amount, status, created_at, building_name, flat_number, discount_amount, shipping_cost')
+        .select('id, total_amount, status, created_at, building_name, flat_number, discount_amount, shipping_cost, converted_to_sale')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
