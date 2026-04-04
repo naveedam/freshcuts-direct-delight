@@ -308,7 +308,7 @@ export default function AdminDashboard() {
           <StatCard title="Shipping Cost Today" value={formatCurrency(stats?.shippingCostToday || 0)} icon={Truck} subtitle="Delivery expense" />
           <StatCard title="Profit Today" value={formatCurrency(stats?.profitToday || 0)} icon={TrendingUp} subtitle="Sales − Vendor − Shipping" />
           <StatCard title="Avg Order Value" value={formatCurrency(stats?.avgOrderValueToday || 0)} icon={IndianRupee} subtitle="Today" />
-          <StatCard title="Net Revenue (Month)" value={formatCurrency(stats?.netRevenue || 0)} icon={BarChart3} subtitle="Sales − Purchases" />
+          <StatCard title="Net Revenue (Realized)" value={formatCurrency(stats?.netRevenue || 0)} icon={BarChart3} subtitle="Invoiced Sales − Costs" />
         </div>
 
         {/* Sales Trend + Operational */}
