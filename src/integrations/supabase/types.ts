@@ -184,6 +184,84 @@ export type Database = {
           },
         ]
       }
+      delivery_run_orders: {
+        Row: {
+          allocated_cost: number
+          created_at: string
+          delivery_run_id: string
+          id: string
+          order_id: string
+        }
+        Insert: {
+          allocated_cost?: number
+          created_at?: string
+          delivery_run_id: string
+          id?: string
+          order_id: string
+        }
+        Update: {
+          allocated_cost?: number
+          created_at?: string
+          delivery_run_id?: string
+          id?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_run_orders_delivery_run_id_fkey"
+            columns: ["delivery_run_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_run_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_runs: {
+        Row: {
+          cost_allocation_method: string
+          created_at: string
+          created_by: string | null
+          driver_name: string | null
+          id: string
+          notes: string | null
+          run_date: string
+          total_cost: number
+          updated_at: string
+          vehicle: string | null
+        }
+        Insert: {
+          cost_allocation_method?: string
+          created_at?: string
+          created_by?: string | null
+          driver_name?: string | null
+          id?: string
+          notes?: string | null
+          run_date?: string
+          total_cost?: number
+          updated_at?: string
+          vehicle?: string | null
+        }
+        Update: {
+          cost_allocation_method?: string
+          created_at?: string
+          created_by?: string | null
+          driver_name?: string | null
+          id?: string
+          notes?: string | null
+          run_date?: string
+          total_cost?: number
+          updated_at?: string
+          vehicle?: string | null
+        }
+        Relationships: []
+      }
       financial_years: {
         Row: {
           created_at: string
@@ -297,6 +375,7 @@ export type Database = {
       order_items: {
         Row: {
           actual_weight: number | null
+          billed_weight: number | null
           cgst_amount: number
           created_at: string
           gst_rate: number
@@ -318,6 +397,7 @@ export type Database = {
         }
         Insert: {
           actual_weight?: number | null
+          billed_weight?: number | null
           cgst_amount?: number
           created_at?: string
           gst_rate?: number
@@ -339,6 +419,7 @@ export type Database = {
         }
         Update: {
           actual_weight?: number | null
+          billed_weight?: number | null
           cgst_amount?: number
           created_at?: string
           gst_rate?: number
@@ -646,6 +727,8 @@ export type Database = {
           actual_received_weight: number | null
           created_at: string
           id: string
+          order_id: string | null
+          order_item_id: string | null
           product_id: string | null
           product_name: string
           purchase_order_id: string
@@ -660,6 +743,8 @@ export type Database = {
           actual_received_weight?: number | null
           created_at?: string
           id?: string
+          order_id?: string | null
+          order_item_id?: string | null
           product_id?: string | null
           product_name: string
           purchase_order_id: string
@@ -674,6 +759,8 @@ export type Database = {
           actual_received_weight?: number | null
           created_at?: string
           id?: string
+          order_id?: string | null
+          order_item_id?: string | null
           product_id?: string | null
           product_name?: string
           purchase_order_id?: string
