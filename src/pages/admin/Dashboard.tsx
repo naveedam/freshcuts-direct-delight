@@ -41,7 +41,7 @@ export default function AdminDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('orders')
-        .select('id, total_amount, status, created_at, building_name, flat_number, discount_amount, shipping_cost')
+        .select('id, total_amount, status, created_at, building_name, flat_number, discount_amount, shipping_cost, converted_to_sale')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -107,7 +107,7 @@ export default function AdminDashboard() {
     }
   });
 
-  // Computed stats
+  // Computed stats — only use invoiced (converted_to_sale) orders for revenue
   const stats = useMemo(() => {
     if (!orders) return null;
 
@@ -115,19 +115,34 @@ export default function AdminDashboard() {
     const monthOrders = orders.filter(o => new Date(o.created_at) >= monthStart);
     const weekOrders = orders.filter(o => new Date(o.created_at) >= weekStart);
 
-    const salesToday = todayOrders.reduce((s, o) => s + Number(o.total_amount), 0);
-    const salesMonth = monthOrders.reduce((s, o) => s + Number(o.total_amount), 0);
-    const purchasesMonth = purchaseOrders?.reduce((s, p) => s + Number(p.total_amount), 0) || 0;
+    // Realized revenue: only from invoiced/finalized orders
+    const invoicedStatuses = new Set(['processing', 'shipped', 'delivered', 'completed']);
+    const todayInvoiced = todayOrders.filter(o => o.converted_to_sale || invoicedStatuses.has(o.status));
+    const monthInvoiced = monthOrders.filter(o => o.converted_to_sale || invoicedStatuses.has(o.status));
+
+    const salesToday = todayInvoiced.reduce((s, o) => s + Number(o.total_amount), 0);
+    const salesMonth = monthInvoiced.reduce((s, o) => s + Number(o.total_amount), 0);
+
+    // Vendor cost from same invoiced orders (not from PO date)
+    const todayInvoicedIds = new Set(todayInvoiced.map(o => o.id));
+    const monthInvoicedIds = new Set(monthInvoiced.map(o => o.id));
+    const todayItems = orderItems?.filter(i => todayInvoicedIds.has(i.order_id)) || [];
+    const monthItems = orderItems?.filter(i => monthInvoicedIds.has(i.order_id)) || [];
+    const vendorCostToday = todayItems.reduce((s, i) => s + (Number(i.vendor_cost || 0) * Number(i.quantity)), 0);
+    const vendorCostMonth = monthItems.reduce((s, i) => s + (Number(i.vendor_cost || 0) * Number(i.quantity)), 0);
+
+    const shippingCostToday = todayInvoiced.reduce((s, o) => s + Number(o.shipping_cost || 0), 0);
+    const shippingCostMonth = monthInvoiced.reduce((s, o) => s + Number(o.shipping_cost || 0), 0);
+    const profitToday = salesToday - vendorCostToday - shippingCostToday;
+    const netRevenueMonth = salesMonth - vendorCostMonth - shippingCostMonth;
 
     const pending = orders.filter(o => o.status === 'pending').length;
     const delivered = orders.filter(o => o.status === 'delivered').length;
-    const avgOrderValue = orders.length > 0 ? orders.reduce((s, o) => s + Number(o.total_amount), 0) / orders.length : 0;
     const totalWeight = orderItems?.reduce((s, i) => s + Number(i.quantity), 0) || 0;
 
-    const weekRevenue = weekOrders.reduce((s, o) => s + Number(o.total_amount), 0);
-    // Top product: only from finalized orders (exclude cancelled, draft, pending)
-    const finalizedStatuses = new Set(['processing', 'shipped', 'delivered', 'completed']);
-    const weekFinalizedOrders = weekOrders.filter(o => finalizedStatuses.has(o.status));
+    const weekRevenue = weekOrders.filter(o => o.converted_to_sale || invoicedStatuses.has(o.status))
+      .reduce((s, o) => s + Number(o.total_amount), 0);
+    const weekFinalizedOrders = weekOrders.filter(o => invoicedStatuses.has(o.status));
     const weekFinalizedIds = new Set(weekFinalizedOrders.map(o => o.id));
     const weekFinalizedItems = orderItems?.filter(i => weekFinalizedIds.has(i.order_id)) || [];
     const productSales: Record<string, { name: string; qty: number; productId: string | null }> = {};
@@ -138,25 +153,17 @@ export default function AdminDashboard() {
     });
     const topProduct = Object.values(productSales).sort((a, b) => b.qty - a.qty)[0]?.name || 'N/A';
 
-    // Today's vendor cost, shipping cost & profit
-    const todayOrderIds = new Set(todayOrders.map(o => o.id));
-    const todayItems = orderItems?.filter(i => todayOrderIds.has(i.order_id)) || [];
-    const vendorCostToday = todayItems.reduce((s, i) => s + (Number(i.vendor_cost || 0) * Number(i.quantity)), 0);
-    const shippingCostToday = todayOrders.reduce((s, o) => s + Number((o as any).shipping_cost || 0), 0);
-    const profitToday = salesToday - vendorCostToday - shippingCostToday;
-
-    // Today's avg order value
-    const avgOrderValueToday = todayOrders.length > 0 ? salesToday / todayOrders.length : 0;
+    const avgOrderValueToday = todayInvoiced.length > 0 ? salesToday / todayInvoiced.length : 0;
 
     return {
-      salesToday, salesMonth, purchasesMonth,
-      netRevenue: salesMonth - purchasesMonth,
+      salesToday, salesMonth,
+      netRevenue: netRevenueMonth,
       ordersToday: todayOrders.length,
-      pending, delivered, avgOrderValue, totalWeight,
+      pending, delivered, totalWeight,
       weekOrders: weekOrders.length, weekRevenue, topProduct,
       vendorCostToday, shippingCostToday, profitToday, avgOrderValueToday,
     };
-  }, [orders, orderItems, purchaseOrders, today, monthStart, weekStart]);
+  }, [orders, orderItems, today, monthStart, weekStart]);
 
   // Top selling products today
   const topSellingToday = useMemo(() => {
@@ -301,7 +308,7 @@ export default function AdminDashboard() {
           <StatCard title="Shipping Cost Today" value={formatCurrency(stats?.shippingCostToday || 0)} icon={Truck} subtitle="Delivery expense" />
           <StatCard title="Profit Today" value={formatCurrency(stats?.profitToday || 0)} icon={TrendingUp} subtitle="Sales − Vendor − Shipping" />
           <StatCard title="Avg Order Value" value={formatCurrency(stats?.avgOrderValueToday || 0)} icon={IndianRupee} subtitle="Today" />
-          <StatCard title="Net Revenue (Month)" value={formatCurrency(stats?.netRevenue || 0)} icon={BarChart3} subtitle="Sales − Purchases" />
+          <StatCard title="Net Revenue (Realized)" value={formatCurrency(stats?.netRevenue || 0)} icon={BarChart3} subtitle="Invoiced Sales − Costs" />
         </div>
 
         {/* Sales Trend + Operational */}

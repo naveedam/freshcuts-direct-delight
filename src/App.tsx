@@ -26,6 +26,7 @@ import CategoriesAdmin from "./pages/admin/CategoriesAdmin";
 import DocumentsAdmin from "./pages/admin/DocumentsAdmin";
 import BulkUploadAdmin from "./pages/admin/BulkUploadAdmin";
 import FinancialYearsAdmin from "./pages/admin/FinancialYearsAdmin";
+import DeliveryRunsAdmin from "./pages/admin/DeliveryRunsAdmin";
 import OrderHistory from "./pages/account/OrderHistory";
 import OrderDetails from "./pages/account/OrderDetails";
 import ProfileSettings from "./pages/account/ProfileSettings";
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="/admin/content" element={<RequireAdmin><ContentAdmin /></RequireAdmin>} />
               <Route path="/admin/settings" element={<RequireAdmin><BusinessSettings /></RequireAdmin>} />
               <Route path="/admin/financial-years" element={<RequireAdmin><FinancialYearsAdmin /></RequireAdmin>} />
+              <Route path="/admin/delivery-runs" element={<RequireAdmin><DeliveryRunsAdmin /></RequireAdmin>} />
               
               {/* Account Routes */}
               <Route path="/account" element={<UserDashboard />} />
