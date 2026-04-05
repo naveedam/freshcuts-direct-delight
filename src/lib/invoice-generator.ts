@@ -14,11 +14,10 @@ export async function getInvoiceHtml(orderId: string): Promise<string> {
 export async function generateInvoicePdf(orderId: string): Promise<Blob> {
   const html = await getInvoiceHtml(orderId);
 
-  // Create an offscreen iframe to render the HTML
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
   iframe.style.left = '-9999px';
-  iframe.style.width = '794px'; // A4 width at 96dpi
+  iframe.style.width = '794px';
   iframe.style.height = '1123px';
   document.body.appendChild(iframe);
 
@@ -29,7 +28,6 @@ export async function generateInvoicePdf(orderId: string): Promise<Blob> {
   iframeDoc.write(html);
   iframeDoc.close();
 
-  // Wait for content to render
   await new Promise(resolve => setTimeout(resolve, 500));
 
   const html2pdf = (await import('html2pdf.js')).default;
@@ -50,35 +48,17 @@ export async function generateInvoicePdf(orderId: string): Promise<Blob> {
   return pdfBlob;
 }
 
-export async function generateInvoiceImage(orderId: string): Promise<Blob> {
-  const html = await getInvoiceHtml(orderId);
-
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.left = '-9999px';
-  iframe.style.width = '794px';
-  iframe.style.height = '1123px';
-  document.body.appendChild(iframe);
-
-  const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-  if (!iframeDoc) throw new Error('Cannot access iframe document');
-
-  iframeDoc.open();
-  iframeDoc.write(html);
-  iframeDoc.close();
-
-  await new Promise(resolve => setTimeout(resolve, 500));
-
+/**
+ * Generate a PNG image from a pre-rendered DOM element (InvoiceShareView).
+ */
+export async function generateImageFromElement(element: HTMLElement): Promise<Blob> {
   const { toPng } = await import('html-to-image');
-  const dataUrl = await toPng(iframeDoc.body, {
+  const dataUrl = await toPng(element, {
     quality: 0.95,
-    pixelRatio: 2,
+    pixelRatio: 3,
     backgroundColor: '#ffffff',
+    cacheBust: true,
   });
-
-  document.body.removeChild(iframe);
-
-  // Convert data URL to blob
   const res = await fetch(dataUrl);
   return await res.blob();
 }
@@ -88,15 +68,11 @@ export async function uploadInvoiceToStorage(
   fileName: string,
   flatNumber?: string | null,
 ): Promise<string> {
-  const path = flatNumber
-    ? `${flatNumber}/${fileName}`
-    : fileName;
-
+  const path = flatNumber ? `${flatNumber}/${fileName}` : fileName;
   const { error } = await supabase.storage
     .from('invoices')
     .upload(path, blob, { contentType: blob.type, upsert: true });
   if (error) throw error;
-
   const { data } = supabase.storage.from('invoices').getPublicUrl(path);
   return data.publicUrl;
 }
