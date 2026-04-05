@@ -262,6 +262,56 @@ export type Database = {
         }
         Relationships: []
       }
+      documents: {
+        Row: {
+          building_name: string | null
+          created_at: string
+          customer_name: string | null
+          document_type: string
+          file_name: string
+          file_url: string
+          flat_number: string | null
+          id: string
+          invoice_number: string | null
+          metadata: Json | null
+          order_id: string | null
+        }
+        Insert: {
+          building_name?: string | null
+          created_at?: string
+          customer_name?: string | null
+          document_type?: string
+          file_name: string
+          file_url: string
+          flat_number?: string | null
+          id?: string
+          invoice_number?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+        }
+        Update: {
+          building_name?: string | null
+          created_at?: string
+          customer_name?: string | null
+          document_type?: string
+          file_name?: string
+          file_url?: string
+          flat_number?: string | null
+          id?: string
+          invoice_number?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_years: {
         Row: {
           created_at: string
