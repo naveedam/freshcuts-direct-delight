@@ -187,7 +187,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
           )}
 
           <div className="grid gap-2 pt-2">
-            <Button onClick={handleDownloadPdf} disabled={isLoading} className="justify-start gap-2">
+            <Button onClick={handleDownloadPdf} disabled={isLoading || !hasItems} className="justify-start gap-2">
               {loading === 'pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
               Download PDF
             </Button>
