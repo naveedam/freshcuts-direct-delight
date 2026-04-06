@@ -55,7 +55,10 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
   const handleDownloadPdf = async () => {
     setLoading('pdf');
     try {
-      const blob = await generateInvoicePdf(order.id);
+      await new Promise(r => setTimeout(r, 100));
+      if (!shareViewRef.current) throw new Error('Invoice view not ready');
+
+      const blob = await generatePdfFromElement(shareViewRef.current);
       const fileName = `invoice-${invoiceNum}.pdf`;
       downloadBlob(blob, fileName);
 
