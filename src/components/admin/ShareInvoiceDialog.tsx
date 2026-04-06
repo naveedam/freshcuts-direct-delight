@@ -197,7 +197,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
               Share on WhatsApp (Image)
             </Button>
 
-            <Button onClick={handleEmail} disabled={isLoading} variant="outline" className="justify-start gap-2">
+            <Button onClick={handleEmail} disabled={isLoading || !hasItems} variant="outline" className="justify-start gap-2">
               {loading === 'email' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
               Send via Email (PDF)
             </Button>
