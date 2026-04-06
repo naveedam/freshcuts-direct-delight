@@ -61,18 +61,6 @@ function normalizeGst(raw: string): string {
   return l === 'nil-rated' ? 'nil' : l;
 }
 
-function gstLabel(gstType: string, gstRate: number): string {
-  const nt = normalizeGst(gstType);
-  if (nt === 'exempt') return 'Exempt';
-  if (nt === 'nil') return 'NIL';
-  return `${gstRate}%`;
-}
-
-/**
- * A Vyapar-style mobile-friendly invoice card layout designed
- * specifically for PNG image generation and WhatsApp sharing.
- * Rendered as pure inline-styled HTML so html-to-image captures it perfectly.
- */
 const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
   ({ order, items, business }, ref) => {
     const invoiceNum = order.invoice_number || order.id.slice(0, 8).toUpperCase();
@@ -80,7 +68,6 @@ const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
       year: 'numeric', month: 'short', day: 'numeric',
     });
 
-    // Compute totals from items
     let subtotal = 0;
     let totalTax = 0;
     const processedItems = items.map(item => {
@@ -93,7 +80,7 @@ const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
       }
       subtotal += lineValue;
       totalTax += tax;
-      return { ...item, displayQty: qty, lineValue, tax };
+      return { ...item, displayQty: qty, lineValue, tax, amount: lineValue + tax };
     });
 
     const discount = Number(order.discount_amount) || 0;
@@ -101,248 +88,153 @@ const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
     const received = Number(order.amount_paid) || 0;
     const balance = grandTotal - received;
 
-    // Delivery address
-    const addressParts = [
-      order.flat_number,
-      order.building_name,
-      order.shipping_city,
-      order.shipping_postal_code,
-    ].filter(Boolean);
-
-    const s = {
-      wrapper: {
-        width: '420px',
-        fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif",
-        backgroundColor: '#ffffff',
-        padding: '20px',
-        fontSize: '13px',
-        color: '#1f2937',
-        lineHeight: '1.5',
-      } as React.CSSProperties,
-      header: {
-        borderBottom: '2px solid #16a34a',
-        paddingBottom: '14px',
-        marginBottom: '16px',
-      } as React.CSSProperties,
-      bizName: {
-        fontSize: '18px',
-        fontWeight: 700,
-        color: '#16a34a',
-        margin: 0,
-      } as React.CSSProperties,
-      bizDetail: {
-        fontSize: '11px',
-        color: '#6b7280',
-        margin: '2px 0',
-      } as React.CSSProperties,
-      titleRow: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '14px',
-      } as React.CSSProperties,
-      titleBadge: {
-        fontSize: '14px',
-        fontWeight: 700,
-        color: '#1f2937',
-        border: '2px solid #1f2937',
-        padding: '4px 16px',
-        borderRadius: '4px',
-        letterSpacing: '1px',
-      } as React.CSSProperties,
-      invoiceMeta: {
-        textAlign: 'right' as const,
-        fontSize: '11px',
-        color: '#6b7280',
-      } as React.CSSProperties,
-      invoiceMetaVal: {
-        fontWeight: 600,
-        color: '#1f2937',
-      } as React.CSSProperties,
-      billTo: {
-        backgroundColor: '#f9fafb',
-        borderRadius: '8px',
-        padding: '12px 14px',
-        marginBottom: '16px',
-      } as React.CSSProperties,
-      sectionLabel: {
-        fontSize: '10px',
-        fontWeight: 700,
-        textTransform: 'uppercase' as const,
-        color: '#16a34a',
-        letterSpacing: '1px',
-        marginBottom: '6px',
-      } as React.CSSProperties,
-      productCard: {
-        backgroundColor: '#f9fafb',
-        borderRadius: '8px',
-        padding: '12px 14px',
-        marginBottom: '8px',
-      } as React.CSSProperties,
-      productName: {
-        fontSize: '14px',
-        fontWeight: 600,
-        color: '#1f2937',
-        marginBottom: '8px',
-      } as React.CSSProperties,
-      productGrid: {
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '4px 16px',
-        fontSize: '12px',
-      } as React.CSSProperties,
-      productLabel: {
-        color: '#9ca3af',
-        fontSize: '11px',
-      } as React.CSSProperties,
-      productValue: {
-        fontWeight: 600,
-        color: '#374151',
-        textAlign: 'right' as const,
-        fontSize: '12px',
-      } as React.CSSProperties,
-      pricingCard: {
-        backgroundColor: '#f9fafb',
-        borderRadius: '8px',
-        padding: '14px',
-        marginTop: '12px',
-      } as React.CSSProperties,
-      summaryRow: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        padding: '4px 0',
-        fontSize: '12px',
-      } as React.CSSProperties,
-      totalRow: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        padding: '10px 12px',
-        fontSize: '15px',
-        fontWeight: 700,
-        backgroundColor: '#16a34a',
-        color: '#ffffff',
-        borderRadius: '6px',
-        marginTop: '8px',
-      } as React.CSSProperties,
-      balanceRow: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        padding: '6px 0',
-        fontSize: '12px',
-        fontWeight: 600,
-        color: balance > 0 ? '#dc2626' : '#16a34a',
-      } as React.CSSProperties,
-      footer: {
-        marginTop: '16px',
-        paddingTop: '12px',
-        borderTop: '1px solid #e5e7eb',
-      } as React.CSSProperties,
-      footerText: {
-        fontSize: '10px',
-        color: '#9ca3af',
-        lineHeight: '1.6',
-      } as React.CSSProperties,
-    };
+    const font = "'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif";
+    const green = '#16a34a';
+    const gray50 = '#f9fafb';
+    const gray200 = '#e5e7eb';
+    const gray400 = '#9ca3af';
+    const gray500 = '#6b7280';
+    const gray700 = '#374151';
+    const gray900 = '#111827';
 
     return (
-      <div ref={ref} style={s.wrapper}>
+      <div ref={ref} style={{
+        width: '420px', fontFamily: font, backgroundColor: '#ffffff',
+        padding: '20px', fontSize: '12px', color: gray900, lineHeight: '1.5',
+      }}>
         {/* HEADER */}
-        <div style={s.header}>
-          <p style={s.bizName}>{business.business_name}</p>
-          {business.gstin && <p style={{ ...s.bizDetail, fontWeight: 600, color: '#374151' }}>GSTIN: {business.gstin}</p>}
-          {business.phone && <p style={s.bizDetail}>📞 {business.phone}</p>}
-          {business.address && <p style={s.bizDetail}>{business.address}</p>}
-          {business.city && <p style={s.bizDetail}>{business.city}{business.postal_code ? ` – ${business.postal_code}` : ''}</p>}
+        <div style={{ borderBottom: `2px solid ${green}`, paddingBottom: '12px', marginBottom: '14px' }}>
+          <p style={{ fontSize: '17px', fontWeight: 700, color: green, margin: 0 }}>
+            {business.business_name}
+          </p>
+          {business.gstin && (
+            <p style={{ fontSize: '10px', color: gray700, margin: '2px 0 0', fontWeight: 600 }}>
+              GSTIN: {business.gstin}
+            </p>
+          )}
+          <p style={{ fontSize: '10px', color: gray500, margin: '1px 0 0' }}>
+            {[business.address, business.city, business.postal_code].filter(Boolean).join(', ')}
+            {business.phone ? ` • ${business.phone}` : ''}
+          </p>
         </div>
 
-        {/* TITLE + INVOICE META */}
-        <div style={s.titleRow}>
-          <span style={s.titleBadge}>TAX INVOICE</span>
-          <div style={s.invoiceMeta}>
-            <p>Invoice: <span style={s.invoiceMetaVal}>{invoiceNum}</span></p>
-            <p>Date: <span style={s.invoiceMetaVal}>{invoiceDate}</span></p>
+        {/* TITLE + META ROW */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <span style={{
+            fontSize: '12px', fontWeight: 700, color: gray900,
+            border: `1.5px solid ${gray900}`, padding: '3px 12px',
+            borderRadius: '3px', letterSpacing: '0.5px',
+          }}>
+            TAX INVOICE
+          </span>
+          <div style={{ textAlign: 'right', fontSize: '10px', color: gray500, lineHeight: '1.6' }}>
+            <span>No: <strong style={{ color: gray900 }}>{invoiceNum}</strong></span><br />
+            <span>Date: <strong style={{ color: gray900 }}>{invoiceDate}</strong></span>
           </div>
         </div>
 
         {/* BILL TO */}
-        <div style={s.billTo}>
-          <p style={s.sectionLabel}>Bill To / Deliver To</p>
-          <p style={{ fontSize: '14px', fontWeight: 600, margin: 0 }}>
+        <div style={{ backgroundColor: gray50, borderRadius: '6px', padding: '10px 12px', marginBottom: '14px' }}>
+          <p style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', color: green, letterSpacing: '0.8px', margin: '0 0 4px' }}>
+            Bill To / Deliver To
+          </p>
+          <p style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: gray900 }}>
             {order.flat_number && `${order.flat_number}, `}{order.building_name || ''}
           </p>
           {(order.shipping_city || order.shipping_postal_code) && (
-            <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>
+            <p style={{ fontSize: '11px', color: gray500, margin: '1px 0 0' }}>
               {[order.shipping_city, order.shipping_postal_code].filter(Boolean).join(' – ')}
             </p>
           )}
         </div>
 
-        {/* PRODUCT CARDS */}
-        {processedItems.map((item, i) => (
-          <div key={i} style={s.productCard}>
-            <p style={s.productName}>{item.product_name}</p>
-            <div style={s.productGrid}>
-              <span style={s.productLabel}>Quantity</span>
-              <span style={s.productValue}>{item.displayQty.toFixed(3)} kg</span>
+        {/* LINE ITEMS TABLE */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '14px', fontSize: '11px' }}>
+          <thead>
+            <tr style={{ borderBottom: `1.5px solid ${gray200}` }}>
+              <th style={{ textAlign: 'left', padding: '6px 0', fontWeight: 600, color: gray500, fontSize: '10px' }}>
+                Item
+              </th>
+              <th style={{ textAlign: 'right', padding: '6px 4px', fontWeight: 600, color: gray500, fontSize: '10px' }}>
+                Qty
+              </th>
+              <th style={{ textAlign: 'right', padding: '6px 4px', fontWeight: 600, color: gray500, fontSize: '10px' }}>
+                Rate
+              </th>
+              <th style={{ textAlign: 'right', padding: '6px 0', fontWeight: 600, color: gray500, fontSize: '10px' }}>
+                Amt
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {processedItems.map((item, i) => (
+              <tr key={i} style={{ borderBottom: `1px solid ${i < processedItems.length - 1 ? '#f3f4f6' : gray200}` }}>
+                <td style={{ padding: '7px 0', fontWeight: 600, color: gray900 }}>
+                  {item.product_name}
+                </td>
+                <td style={{ padding: '7px 4px', textAlign: 'right', color: gray700 }}>
+                  {item.displayQty.toFixed(3)}
+                </td>
+                <td style={{ padding: '7px 4px', textAlign: 'right', color: gray700 }}>
+                  {formatCurrency(item.unit_price)}
+                </td>
+                <td style={{ padding: '7px 0', textAlign: 'right', fontWeight: 700, color: gray900 }}>
+                  {formatCurrency(item.amount)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-              <span style={s.productLabel}>Price/kg</span>
-              <span style={s.productValue}>{formatCurrency(item.unit_price)}</span>
-
-              <span style={s.productLabel}>GST</span>
-              <span style={s.productValue}>{gstLabel(item.gst_type, item.gst_rate)}</span>
-
-              <span style={s.productLabel}>Amount</span>
-              <span style={{ ...s.productValue, fontWeight: 700 }}>{formatCurrency(item.lineValue + item.tax)}</span>
-            </div>
-          </div>
-        ))}
-
-        {/* PRICING BREAKUP */}
-        <div style={s.pricingCard}>
-          <p style={s.sectionLabel}>Pricing Breakup</p>
-
-          <div style={s.summaryRow}>
+        {/* PRICING SUMMARY */}
+        <div style={{ backgroundColor: gray50, borderRadius: '6px', padding: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '11px', color: gray700 }}>
             <span>Sub Total</span>
             <span style={{ fontWeight: 600 }}>{formatCurrency(subtotal)}</span>
           </div>
 
           {totalTax > 0 && (
-            <div style={s.summaryRow}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '11px', color: gray700 }}>
               <span>Tax</span>
               <span style={{ fontWeight: 600 }}>{formatCurrency(totalTax)}</span>
             </div>
           )}
 
           {discount > 0 && (
-            <div style={{ ...s.summaryRow, color: '#dc2626' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '11px', color: '#dc2626' }}>
               <span>Discount</span>
               <span style={{ fontWeight: 600 }}>-{formatCurrency(discount)}</span>
             </div>
           )}
 
-          <div style={s.totalRow}>
-            <span>Total Amount</span>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', padding: '8px 10px',
+            fontSize: '14px', fontWeight: 700, backgroundColor: green, color: '#ffffff',
+            borderRadius: '5px', marginTop: '6px',
+          }}>
+            <span>Total</span>
             <span>{formatCurrency(grandTotal)}</span>
           </div>
 
-          <div style={{ ...s.summaryRow, marginTop: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '11px', color: gray700, marginTop: '6px' }}>
             <span>Received</span>
             <span style={{ fontWeight: 600 }}>{formatCurrency(received)}</span>
           </div>
 
-          <div style={s.balanceRow}>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', padding: '4px 0',
+            fontSize: '12px', fontWeight: 700, color: balance > 0 ? '#dc2626' : green,
+          }}>
             <span>Balance</span>
             <span>{formatCurrency(Math.abs(balance))}</span>
           </div>
         </div>
 
         {/* FOOTER */}
-        <div style={s.footer}>
-          <p style={s.footerText}>
-            Thank you for your business! This is a computer-generated invoice.
-          </p>
-          <p style={{ ...s.footerText, marginTop: '4px' }}>
-            For queries, contact: {business.phone || business.email || business.business_name}
+        <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: `1px solid ${gray200}` }}>
+          <p style={{ fontSize: '9px', color: gray400, margin: 0, lineHeight: '1.6' }}>
+            Thank you for your business! Computer-generated invoice.
+            {business.phone && ` Queries: ${business.phone}`}
           </p>
         </div>
       </div>
