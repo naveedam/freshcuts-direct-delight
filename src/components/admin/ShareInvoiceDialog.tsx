@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2, MessageCircle, Mail, Download, Image, FileText } from 'lucide-react';
 import {
-  generateInvoicePdf,
+  generatePdfFromElement,
   generateImageFromElement,
   uploadInvoiceToStorage,
   saveDocumentRecord,
@@ -55,7 +55,10 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
   const handleDownloadPdf = async () => {
     setLoading('pdf');
     try {
-      const blob = await generateInvoicePdf(order.id);
+      await new Promise(r => setTimeout(r, 100));
+      if (!shareViewRef.current) throw new Error('Invoice view not ready');
+
+      const blob = await generatePdfFromElement(shareViewRef.current);
       const fileName = `invoice-${invoiceNum}.pdf`;
       downloadBlob(blob, fileName);
 
@@ -134,7 +137,10 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
   const handleEmail = async () => {
     setLoading('email');
     try {
-      const blob = await generateInvoicePdf(order.id);
+      await new Promise(r => setTimeout(r, 100));
+      if (!shareViewRef.current) throw new Error('Invoice view not ready');
+
+      const blob = await generatePdfFromElement(shareViewRef.current);
       const fileName = `invoice-${invoiceNum}.pdf`;
       downloadBlob(blob, fileName);
 
@@ -181,7 +187,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
           )}
 
           <div className="grid gap-2 pt-2">
-            <Button onClick={handleDownloadPdf} disabled={isLoading} className="justify-start gap-2">
+            <Button onClick={handleDownloadPdf} disabled={isLoading || !hasItems} className="justify-start gap-2">
               {loading === 'pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
               Download PDF
             </Button>
@@ -191,7 +197,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
               Share on WhatsApp (Image)
             </Button>
 
-            <Button onClick={handleEmail} disabled={isLoading} variant="outline" className="justify-start gap-2">
+            <Button onClick={handleEmail} disabled={isLoading || !hasItems} variant="outline" className="justify-start gap-2">
               {loading === 'email' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
               Send via Email (PDF)
             </Button>
