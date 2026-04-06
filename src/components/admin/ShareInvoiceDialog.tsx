@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2, MessageCircle, Mail, Download, Image, FileText } from 'lucide-react';
 import {
-  generateInvoicePdf,
+  generatePdfFromElement,
   generateImageFromElement,
   uploadInvoiceToStorage,
   saveDocumentRecord,
