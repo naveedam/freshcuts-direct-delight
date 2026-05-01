@@ -335,6 +335,15 @@ export default function OrdersAdmin() {
 
         {/* Filters */}
         <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative w-full sm:w-[280px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search flat, customer, phone, invoice..."
+              className="pl-9 h-9"
+            />
+          </div>
           {financialYears && financialYears.length > 0 && (
             <>
               <CalendarDays className="h-4 w-4 text-muted-foreground" />
@@ -371,6 +380,49 @@ export default function OrdersAdmin() {
                 </Button>
               )}
             </>
+          )}
+          <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Payment" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Payments</SelectItem>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectItem value="partial">Partial</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-1">
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-9 w-[150px]"
+              aria-label="From date"
+            />
+            <span className="text-xs text-muted-foreground">to</span>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-9 w-[150px]"
+              aria-label="To date"
+            />
+          </div>
+          {(searchQuery || paymentStatusFilter !== 'all' || dateFrom || dateTo || buildingFilter) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchQuery('');
+                setPaymentStatusFilter('all');
+                setDateFrom('');
+                setDateTo('');
+                setBuildingFilter('');
+              }}
+            >
+              Reset filters
+            </Button>
           )}
         </div>
 
