@@ -33,6 +33,10 @@ export default function OrdersAdmin() {
   const [buildingFilter, setBuildingFilter] = useState('');
   const [fyFilter, setFyFilter] = useState<string>('all');
   const [paymentOrder, setPaymentOrder] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
   const { data: financialYears } = useFinancialYears();
 
   const { data: orders, isLoading } = useQuery({
@@ -66,8 +70,35 @@ export default function OrdersAdmin() {
     if (fyFilter && fyFilter !== 'all') {
       filtered = filtered.filter((o: any) => o.financial_year_id === fyFilter);
     }
+    if (paymentStatusFilter !== 'all') {
+      filtered = filtered.filter((o: any) => o.payment_status === paymentStatusFilter);
+    }
+    if (dateFrom) {
+      const from = new Date(dateFrom).getTime();
+      filtered = filtered.filter((o: any) => new Date(o.created_at).getTime() >= from);
+    }
+    if (dateTo) {
+      const to = new Date(dateTo).getTime() + 24 * 60 * 60 * 1000 - 1;
+      filtered = filtered.filter((o: any) => new Date(o.created_at).getTime() <= to);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      filtered = filtered.filter((o: any) => {
+        const blob = [
+          o.invoice_number,
+          o.customer_email,
+          o.phone,
+          o.flat_number,
+          o.building_name,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return blob.includes(q);
+      });
+    }
     return filtered;
-  }, [orders, buildingFilter, fyFilter]);
+  }, [orders, buildingFilter, fyFilter, paymentStatusFilter, dateFrom, dateTo, searchQuery]);
 
   // Check if an order belongs to a closed FY
   const isOrderInClosedFY = (order: any): boolean => {
@@ -304,6 +335,15 @@ export default function OrdersAdmin() {
 
         {/* Filters */}
         <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative w-full sm:w-[280px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search flat, customer, phone, invoice..."
+              className="pl-9 h-9"
+            />
+          </div>
           {financialYears && financialYears.length > 0 && (
             <>
               <CalendarDays className="h-4 w-4 text-muted-foreground" />
@@ -340,6 +380,49 @@ export default function OrdersAdmin() {
                 </Button>
               )}
             </>
+          )}
+          <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Payment" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Payments</SelectItem>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectItem value="partial">Partial</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-1">
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-9 w-[150px]"
+              aria-label="From date"
+            />
+            <span className="text-xs text-muted-foreground">to</span>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-9 w-[150px]"
+              aria-label="To date"
+            />
+          </div>
+          {(searchQuery || paymentStatusFilter !== 'all' || dateFrom || dateTo || buildingFilter) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchQuery('');
+                setPaymentStatusFilter('all');
+                setDateFrom('');
+                setDateTo('');
+                setBuildingFilter('');
+              }}
+            >
+              Reset filters
+            </Button>
           )}
         </div>
 

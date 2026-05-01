@@ -14,6 +14,7 @@ import {
 } from '@/lib/invoice-generator';
 import InvoiceShareView from '@/components/admin/InvoiceShareView';
 import { supabase } from '@/integrations/supabase/client';
+import { shareInvoice, isNative } from '@/lib/native-share';
 
 interface ShareInvoiceDialogProps {
   open: boolean;
@@ -111,8 +112,8 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
 
       const blob = await generateImageFromElement(shareViewRef.current);
       const fileName = `invoice-${invoiceNum}.png`;
-      downloadBlob(blob, fileName);
 
+      // Always archive to storage + documents
       const url = await uploadInvoiceToStorage(blob, fileName, flatNumber);
       await saveDocumentRecord({
         flatNumber, buildingName, orderId: order.id,
@@ -120,13 +121,24 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
         invoiceNumber: invoiceNum, customerName,
       });
 
-      const message = `Hi ${customerName}, please find your invoice #${invoiceNum} from Fresh Cuts Daily attached.\n\nThank you for your order!`;
-      const waUrl = phone
-        ? `https://wa.me/${phone.startsWith('91') ? phone : '91' + phone}?text=${encodeURIComponent(message)}`
-        : `https://wa.me/?text=${encodeURIComponent(message)}`;
-      window.open(waUrl, '_blank');
+      const message = `Hi ${customerName}, please find your invoice #${invoiceNum} from Fresh Cuts Daily.\n\nThank you for your order!`;
+      const result = await shareInvoice({
+        blob,
+        fileName,
+        title: `Invoice ${invoiceNum}`,
+        text: message,
+        whatsappPhone: phone,
+      });
 
-      toast.success('Image downloaded — attach it in WhatsApp');
+      if (result.method === 'native') {
+        toast.success('Opened native share — pick WhatsApp');
+      } else if (result.method === 'web') {
+        toast.success('Opened device share sheet');
+      } else {
+        // Fallback path: also download so user can attach manually
+        downloadBlob(blob, fileName);
+        toast.success('Image downloaded — attach it in WhatsApp');
+      }
     } catch (e: any) {
       toast.error('Failed: ' + e.message);
     } finally {
@@ -209,7 +221,9 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
           </div>
 
           <p className="text-xs text-muted-foreground pt-1">
-            Image is Vyapar-style mobile-optimized. PDF uses full A4 format. Attach manually in WhatsApp/email.
+            {isNative()
+              ? 'On mobile, WhatsApp opens with the invoice image pre-attached.'
+              : 'On desktop, the share sheet uses the device API when supported. Otherwise the image downloads and WhatsApp opens with the message.'}
           </p>
         </div>
 
