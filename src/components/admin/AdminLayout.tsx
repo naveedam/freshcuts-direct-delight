@@ -4,6 +4,8 @@ import { useAuth } from '@/context/AuthContext';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from './AdminSidebar';
 import { Loader2 } from 'lucide-react';
+import { GlobalSearch } from './GlobalSearch';
+import { MobileBottomNav } from '@/components/mobile/MobileBottomNav';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -41,13 +43,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <div className="min-h-screen flex w-full">
         <AdminSidebar />
         <main className="flex-1 bg-background">
-          <header className="h-14 border-b border-border flex items-center px-4 bg-card sticky top-0 z-10">
+          <header className="h-14 border-b border-border flex items-center gap-3 px-4 bg-card sticky top-0 z-10">
             <SidebarTrigger />
+            <div className="flex-1 flex justify-center md:justify-start">
+              <GlobalSearch />
+            </div>
           </header>
-          <div className="p-6">
+          <div className="p-4 md:p-6 pb-20 md:pb-6">
             {children}
           </div>
         </main>
+        <MobileBottomNav />
       </div>
     </SidebarProvider>
   );
