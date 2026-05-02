@@ -5,6 +5,16 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays, FileEdit, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
@@ -37,6 +47,7 @@ export default function OrdersAdmin() {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
+  const [cancelTarget, setCancelTarget] = useState<any>(null);
   const { data: financialYears } = useFinancialYears();
 
   const { data: orders, isLoading } = useQuery({
@@ -164,18 +175,48 @@ export default function OrdersAdmin() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from('orders').update({ status }).eq('id', id);
+    mutationFn: async ({
+      id,
+      status,
+      cancelInvoice,
+    }: { id: string; status: string; cancelInvoice?: boolean }) => {
+      const updates: Record<string, any> = { status };
+      if (status === 'cancelled' && cancelInvoice) {
+        updates.invoice_cancelled = true;
+        updates.invoice_cancelled_at = new Date().toISOString();
+      }
+      const { error } = await supabase.from('orders').update(updates).eq('id', id);
       if (error) throw error;
+
+      if (status === 'cancelled' && cancelInvoice) {
+        // Mark linked sale as cancelled (preserve audit trail, do not delete)
+        const { error: salesError } = await supabase
+          .from('sales')
+          .update({
+            payment_status: 'cancelled',
+            cancelled_at: new Date().toISOString(),
+          })
+          .eq('order_id', id);
+        if (salesError) throw salesError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
       toast.success('Order status updated');
+      setCancelTarget(null);
     },
     onError: (error) => {
       toast.error('Failed to update status: ' + error.message);
     }
   });
+
+  const handleStatusChange = (order: any, status: string) => {
+    if (status === 'cancelled' && order.converted_to_sale && !order.invoice_cancelled) {
+      setCancelTarget(order);
+      return;
+    }
+    updateStatusMutation.mutate({ id: order.id, status });
+  };
 
   const convertToSaleMutation = useMutation({
     mutationFn: async (orderId: string) => {
