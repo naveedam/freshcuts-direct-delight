@@ -537,7 +537,7 @@ export default function OrdersAdmin() {
                     <TableCell>
                       <Select 
                         value={order.status} 
-                        onValueChange={(status) => updateStatusMutation.mutate({ id: order.id, status })}
+                        onValueChange={(status) => handleStatusChange(order, status)}
                       >
                         <SelectTrigger className={`w-32 h-8 text-xs ${getStatusColor(order.status)}`}>
                           <SelectValue />
@@ -582,7 +582,11 @@ export default function OrdersAdmin() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        {order.converted_to_sale ? (
+                        {order.invoice_cancelled ? (
+                          <Badge variant="destructive" className="text-xs">
+                            Cancelled Invoice
+                          </Badge>
+                        ) : order.converted_to_sale ? (
                           <Badge variant="default" className="bg-green-600 text-xs">
                             <CheckCircle className="h-3 w-3 mr-1" />
                             Converted
@@ -603,6 +607,8 @@ export default function OrdersAdmin() {
                         variant="ghost"
                         className="h-8 gap-1 text-xs"
                         onClick={() => setPaymentOrder(order)}
+                        disabled={order.invoice_cancelled}
+                        title={order.invoice_cancelled ? 'Invoice cancelled — payments disabled' : 'Manage payment'}
                       >
                         <CreditCard className="h-3 w-3" />
                         {order.payment_status === 'paid' ? (
@@ -646,7 +652,7 @@ export default function OrdersAdmin() {
                           </Button>
                         )}
                         
-                        {order.converted_to_sale && (
+                        {order.converted_to_sale && !order.invoice_cancelled && (
                           <Button 
                             size="sm" 
                             variant="outline"
