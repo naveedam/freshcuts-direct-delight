@@ -527,6 +527,8 @@ export type Database = {
           financial_year_id: string | null
           flat_number: string | null
           id: string
+          invoice_cancelled: boolean
+          invoice_cancelled_at: string | null
           invoice_number: string | null
           is_igst: boolean
           notes: string | null
@@ -560,6 +562,8 @@ export type Database = {
           financial_year_id?: string | null
           flat_number?: string | null
           id?: string
+          invoice_cancelled?: boolean
+          invoice_cancelled_at?: string | null
           invoice_number?: string | null
           is_igst?: boolean
           notes?: string | null
@@ -593,6 +597,8 @@ export type Database = {
           financial_year_id?: string | null
           flat_number?: string | null
           id?: string
+          invoice_cancelled?: boolean
+          invoice_cancelled_at?: string | null
           invoice_number?: string | null
           is_igst?: boolean
           notes?: string | null
@@ -915,6 +921,7 @@ export type Database = {
       }
       sales: {
         Row: {
+          cancelled_at: string | null
           created_at: string
           financial_year_id: string | null
           id: string
@@ -925,6 +932,7 @@ export type Database = {
           sale_date: string
         }
         Insert: {
+          cancelled_at?: string | null
           created_at?: string
           financial_year_id?: string | null
           id?: string
@@ -935,6 +943,7 @@ export type Database = {
           sale_date?: string
         }
         Update: {
+          cancelled_at?: string | null
           created_at?: string
           financial_year_id?: string | null
           id?: string
