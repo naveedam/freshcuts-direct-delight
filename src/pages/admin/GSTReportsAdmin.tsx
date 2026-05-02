@@ -131,6 +131,28 @@ export default function GSTReportsAdmin() {
     enabled: !!startDate && !!endDate,
   });
 
+  // Fetch credit notes issued in the selected period (GST-safe reversal of prior invoices)
+  const { data: creditNotes } = useQuery({
+    queryKey: ['admin', 'gstReportCreditNotes', selectedMonth, fyFilter],
+    queryFn: async () => {
+      if (!startDate || !endDate) return [];
+      const { data, error } = await supabase
+        .from('credit_notes')
+        .select('id, credit_note_number, invoice_number, amount, reason, created_at, order_id')
+        .gte('created_at', startDate)
+        .lte('created_at', endDate)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!startDate && !!endDate,
+  });
+
+  const creditNotesTotal = useMemo(
+    () => (creditNotes || []).reduce((sum, cn: any) => sum + Number(cn.amount || 0), 0),
+    [creditNotes]
+  );
+
   // Generate reports
   const gstr1: GSTR1Data | null = useMemo(() => {
     if (!invoices?.length || !businessSettings?.gstin) return null;
