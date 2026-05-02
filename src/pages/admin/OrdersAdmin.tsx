@@ -870,6 +870,51 @@ export default function OrdersAdmin() {
           onOpenChange={(open) => !open && setPaymentOrder(null)}
           order={paymentOrder}
         />
+
+        {/* Cancel Order + Invoice Confirmation */}
+        <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancel order with invoice?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This order has a generated invoice
+                {cancelTarget?.invoice_number ? ` (${cancelTarget.invoice_number})` : ''}.
+                Cancelling the order will also cancel the invoice and exclude it from
+                revenue and GST reports. The invoice record is preserved for audit.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2">
+              <AlertDialogCancel>Keep Order</AlertDialogCancel>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  cancelTarget &&
+                  updateStatusMutation.mutate({
+                    id: cancelTarget.id,
+                    status: 'cancelled',
+                    cancelInvoice: false,
+                  })
+                }
+                disabled={updateStatusMutation.isPending}
+              >
+                Cancel Order Only
+              </Button>
+              <AlertDialogAction
+                onClick={() =>
+                  cancelTarget &&
+                  updateStatusMutation.mutate({
+                    id: cancelTarget.id,
+                    status: 'cancelled',
+                    cancelInvoice: true,
+                  })
+                }
+                disabled={updateStatusMutation.isPending}
+              >
+                Cancel Order + Invoice
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AdminLayout>
   );
