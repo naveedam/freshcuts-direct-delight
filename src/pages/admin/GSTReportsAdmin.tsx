@@ -77,6 +77,8 @@ export default function GSTReportsAdmin() {
         .from('orders')
         .select('*')
         .not('invoice_number', 'is', null)
+        .eq('invoice_cancelled', false)
+        .neq('status', 'cancelled')
         .gte('created_at', startDate)
         .lte('created_at', endDate);
       
