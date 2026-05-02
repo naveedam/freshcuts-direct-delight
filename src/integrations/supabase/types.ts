@@ -140,6 +140,45 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_notes: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          credit_note_number: string
+          id: string
+          invoice_number: string | null
+          order_id: string
+          reason: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          credit_note_number: string
+          id?: string
+          invoice_number?: string | null
+          order_id: string
+          reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          credit_note_number?: string
+          id?: string
+          invoice_number?: string | null
+          order_id?: string
+          reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customer_payments: {
         Row: {
           amount: number
@@ -520,6 +559,7 @@ export type Database = {
           building_name: string | null
           converted_to_sale: boolean | null
           created_at: string
+          credit_note_id: string | null
           customer_email: string | null
           discount_amount: number | null
           discount_type: string | null
@@ -529,6 +569,8 @@ export type Database = {
           id: string
           invoice_cancelled: boolean
           invoice_cancelled_at: string | null
+          invoice_cancelled_by: string | null
+          invoice_cancelled_reason: string | null
           invoice_number: string | null
           is_igst: boolean
           notes: string | null
@@ -555,6 +597,7 @@ export type Database = {
           building_name?: string | null
           converted_to_sale?: boolean | null
           created_at?: string
+          credit_note_id?: string | null
           customer_email?: string | null
           discount_amount?: number | null
           discount_type?: string | null
@@ -564,6 +607,8 @@ export type Database = {
           id?: string
           invoice_cancelled?: boolean
           invoice_cancelled_at?: string | null
+          invoice_cancelled_by?: string | null
+          invoice_cancelled_reason?: string | null
           invoice_number?: string | null
           is_igst?: boolean
           notes?: string | null
@@ -590,6 +635,7 @@ export type Database = {
           building_name?: string | null
           converted_to_sale?: boolean | null
           created_at?: string
+          credit_note_id?: string | null
           customer_email?: string | null
           discount_amount?: number | null
           discount_type?: string | null
@@ -599,6 +645,8 @@ export type Database = {
           id?: string
           invoice_cancelled?: boolean
           invoice_cancelled_at?: string | null
+          invoice_cancelled_by?: string | null
+          invoice_cancelled_reason?: string | null
           invoice_number?: string | null
           is_igst?: boolean
           notes?: string | null
@@ -1322,6 +1370,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_credit_note_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       generate_po_number: { Args: never; Returns: string }
       get_financial_year_for_date: {

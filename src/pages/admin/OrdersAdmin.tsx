@@ -5,16 +5,6 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays, FileEdit, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
@@ -27,6 +17,8 @@ import { EditOrderDialog } from '@/components/admin/EditOrderDialog';
 import { InvoiceEditDialog } from '@/components/admin/InvoiceEditDialog';
 import { OrderPaymentDialog } from '@/components/admin/OrderPaymentDialog';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useFinancialYears } from '@/hooks/useFinancialYears';
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
@@ -48,6 +40,7 @@ export default function OrdersAdmin() {
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
   const [cancelTarget, setCancelTarget] = useState<any>(null);
+  const [cancelReason, setCancelReason] = useState<string>('');
   const { data: financialYears } = useFinancialYears();
 
   const { data: orders, isLoading } = useQuery({
@@ -179,16 +172,63 @@ export default function OrdersAdmin() {
       id,
       status,
       cancelInvoice,
-    }: { id: string; status: string; cancelInvoice?: boolean }) => {
+      mode,
+      reason,
+    }: {
+      id: string;
+      status: string;
+      cancelInvoice?: boolean;
+      mode?: 'void' | 'credit_note';
+      reason?: string;
+    }) => {
       const updates: Record<string, any> = { status };
       if (status === 'cancelled' && cancelInvoice) {
         updates.invoice_cancelled = true;
         updates.invoice_cancelled_at = new Date().toISOString();
+        if (reason) updates.invoice_cancelled_reason = reason;
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) updates.invoice_cancelled_by = user.id;
       }
-      const { error } = await supabase.from('orders').update(updates).eq('id', id);
-      if (error) throw error;
 
       if (status === 'cancelled' && cancelInvoice) {
+        // If issuing a credit note, create it BEFORE flipping order flags so we can link it
+        if (mode === 'credit_note') {
+          const { data: order, error: orderFetchError } = await supabase
+            .from('orders')
+            .select('total_amount, invoice_number')
+            .eq('id', id)
+            .single();
+          if (orderFetchError) throw orderFetchError;
+
+          const { data: cnNumber, error: cnNumberError } = await supabase
+            .rpc('generate_credit_note_number');
+          if (cnNumberError) throw cnNumberError;
+
+          const { data: { user } } = await supabase.auth.getUser();
+
+          const { data: cn, error: cnError } = await supabase
+            .from('credit_notes')
+            .insert({
+              order_id: id,
+              invoice_number: order?.invoice_number ?? null,
+              credit_note_number: cnNumber,
+              amount: Number(order?.total_amount) || 0,
+              reason: reason || null,
+              status: 'issued',
+              created_by: user?.id ?? null,
+            })
+            .select('id')
+            .single();
+          if (cnError) throw cnError;
+
+          updates.credit_note_id = cn.id;
+        }
+
+        const { error } = await supabase.from('orders').update(updates).eq('id', id);
+        if (error) throw error;
+
         // Mark linked sale as cancelled (preserve audit trail, do not delete)
         const { error: salesError } = await supabase
           .from('sales')
@@ -198,12 +238,17 @@ export default function OrdersAdmin() {
           })
           .eq('order_id', id);
         if (salesError) throw salesError;
+      } else {
+        const { error } = await supabase.from('orders').update(updates).eq('id', id);
+        if (error) throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'creditNotes'] });
       toast.success('Order status updated');
       setCancelTarget(null);
+      setCancelReason('');
     },
     onError: (error) => {
       toast.error('Failed to update status: ' + error.message);
@@ -872,19 +917,52 @@ export default function OrdersAdmin() {
         />
 
         {/* Cancel Order + Invoice Confirmation */}
-        <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Cancel order with invoice?</AlertDialogTitle>
-              <AlertDialogDescription>
+        <Dialog
+          open={!!cancelTarget}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCancelTarget(null);
+              setCancelReason('');
+            }
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Cancel order with invoice?</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">
                 This order has a generated invoice
-                {cancelTarget?.invoice_number ? ` (${cancelTarget.invoice_number})` : ''}.
-                Cancelling the order will also cancel the invoice and exclude it from
-                revenue and GST reports. The invoice record is preserved for audit.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="gap-2">
-              <AlertDialogCancel>Keep Order</AlertDialogCancel>
+                {cancelTarget?.invoice_number ? (
+                  <> <span className="font-mono text-foreground">{cancelTarget.invoice_number}</span></>
+                ) : null}.
+                Choose how to reverse it for GST-safe accounting.
+              </p>
+              <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1">
+                <li><b>Cancel Invoice</b> — void the invoice (use only if not yet reported in GSTR).</li>
+                <li><b>Cancel with Credit Note</b> — issues a credit note equal to invoice value (use if already filed).</li>
+              </ul>
+              <div className="space-y-1">
+                <Label htmlFor="cancel-reason">Reason</Label>
+                <Textarea
+                  id="cancel-reason"
+                  rows={3}
+                  placeholder="e.g. Customer cancelled, wrong item, return…"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 pt-2">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setCancelTarget(null);
+                  setCancelReason('');
+                }}
+              >
+                Keep Order
+              </Button>
               <Button
                 variant="outline"
                 onClick={() =>
@@ -893,28 +971,48 @@ export default function OrdersAdmin() {
                     id: cancelTarget.id,
                     status: 'cancelled',
                     cancelInvoice: false,
+                    reason: cancelReason || undefined,
                   })
                 }
                 disabled={updateStatusMutation.isPending}
               >
                 Cancel Order Only
               </Button>
-              <AlertDialogAction
+              <Button
+                variant="outline"
                 onClick={() =>
                   cancelTarget &&
                   updateStatusMutation.mutate({
                     id: cancelTarget.id,
                     status: 'cancelled',
                     cancelInvoice: true,
+                    mode: 'void',
+                    reason: cancelReason || undefined,
                   })
                 }
                 disabled={updateStatusMutation.isPending}
               >
-                Cancel Order + Invoice
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+                Cancel Invoice
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() =>
+                  cancelTarget &&
+                  updateStatusMutation.mutate({
+                    id: cancelTarget.id,
+                    status: 'cancelled',
+                    cancelInvoice: true,
+                    mode: 'credit_note',
+                    reason: cancelReason || undefined,
+                  })
+                }
+                disabled={updateStatusMutation.isPending}
+              >
+                Cancel with Credit Note
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );
