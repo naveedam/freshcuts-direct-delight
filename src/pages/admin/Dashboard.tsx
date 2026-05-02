@@ -41,7 +41,7 @@ export default function AdminDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('orders')
-        .select('id, total_amount, status, created_at, building_name, flat_number, discount_amount, shipping_cost, converted_to_sale')
+        .select('id, total_amount, status, created_at, building_name, flat_number, discount_amount, shipping_cost, converted_to_sale, invoice_cancelled')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -117,8 +117,10 @@ export default function AdminDashboard() {
 
     // Realized revenue: only from invoiced/finalized orders
     const invoicedStatuses = new Set(['processing', 'shipped', 'delivered', 'completed']);
-    const todayInvoiced = todayOrders.filter(o => o.converted_to_sale || invoicedStatuses.has(o.status));
-    const monthInvoiced = monthOrders.filter(o => o.converted_to_sale || invoicedStatuses.has(o.status));
+    const isLiveInvoice = (o: any) =>
+      !o.invoice_cancelled && o.status !== 'cancelled' && (o.converted_to_sale || invoicedStatuses.has(o.status));
+    const todayInvoiced = todayOrders.filter(isLiveInvoice);
+    const monthInvoiced = monthOrders.filter(isLiveInvoice);
 
     const salesToday = todayInvoiced.reduce((s, o) => s + Number(o.total_amount), 0);
     const salesMonth = monthInvoiced.reduce((s, o) => s + Number(o.total_amount), 0);
@@ -140,9 +142,9 @@ export default function AdminDashboard() {
     const delivered = orders.filter(o => o.status === 'delivered').length;
     const totalWeight = orderItems?.reduce((s, i) => s + Number(i.quantity), 0) || 0;
 
-    const weekRevenue = weekOrders.filter(o => o.converted_to_sale || invoicedStatuses.has(o.status))
+    const weekRevenue = weekOrders.filter(isLiveInvoice)
       .reduce((s, o) => s + Number(o.total_amount), 0);
-    const weekFinalizedOrders = weekOrders.filter(o => invoicedStatuses.has(o.status));
+    const weekFinalizedOrders = weekOrders.filter(o => invoicedStatuses.has(o.status) && !o.invoice_cancelled && o.status !== 'cancelled');
     const weekFinalizedIds = new Set(weekFinalizedOrders.map(o => o.id));
     const weekFinalizedItems = orderItems?.filter(i => weekFinalizedIds.has(i.order_id)) || [];
     const productSales: Record<string, { name: string; qty: number; productId: string | null }> = {};

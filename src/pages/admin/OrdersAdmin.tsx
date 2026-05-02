@@ -5,6 +5,16 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays, FileEdit, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
@@ -37,6 +47,7 @@ export default function OrdersAdmin() {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
+  const [cancelTarget, setCancelTarget] = useState<any>(null);
   const { data: financialYears } = useFinancialYears();
 
   const { data: orders, isLoading } = useQuery({
@@ -164,18 +175,48 @@ export default function OrdersAdmin() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from('orders').update({ status }).eq('id', id);
+    mutationFn: async ({
+      id,
+      status,
+      cancelInvoice,
+    }: { id: string; status: string; cancelInvoice?: boolean }) => {
+      const updates: Record<string, any> = { status };
+      if (status === 'cancelled' && cancelInvoice) {
+        updates.invoice_cancelled = true;
+        updates.invoice_cancelled_at = new Date().toISOString();
+      }
+      const { error } = await supabase.from('orders').update(updates).eq('id', id);
       if (error) throw error;
+
+      if (status === 'cancelled' && cancelInvoice) {
+        // Mark linked sale as cancelled (preserve audit trail, do not delete)
+        const { error: salesError } = await supabase
+          .from('sales')
+          .update({
+            payment_status: 'cancelled',
+            cancelled_at: new Date().toISOString(),
+          })
+          .eq('order_id', id);
+        if (salesError) throw salesError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
       toast.success('Order status updated');
+      setCancelTarget(null);
     },
     onError: (error) => {
       toast.error('Failed to update status: ' + error.message);
     }
   });
+
+  const handleStatusChange = (order: any, status: string) => {
+    if (status === 'cancelled' && order.converted_to_sale && !order.invoice_cancelled) {
+      setCancelTarget(order);
+      return;
+    }
+    updateStatusMutation.mutate({ id: order.id, status });
+  };
 
   const convertToSaleMutation = useMutation({
     mutationFn: async (orderId: string) => {
@@ -496,7 +537,7 @@ export default function OrdersAdmin() {
                     <TableCell>
                       <Select 
                         value={order.status} 
-                        onValueChange={(status) => updateStatusMutation.mutate({ id: order.id, status })}
+                        onValueChange={(status) => handleStatusChange(order, status)}
                       >
                         <SelectTrigger className={`w-32 h-8 text-xs ${getStatusColor(order.status)}`}>
                           <SelectValue />
@@ -541,7 +582,11 @@ export default function OrdersAdmin() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        {order.converted_to_sale ? (
+                        {order.invoice_cancelled ? (
+                          <Badge variant="destructive" className="text-xs">
+                            Cancelled Invoice
+                          </Badge>
+                        ) : order.converted_to_sale ? (
                           <Badge variant="default" className="bg-green-600 text-xs">
                             <CheckCircle className="h-3 w-3 mr-1" />
                             Converted
@@ -562,6 +607,8 @@ export default function OrdersAdmin() {
                         variant="ghost"
                         className="h-8 gap-1 text-xs"
                         onClick={() => setPaymentOrder(order)}
+                        disabled={order.invoice_cancelled}
+                        title={order.invoice_cancelled ? 'Invoice cancelled — payments disabled' : 'Manage payment'}
                       >
                         <CreditCard className="h-3 w-3" />
                         {order.payment_status === 'paid' ? (
@@ -605,7 +652,7 @@ export default function OrdersAdmin() {
                           </Button>
                         )}
                         
-                        {order.converted_to_sale && (
+                        {order.converted_to_sale && !order.invoice_cancelled && (
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -823,6 +870,51 @@ export default function OrdersAdmin() {
           onOpenChange={(open) => !open && setPaymentOrder(null)}
           order={paymentOrder}
         />
+
+        {/* Cancel Order + Invoice Confirmation */}
+        <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancel order with invoice?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This order has a generated invoice
+                {cancelTarget?.invoice_number ? ` (${cancelTarget.invoice_number})` : ''}.
+                Cancelling the order will also cancel the invoice and exclude it from
+                revenue and GST reports. The invoice record is preserved for audit.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2">
+              <AlertDialogCancel>Keep Order</AlertDialogCancel>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  cancelTarget &&
+                  updateStatusMutation.mutate({
+                    id: cancelTarget.id,
+                    status: 'cancelled',
+                    cancelInvoice: false,
+                  })
+                }
+                disabled={updateStatusMutation.isPending}
+              >
+                Cancel Order Only
+              </Button>
+              <AlertDialogAction
+                onClick={() =>
+                  cancelTarget &&
+                  updateStatusMutation.mutate({
+                    id: cancelTarget.id,
+                    status: 'cancelled',
+                    cancelInvoice: true,
+                  })
+                }
+                disabled={updateStatusMutation.isPending}
+              >
+                Cancel Order + Invoice
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AdminLayout>
   );
