@@ -927,19 +927,52 @@ export default function OrdersAdmin() {
         />
 
         {/* Cancel Order + Invoice Confirmation */}
-        <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Cancel order with invoice?</AlertDialogTitle>
-              <AlertDialogDescription>
+        <Dialog
+          open={!!cancelTarget}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCancelTarget(null);
+              setCancelReason('');
+            }
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Cancel order with invoice?</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">
                 This order has a generated invoice
-                {cancelTarget?.invoice_number ? ` (${cancelTarget.invoice_number})` : ''}.
-                Cancelling the order will also cancel the invoice and exclude it from
-                revenue and GST reports. The invoice record is preserved for audit.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="gap-2">
-              <AlertDialogCancel>Keep Order</AlertDialogCancel>
+                {cancelTarget?.invoice_number ? (
+                  <> <span className="font-mono text-foreground">{cancelTarget.invoice_number}</span></>
+                ) : null}.
+                Choose how to reverse it for GST-safe accounting.
+              </p>
+              <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1">
+                <li><b>Cancel Invoice</b> — void the invoice (use only if not yet reported in GSTR).</li>
+                <li><b>Cancel with Credit Note</b> — issues a credit note equal to invoice value (use if already filed).</li>
+              </ul>
+              <div className="space-y-1">
+                <Label htmlFor="cancel-reason">Reason</Label>
+                <Textarea
+                  id="cancel-reason"
+                  rows={3}
+                  placeholder="e.g. Customer cancelled, wrong item, return…"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 pt-2">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setCancelTarget(null);
+                  setCancelReason('');
+                }}
+              >
+                Keep Order
+              </Button>
               <Button
                 variant="outline"
                 onClick={() =>
@@ -948,28 +981,48 @@ export default function OrdersAdmin() {
                     id: cancelTarget.id,
                     status: 'cancelled',
                     cancelInvoice: false,
+                    reason: cancelReason || undefined,
                   })
                 }
                 disabled={updateStatusMutation.isPending}
               >
                 Cancel Order Only
               </Button>
-              <AlertDialogAction
+              <Button
+                variant="outline"
                 onClick={() =>
                   cancelTarget &&
                   updateStatusMutation.mutate({
                     id: cancelTarget.id,
                     status: 'cancelled',
                     cancelInvoice: true,
+                    mode: 'void',
+                    reason: cancelReason || undefined,
                   })
                 }
                 disabled={updateStatusMutation.isPending}
               >
-                Cancel Order + Invoice
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+                Cancel Invoice
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() =>
+                  cancelTarget &&
+                  updateStatusMutation.mutate({
+                    id: cancelTarget.id,
+                    status: 'cancelled',
+                    cancelInvoice: true,
+                    mode: 'credit_note',
+                    reason: cancelReason || undefined,
+                  })
+                }
+                disabled={updateStatusMutation.isPending}
+              >
+                Cancel with Credit Note
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );
