@@ -481,6 +481,19 @@ export default function GSTReportsAdmin() {
 
             {/* Report Tabs */}
             <Tabs defaultValue="gstr1" className="space-y-4">
+              {creditNotes && creditNotes.length > 0 && (
+                <Alert>
+                  <FileText className="h-4 w-4" />
+                  <AlertTitle>
+                    {creditNotes.length} credit note{creditNotes.length === 1 ? '' : 's'} this period
+                    — {formatCurrency(creditNotesTotal)}
+                  </AlertTitle>
+                  <AlertDescription>
+                    Final reported value = invoice total − credit notes total. Credit notes
+                    reverse previously filed invoices in a GST-safe way.
+                  </AlertDescription>
+                </Alert>
+              )}
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="gstr1" className="gap-2">
                   <FileText className="h-4 w-4" />
