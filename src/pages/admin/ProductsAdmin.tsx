@@ -25,6 +25,8 @@ interface ProductForm {
   stock_quantity: string;
   image_url: string;
   hsn_code: string;
+  is_processed: boolean;
+  yield_multiplier: string;
 }
 
 const defaultForm: ProductForm = {
@@ -36,7 +38,9 @@ const defaultForm: ProductForm = {
   in_stock: true,
   stock_quantity: '0',
   image_url: '',
-  hsn_code: ''
+  hsn_code: '',
+  is_processed: false,
+  yield_multiplier: '1.0'
 };
 
 export default function ProductsAdmin() {
@@ -137,7 +141,9 @@ export default function ProductsAdmin() {
         in_stock: data.in_stock,
         stock_quantity: parseInt(data.stock_quantity) || 0,
         image_url: data.image_url || null,
-        hsn_code: data.hsn_code || null
+        hsn_code: data.hsn_code || null,
+        is_processed: data.is_processed,
+        yield_multiplier: parseFloat(data.yield_multiplier) || 1.0
       });
       if (error) throw error;
     },
@@ -163,7 +169,9 @@ export default function ProductsAdmin() {
         in_stock: data.in_stock,
         stock_quantity: parseInt(data.stock_quantity) || 0,
         image_url: data.image_url || null,
-        hsn_code: data.hsn_code || null
+        hsn_code: data.hsn_code || null,
+        is_processed: data.is_processed,
+        yield_multiplier: parseFloat(data.yield_multiplier) || 1.0
       }).eq('id', id);
       if (error) throw error;
     },
@@ -220,7 +228,9 @@ export default function ProductsAdmin() {
       in_stock: product.in_stock,
       stock_quantity: (product.stock_quantity || 0).toString(),
       image_url: product.image_url || '',
-      hsn_code: product.hsn_code || ''
+      hsn_code: product.hsn_code || '',
+      is_processed: product.is_processed ?? false,
+      yield_multiplier: (product.yield_multiplier ?? 1.0).toString()
     });
     setEditingId(product.id);
     setIsOpen(true);
@@ -433,6 +443,32 @@ export default function ProductsAdmin() {
                       onCheckedChange={(checked) => setForm({ ...form, in_stock: checked })}
                     />
                     <Label>In Stock</Label>
+                  </div>
+                  <div className="space-y-3 rounded-md border border-border p-3">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={form.is_processed}
+                        onCheckedChange={(checked) => setForm({ ...form, is_processed: checked })}
+                      />
+                      <Label>Processed Item (yield loss)</Label>
+                    </div>
+                    {form.is_processed && (
+                      <div className="space-y-2">
+                        <Label htmlFor="yield_multiplier">Yield Multiplier</Label>
+                        <Input
+                          id="yield_multiplier"
+                          type="number"
+                          step="0.01"
+                          min="1"
+                          value={form.yield_multiplier}
+                          onChange={(e) => setForm({ ...form, yield_multiplier: e.target.value })}
+                          placeholder="e.g. 1.3"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Raw kg required per 1 kg of finished product. Example: Mutton Mince = 1.3 (1.3 kg bone-in → 1 kg mince).
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-2 pt-4">
                     <Button type="button" variant="outline" onClick={resetForm} className="flex-1">

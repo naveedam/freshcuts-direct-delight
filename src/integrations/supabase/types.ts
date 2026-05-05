@@ -714,6 +714,7 @@ export type Database = {
           id: string
           image_url: string | null
           in_stock: boolean | null
+          is_processed: boolean
           is_published: boolean
           mrp: number | null
           name: string
@@ -723,6 +724,7 @@ export type Database = {
           stock_quantity: number | null
           unit: string
           updated_at: string
+          yield_multiplier: number
         }
         Insert: {
           brand?: string | null
@@ -736,6 +738,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           in_stock?: boolean | null
+          is_processed?: boolean
           is_published?: boolean
           mrp?: number | null
           name: string
@@ -745,6 +748,7 @@ export type Database = {
           stock_quantity?: number | null
           unit?: string
           updated_at?: string
+          yield_multiplier?: number
         }
         Update: {
           brand?: string | null
@@ -758,6 +762,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           in_stock?: boolean | null
+          is_processed?: boolean
           is_published?: boolean
           mrp?: number | null
           name?: string
@@ -767,6 +772,7 @@ export type Database = {
           stock_quantity?: number | null
           unit?: string
           updated_at?: string
+          yield_multiplier?: number
         }
         Relationships: [
           {
