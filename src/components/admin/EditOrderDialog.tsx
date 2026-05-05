@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Info } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Loader2, AlertTriangle, Truck } from 'lucide-react';
@@ -227,6 +229,9 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
     const anyVp = vendorProducts?.find(vp => vp.product_id === productId);
     const autoVendorId = preferredVp?.vendor_id || anyVp?.vendor_id || null;
     const vendorCost = preferredVp?.cost_price || anyVp?.cost_price || 0;
+    const yieldMul = Number((product as any).yield_multiplier) || 1;
+    const isProcessed = !!(product as any).is_processed;
+    const finalVendorCost = isProcessed ? Number((vendorCost * yieldMul).toFixed(2)) : vendorCost;
     setItems((prev) => {
       const next = [...prev];
       let activeIdx = -1;
@@ -238,7 +243,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
             product_id: product.id,
             product_name: product.name,
             unit_price: Number(product.price),
-            vendor_cost: vendorCost,
+            vendor_cost: finalVendorCost,
             hsn_code: product.hsn_code || '',
             gst_type: product.gst_type || 'Exempt',
             gst_rate: Number(product.gst_rate) || 0,
