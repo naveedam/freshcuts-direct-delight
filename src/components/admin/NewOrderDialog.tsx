@@ -14,6 +14,8 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/currency';
 import { BuildingAutocomplete } from './BuildingAutocomplete';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Info } from 'lucide-react';
 
 interface OrderLineItem {
   product_id: string | null;
@@ -233,13 +235,16 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
       const autoVendorId = preferredVp?.vendor_id || anyVp?.vendor_id || null;
 
       const vendorCost = preferredVp?.cost_price || anyVp?.cost_price || 0;
+      const yieldMul = Number((product as any).yield_multiplier) || 1;
+      const isProcessed = !!(product as any).is_processed;
+      const finalVendorCost = isProcessed ? Number((vendorCost * yieldMul).toFixed(2)) : vendorCost;
       const updated = [...lineItems];
       updated[index] = {
         product_id: product.id,
         product_name: product.name,
         quantity: lineItems[index].quantity || 1,
         unit_price: product.price,
-        vendor_cost: vendorCost,
+        vendor_cost: finalVendorCost,
         hsn_code: product.hsn_code || '',
         gst_type: product.gst_type || 'Exempt',
         gst_rate: product.gst_rate || 0,
