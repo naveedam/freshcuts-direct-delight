@@ -735,14 +735,47 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                           />
                         </TableCell>
                         <TableCell>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={item.vendor_cost}
-                            onChange={(e) => updateLineItem(index, 'vendor_cost', parseFloat(e.target.value) || 0)}
-                            className="w-20 h-8 text-xs"
-                          />
+                          {(() => {
+                            const prod = products?.find(p => p.id === item.product_id) as any;
+                            const isProcessed = !!prod?.is_processed;
+                            const yieldMul = Number(prod?.yield_multiplier) || 1;
+                            const rawCost = vendorProducts?.find(vp => vp.product_id === item.product_id && vp.vendor_id === item.vendor_id)?.cost_price
+                              ?? vendorProducts?.find(vp => vp.product_id === item.product_id && vp.is_preferred_vendor)?.cost_price
+                              ?? vendorProducts?.find(vp => vp.product_id === item.product_id)?.cost_price
+                              ?? 0;
+                            const suggested = Number((rawCost * yieldMul).toFixed(2));
+                            return (
+                              <div className="space-y-1">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={item.vendor_cost}
+                                  onChange={(e) => updateLineItem(index, 'vendor_cost', parseFloat(e.target.value) || 0)}
+                                  className="w-20 h-8 text-xs font-semibold"
+                                />
+                                {isProcessed && rawCost > 0 && (
+                                  <TooltipProvider delayDuration={150}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          type="button"
+                                          onClick={() => updateLineItem(index, 'vendor_cost', suggested)}
+                                          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground"
+                                        >
+                                          <Info className="h-3 w-3" />
+                                          <span>raw ₹{rawCost} × {yieldMul} = ₹{suggested}</span>
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="text-xs max-w-[220px]">
+                                        For processed items, cost includes yield loss from raw material. Click to apply suggested cost.
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell>
                           <Input
