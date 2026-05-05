@@ -13,6 +13,7 @@ import { Plus, Trash2, Loader2, PackagePlus, Percent, IndianRupee, Truck } from 
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/currency';
+import { BuildingAutocomplete } from './BuildingAutocomplete';
 
 interface OrderLineItem {
   product_id: string | null;
@@ -558,11 +559,9 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Building / Apartment Name</Label>
-                <Input
+                <BuildingAutocomplete
                   value={buildingName}
-                  onChange={(e) => setBuildingName(e.target.value)}
-                  placeholder="e.g. Prestige Lakeside Habitat"
-                  maxLength={100}
+                  onChange={setBuildingName}
                 />
               </div>
               <div className="space-y-2">
