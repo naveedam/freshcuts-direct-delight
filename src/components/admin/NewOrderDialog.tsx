@@ -768,10 +768,15 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                                         </button>
                                       </TooltipTrigger>
                                       <TooltipContent side="top" className="text-xs max-w-[220px]">
-                                        For processed items, cost includes yield loss from raw material. Click to apply suggested cost.
+                                        For processed items, cost includes yield loss from raw material (e.g. 1.3 kg raw → 1 kg finished). Click to apply.
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
+                                )}
+                                {isProcessed && rawCost === 0 && (
+                                  <span className="text-[10px] text-muted-foreground italic">
+                                    Set vendor raw cost to get suggestion
+                                  </span>
                                 )}
                               </div>
                             );
