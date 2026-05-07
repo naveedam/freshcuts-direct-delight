@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays, FileEdit, CreditCard } from 'lucide-react';
+import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays, FileEdit, CreditCard, BookOpen, Send, Wallet, AlertTriangle, IndianRupee } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,9 @@ import { WeightAdjustmentDialog } from '@/components/admin/WeightAdjustmentDialo
 import { EditOrderDialog } from '@/components/admin/EditOrderDialog';
 import { InvoiceEditDialog } from '@/components/admin/InvoiceEditDialog';
 import { OrderPaymentDialog } from '@/components/admin/OrderPaymentDialog';
+import { PartyLedgerSheet, type PartyKey } from '@/components/admin/PartyLedgerSheet';
+import { Card, CardContent } from '@/components/ui/card';
+import { formatCurrency } from '@/lib/currency';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -41,6 +44,7 @@ export default function OrdersAdmin() {
   const [dateTo, setDateTo] = useState<string>('');
   const [cancelTarget, setCancelTarget] = useState<any>(null);
   const [cancelReason, setCancelReason] = useState<string>('');
+  const [ledgerParty, setLedgerParty] = useState<{ key: PartyKey; title: string } | null>(null);
   const { data: financialYears } = useFinancialYears();
 
   const { data: orders, isLoading } = useQuery({
@@ -54,6 +58,41 @@ export default function OrdersAdmin() {
       return data;
     }
   });
+
+  // All customer payments (used for dashboard widgets + party summary)
+  const { data: allPayments } = useQuery({
+    queryKey: ['admin', 'all-customer-payments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customer_payments')
+        .select('order_id, amount, payment_date');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Dashboard widgets — global
+  const widgets = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+    const todaysCollection = (allPayments || [])
+      .filter((p) => new Date(p.payment_date).getTime() >= todayMs)
+      .reduce((s, p) => s + Number(p.amount || 0), 0);
+
+    let outstanding = 0;
+    let overdue = 0;
+    const now = Date.now();
+    for (const o of orders || []) {
+      if (o.invoice_cancelled) continue;
+      const out = (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0);
+      if (out <= 0.01) continue;
+      outstanding += out;
+      const days = (now - new Date(o.created_at).getTime()) / 86400000;
+      if (days > 30) overdue += out;
+    }
+    return { todaysCollection, outstanding, overdue };
+  }, [orders, allPayments]);
 
   // Get unique building names for filtering
   const buildingNames = useMemo(() => {
@@ -103,6 +142,41 @@ export default function OrdersAdmin() {
     }
     return filtered;
   }, [orders, buildingFilter, fyFilter, paymentStatusFilter, dateFrom, dateTo, searchQuery]);
+
+  // Party summary — when any filter narrows the list
+  const filtersActive = !!(buildingFilter || searchQuery.trim() || paymentStatusFilter !== 'all' || dateFrom || dateTo);
+  const partySummary = useMemo(() => {
+    if (!filtersActive) return null;
+    const ids = new Set(filteredOrders.map((o: any) => o.id));
+    const billed = filteredOrders
+      .filter((o: any) => !o.invoice_cancelled)
+      .reduce((s: number, o: any) => s + (Number(o.total_amount) || 0), 0);
+    const pays = (allPayments || []).filter((p) => ids.has(p.order_id));
+    const paid = pays.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const lastPayment = pays
+      .map((p) => new Date(p.payment_date).getTime())
+      .sort((a, b) => b - a)[0];
+    return {
+      orderCount: filteredOrders.length,
+      billed,
+      paid,
+      outstanding: billed - paid,
+      lastPayment: lastPayment ? new Date(lastPayment) : null,
+    };
+  }, [filtersActive, filteredOrders, allPayments]);
+
+  const sendWhatsAppReminder = (order: any) => {
+    const phoneRaw = (order.phone || '').replace(/\D/g, '');
+    if (!phoneRaw) {
+      toast.error('No phone number on this order');
+      return;
+    }
+    const phone = phoneRaw.length === 10 ? `91${phoneRaw}` : phoneRaw;
+    const balance = Number(order.balance_due) || ((Number(order.total_amount) || 0) - (Number(order.amount_paid) || 0));
+    const inv = order.invoice_number ? ` for invoice ${order.invoice_number}` : '';
+    const msg = `Hi, your pending amount${inv} is ₹${balance.toFixed(0)}. Please clear dues at your earliest convenience. Thank you!`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  };
 
   // Check if an order belongs to a closed FY
   const isOrderInClosedFY = (order: any): boolean => {
@@ -419,6 +493,37 @@ export default function OrdersAdmin() {
           </Button>
         </div>
 
+        {/* Dashboard widgets */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="p-2 rounded-md bg-green-100 text-green-700"><Wallet className="h-5 w-5" /></div>
+              <div>
+                <p className="text-xs text-muted-foreground">Today's Collection</p>
+                <p className="text-lg font-bold">{formatCurrency(widgets.todaysCollection)}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="p-2 rounded-md bg-yellow-100 text-yellow-700"><IndianRupee className="h-5 w-5" /></div>
+              <div>
+                <p className="text-xs text-muted-foreground">Total Outstanding</p>
+                <p className="text-lg font-bold">{formatCurrency(widgets.outstanding)}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="p-2 rounded-md bg-red-100 text-red-700"><AlertTriangle className="h-5 w-5" /></div>
+              <div>
+                <p className="text-xs text-muted-foreground">Overdue (30+ days)</p>
+                <p className="text-lg font-bold">{formatCurrency(widgets.overdue)}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Filters */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative w-full sm:w-[280px]">
@@ -515,6 +620,26 @@ export default function OrdersAdmin() {
         {/* New Order Dialog */}
         <NewOrderDialog open={newOrderOpen} onOpenChange={setNewOrderOpen} />
 
+        {/* Party summary bar */}
+        {partySummary && (
+          <Card className="border-primary/30">
+            <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap gap-6">
+                <SummaryStat label="Orders" value={String(partySummary.orderCount)} />
+                <SummaryStat label="Invoice Value" value={formatCurrency(partySummary.billed)} />
+                <SummaryStat label="Paid" value={formatCurrency(partySummary.paid)} tone="green" />
+                <SummaryStat label="Outstanding" value={formatCurrency(partySummary.outstanding)} tone={partySummary.outstanding > 0 ? 'red' : 'green'} />
+                <SummaryStat label="Last Payment" value={partySummary.lastPayment ? partySummary.lastPayment.toLocaleDateString('en-IN') : '—'} />
+              </div>
+              {buildingFilter && (
+                <Button variant="outline" size="sm" onClick={() => setLedgerParty({ key: { type: 'building', value: buildingFilter }, title: buildingFilter })}>
+                  <BookOpen className="h-4 w-4 mr-1" /> View ledger
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Orders Table */}
         <div className="bg-card border border-border rounded-lg overflow-hidden">
           <Table>
@@ -567,10 +692,22 @@ export default function OrdersAdmin() {
                     <TableCell>
                       <div>
                         {order.building_name && (
-                          <p className="font-medium text-sm">{order.building_name}</p>
+                          <button
+                            type="button"
+                            className="font-medium text-sm text-primary hover:underline text-left"
+                            onClick={() => setLedgerParty({ key: { type: 'building', value: order.building_name }, title: order.building_name })}
+                          >
+                            {order.building_name}
+                          </button>
                         )}
                         {order.flat_number && (
-                          <p className="text-xs text-foreground">Flat: {order.flat_number}</p>
+                          <button
+                            type="button"
+                            className="text-xs text-foreground hover:underline block text-left"
+                            onClick={() => setLedgerParty({ key: { type: 'flat', building: order.building_name, flat: order.flat_number }, title: `${order.building_name || ''} · Flat ${order.flat_number}` })}
+                          >
+                            Flat: {order.flat_number}
+                          </button>
                         )}
                         <p className="text-xs text-muted-foreground">
                           {[order.shipping_address, order.shipping_postal_code].filter(Boolean).join(' – ') || 'N/A'}
@@ -661,15 +798,32 @@ export default function OrdersAdmin() {
                         ) : order.payment_status === 'partial' ? (
                           <Badge className="bg-yellow-500 text-xs">Partial</Badge>
                         ) : (
-                          <span>Pay</span>
+                          <Badge variant="destructive" className="text-xs">Pending</Badge>
                         )}
                       </Button>
+                      {!order.invoice_cancelled && (Number(order.balance_due) > 0.01 || (Number(order.total_amount) - Number(order.amount_paid || 0)) > 0.01) && (
+                        <p className="text-[10px] text-destructive mt-0.5">
+                          Bal: {formatCurrency(Number(order.balance_due) || (Number(order.total_amount) - Number(order.amount_paid || 0)))}
+                        </p>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button size="sm" variant="ghost" onClick={() => setSelectedOrder(order)}>
                           <Eye className="h-4 w-4" />
                         </Button>
+
+                        {!order.invoice_cancelled && order.phone && Number(order.balance_due || (Number(order.total_amount) - Number(order.amount_paid || 0))) > 0.01 && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => sendWhatsAppReminder(order)}
+                            title="Send WhatsApp payment reminder"
+                            className="text-[#25D366]"
+                          >
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        )}
                         
                         <Button
                           size="sm"
@@ -916,6 +1070,14 @@ export default function OrdersAdmin() {
           order={paymentOrder}
         />
 
+        {/* Party Ledger Sheet */}
+        <PartyLedgerSheet
+          open={!!ledgerParty}
+          onOpenChange={(o) => !o && setLedgerParty(null)}
+          party={ledgerParty?.key || null}
+          title={ledgerParty?.title}
+        />
+
         {/* Cancel Order + Invoice Confirmation */}
         <Dialog
           open={!!cancelTarget}
@@ -1015,5 +1177,15 @@ export default function OrdersAdmin() {
         </Dialog>
       </div>
     </AdminLayout>
+  );
+}
+
+function SummaryStat({ label, value, tone }: { label: string; value: string; tone?: 'green' | 'red' }) {
+  const color = tone === 'green' ? 'text-green-600' : tone === 'red' ? 'text-destructive' : 'text-foreground';
+  return (
+    <div>
+      <p className="text-[10px] uppercase text-muted-foreground tracking-wide">{label}</p>
+      <p className={`text-base font-semibold ${color}`}>{value}</p>
+    </div>
   );
 }
