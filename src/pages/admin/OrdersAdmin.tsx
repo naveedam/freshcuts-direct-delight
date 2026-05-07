@@ -1179,3 +1179,13 @@ export default function OrdersAdmin() {
     </AdminLayout>
   );
 }
+
+function SummaryStat({ label, value, tone }: { label: string; value: string; tone?: 'green' | 'red' }) {
+  const color = tone === 'green' ? 'text-green-600' : tone === 'red' ? 'text-destructive' : 'text-foreground';
+  return (
+    <div>
+      <p className="text-[10px] uppercase text-muted-foreground tracking-wide">{label}</p>
+      <p className={`text-base font-semibold ${color}`}>{value}</p>
+    </div>
+  );
+}
