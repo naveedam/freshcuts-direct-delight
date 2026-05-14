@@ -938,20 +938,6 @@ export default function OrdersAdmin() {
                           </Button>
                         )}
                         
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleGenerateShippingLabel(order.id)}
-                          disabled={processingAction === `label-${order.id}`}
-                          title="Generate Shipping Label"
-                        >
-                          {processingAction === `label-${order.id}` ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Truck className="h-4 w-4" />
-                          )}
-                        </Button>
-
                         <Button
                           size="sm"
                           variant="outline"
