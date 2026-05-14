@@ -22,6 +22,7 @@ import { formatCurrency } from '@/lib/currency';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFinancialYears } from '@/hooks/useFinancialYears';
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
@@ -164,6 +165,33 @@ export default function OrdersAdmin() {
       lastPayment: lastPayment ? new Date(lastPayment) : null,
     };
   }, [filtersActive, filteredOrders, allPayments]);
+
+  // Party outstanding map: aggregates unpaid balance across all invoices for the same party.
+  // Key resolution priority: phone -> flat+building -> customer_email.
+  const partyKeyForOrder = (o: any): string | null => {
+    if (o?.phone) return `phone:${String(o.phone).trim().toLowerCase()}`;
+    if (o?.flat_number) return `flat:${(o.building_name || '').trim().toLowerCase()}|${String(o.flat_number).trim().toLowerCase()}`;
+    if (o?.customer_email) return `email:${String(o.customer_email).trim().toLowerCase()}`;
+    return null;
+  };
+  const partyOutstandingMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const o of orders || []) {
+      if (o.invoice_cancelled) continue;
+      const out = (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0);
+      if (out <= 0.01) continue;
+      const k = partyKeyForOrder(o);
+      if (!k) continue;
+      m.set(k, (m.get(k) || 0) + out);
+    }
+    return m;
+  }, [orders]);
+  const ledgerKeyForOrder = (o: any): PartyKey | null => {
+    if (o?.phone) return { type: 'phone', value: o.phone };
+    if (o?.flat_number) return { type: 'flat', building: o.building_name, flat: o.flat_number };
+    if (o?.customer_email) return { type: 'email', value: o.customer_email };
+    return null;
+  };
 
   const sendWhatsAppReminder = (order: any) => {
     const phoneRaw = (order.phone || '').replace(/\D/g, '');
