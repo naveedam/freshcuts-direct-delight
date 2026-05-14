@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays, FileEdit, CreditCard, BookOpen, Send, Wallet, AlertTriangle, IndianRupee } from 'lucide-react';
+import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays, FileEdit, CreditCard, BookOpen, Send, Wallet, AlertTriangle, IndianRupee, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -480,6 +480,24 @@ export default function OrdersAdmin() {
     }
   };
 
+  const handleGeneratePackingLabels = async (orderId: string) => {
+    setProcessingAction(`packing-${orderId}`);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-packing-labels', {
+        body: { orderId, size: '4x6' }
+      });
+      if (error) throw error;
+      const blob = new Blob([data], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      toast.success('Packing labels generated');
+    } catch (error: any) {
+      toast.error('Failed to generate packing labels: ' + error.message);
+    } finally {
+      setProcessingAction(null);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
@@ -931,6 +949,20 @@ export default function OrdersAdmin() {
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
                             <Truck className="h-4 w-4" />
+                          )}
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleGeneratePackingLabels(order.id)}
+                          disabled={processingAction === `packing-${order.id}`}
+                          title="Print Packing Labels (one per item)"
+                        >
+                          {processingAction === `packing-${order.id}` ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Tag className="h-4 w-4" />
                           )}
                         </Button>
                       </div>
