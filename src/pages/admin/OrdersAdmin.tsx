@@ -22,6 +22,7 @@ import { formatCurrency } from '@/lib/currency';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFinancialYears } from '@/hooks/useFinancialYears';
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
@@ -164,6 +165,33 @@ export default function OrdersAdmin() {
       lastPayment: lastPayment ? new Date(lastPayment) : null,
     };
   }, [filtersActive, filteredOrders, allPayments]);
+
+  // Party outstanding map: aggregates unpaid balance across all invoices for the same party.
+  // Key resolution priority: phone -> flat+building -> customer_email.
+  const partyKeyForOrder = (o: any): string | null => {
+    if (o?.phone) return `phone:${String(o.phone).trim().toLowerCase()}`;
+    if (o?.flat_number) return `flat:${(o.building_name || '').trim().toLowerCase()}|${String(o.flat_number).trim().toLowerCase()}`;
+    if (o?.customer_email) return `email:${String(o.customer_email).trim().toLowerCase()}`;
+    return null;
+  };
+  const partyOutstandingMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const o of orders || []) {
+      if (o.invoice_cancelled) continue;
+      const out = (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0);
+      if (out <= 0.01) continue;
+      const k = partyKeyForOrder(o);
+      if (!k) continue;
+      m.set(k, (m.get(k) || 0) + out);
+    }
+    return m;
+  }, [orders]);
+  const ledgerKeyForOrder = (o: any): PartyKey | null => {
+    if (o?.phone) return { type: 'phone', value: o.phone };
+    if (o?.flat_number) return { type: 'flat', building: o.building_name, flat: o.flat_number };
+    if (o?.customer_email) return { type: 'email', value: o.customer_email };
+    return null;
+  };
 
   const sendWhatsAppReminder = (order: any) => {
     const phoneRaw = (order.phone || '').replace(/\D/g, '');
@@ -784,28 +812,58 @@ export default function OrdersAdmin() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 gap-1 text-xs"
-                        onClick={() => setPaymentOrder(order)}
-                        disabled={order.invoice_cancelled}
-                        title={order.invoice_cancelled ? 'Invoice cancelled — payments disabled' : 'Manage payment'}
-                      >
-                        <CreditCard className="h-3 w-3" />
-                        {order.payment_status === 'paid' ? (
-                          <Badge className="bg-green-600 text-xs">Paid</Badge>
-                        ) : order.payment_status === 'partial' ? (
-                          <Badge className="bg-yellow-500 text-xs">Partial</Badge>
-                        ) : (
-                          <Badge variant="destructive" className="text-xs">Pending</Badge>
-                        )}
-                      </Button>
-                      {!order.invoice_cancelled && (Number(order.balance_due) > 0.01 || (Number(order.total_amount) - Number(order.amount_paid || 0)) > 0.01) && (
-                        <p className="text-[10px] text-destructive mt-0.5">
-                          Bal: {formatCurrency(Number(order.balance_due) || (Number(order.total_amount) - Number(order.amount_paid || 0)))}
-                        </p>
-                      )}
+                      {(() => {
+                        const invoiceDue = Math.max(0, (Number(order.total_amount) || 0) - (Number(order.amount_paid) || 0));
+                        const pk = partyKeyForOrder(order);
+                        const partyDue = pk ? (partyOutstandingMap.get(pk) || 0) : invoiceDue;
+                        const otherPartyDue = Math.max(0, partyDue - invoiceDue);
+                        const lk = ledgerKeyForOrder(order);
+                        return (
+                          <TooltipProvider delayDuration={150}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 gap-1 text-xs"
+                              onClick={() => setPaymentOrder(order)}
+                              disabled={order.invoice_cancelled}
+                              title={order.invoice_cancelled ? 'Invoice cancelled — payments disabled' : 'Manage payment'}
+                            >
+                              <CreditCard className="h-3 w-3" />
+                              {order.payment_status === 'paid' ? (
+                                <Badge className="bg-green-600 text-xs">Paid</Badge>
+                              ) : order.payment_status === 'partial' ? (
+                                <Badge className="bg-yellow-500 text-xs">Partial</Badge>
+                              ) : (
+                                <Badge variant="destructive" className="text-xs">Pending</Badge>
+                              )}
+                            </Button>
+                            {!order.invoice_cancelled && invoiceDue > 0.01 && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <p className="text-[11px] font-semibold text-destructive mt-0.5 leading-tight cursor-help">
+                                    Inv Due: {formatCurrency(invoiceDue)}
+                                  </p>
+                                </TooltipTrigger>
+                                <TooltipContent>Amount pending for this invoice</TooltipContent>
+                              </Tooltip>
+                            )}
+                            {!order.invoice_cancelled && otherPartyDue > 0.01 && lk && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setLedgerParty({ key: lk, title: order.building_name || order.flat_number || order.phone || order.customer_email || 'Party' }); }}
+                                    className="text-[10px] text-muted-foreground hover:text-foreground hover:underline mt-0.5 leading-tight block"
+                                  >
+                                    Party Due: {formatCurrency(partyDue)}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Total pending across all invoices for this party — click to view ledger</TooltipContent>
+                              </Tooltip>
+                            )}
+                          </TooltipProvider>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
