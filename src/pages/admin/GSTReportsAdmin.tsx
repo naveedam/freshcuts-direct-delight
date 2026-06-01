@@ -769,6 +769,14 @@ export default function GSTReportsAdmin() {
             </Tabs>
           </>
         )}
+
+        <GSTReconciliationDialog
+          open={reconOpen}
+          onOpenChange={setReconOpen}
+          startDate={startDate}
+          endDate={endDate}
+          periodLabel={monthOptions.find(m => m.value === selectedMonth)?.label || selectedMonth}
+        />
       </div>
     </AdminLayout>
   );
