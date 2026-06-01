@@ -37,12 +37,15 @@ import {
 } from 'lucide-react';
 import { writeExcelFile } from '@/lib/excel-utils';
 import { useFinancialYears } from '@/hooks/useFinancialYears';
+import { GSTReconciliationDialog } from '@/components/admin/GSTReconciliationDialog';
+import { Search } from 'lucide-react';
 
 export default function GSTReportsAdmin() {
   const monthOptions = useMemo(() => generateMonthOptions(), []);
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0]?.value || '');
   const { data: financialYears } = useFinancialYears();
   const [fyFilter, setFyFilter] = useState<string>('all');
+  const [reconOpen, setReconOpen] = useState(false);
   
   // Fetch business settings
   const { data: businessSettings } = useQuery({
@@ -441,6 +444,16 @@ export default function GSTReportsAdmin() {
                     </p>
                   </div>
                 </div>
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    variant={reconciliation?.is_reconciled ? 'outline' : 'destructive'}
+                    onClick={() => setReconOpen(true)}
+                    className="gap-2"
+                  >
+                    <Search className="h-4 w-4" />
+                    View Differences
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -756,6 +769,14 @@ export default function GSTReportsAdmin() {
             </Tabs>
           </>
         )}
+
+        <GSTReconciliationDialog
+          open={reconOpen}
+          onOpenChange={setReconOpen}
+          startDate={startDate}
+          endDate={endDate}
+          periodLabel={monthOptions.find(m => m.value === selectedMonth)?.label || selectedMonth}
+        />
       </div>
     </AdminLayout>
   );
