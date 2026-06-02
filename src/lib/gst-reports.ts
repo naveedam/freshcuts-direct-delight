@@ -8,6 +8,7 @@ import type {
   ValidationResult,
   ReconciliationData,
   InvoiceForReport,
+  InvoiceItemForReport,
   MonthOption,
 } from '@/types/gst-reports';
 
