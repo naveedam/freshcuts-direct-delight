@@ -450,7 +450,7 @@ export default function OrdersAdmin() {
     setProcessingAction(`packing-${orderId}`);
     try {
       const { data, error } = await supabase.functions.invoke('generate-packing-labels', {
-        body: { orderId, size: '4x6' }
+        body: { orderId }
       });
       if (error) throw error;
       const blob = new Blob([data], { type: 'text/html' });
