@@ -114,10 +114,19 @@ export function buildReconciliation(
   for (const o of orders) {
     const isCancelled = o.invoice_cancelled || o.status === 'cancelled';
     const orderItems = itemsByOrder.get(o.id) || [];
-    const gstr1Contribution = orderItems.reduce((s, i) => s + itemGstr1Contribution(i), 0);
     const invoiceTotal = Number(o.total_amount || 0);
     const shipping = Number(o.shipping_cost || 0);
     const discount = Number(o.discount_amount || 0);
+
+    // Scale raw item contributions to the FINAL posted invoice value so that
+    // GSTR-1 amount always reconciles to orders.total_amount (post weight
+    // adjustment, discount, edits, regeneration).
+    const rawItemSum = orderItems.reduce((s, i) => s + Number(i.total_price || 0), 0);
+    const scale = rawItemSum > 0 && invoiceTotal > 0 ? invoiceTotal / rawItemSum : 1;
+    const gstr1Contribution = orderItems.reduce(
+      (s, i) => s + itemGstr1Contribution(i) * scale,
+      0
+    );
 
     const flags: string[] = [];
     if (isCancelled) flags.push('Cancelled');
@@ -127,6 +136,7 @@ export function buildReconciliation(
     if (discount > 0) flags.push(`Discount ₹${discount.toFixed(2)}`);
     if (o.invoice_number && (invCount.get(o.invoice_number) || 0) > 1) flags.push('Duplicate invoice no.');
     if (!o.invoice_number) flags.push('Draft (no invoice no.)');
+    if (Math.abs(scale - 1) > 0.0001) flags.push(`Scaled ×${scale.toFixed(4)} to final total`);
 
     const excluded = isCancelled || !o.invoice_number;
     const registerValue = excluded ? 0 : invoiceTotal;

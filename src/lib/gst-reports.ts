@@ -8,6 +8,7 @@ import type {
   ValidationResult,
   ReconciliationData,
   InvoiceForReport,
+  InvoiceItemForReport,
   MonthOption,
 } from '@/types/gst-reports';
 
@@ -62,7 +63,16 @@ export function generateGSTR1(
   let totalValue = 0;
   
   invoices.forEach(invoice => {
-    invoice.items.forEach(item => {
+    // CRITICAL: Scale per-item values so that the sum equals the FINAL posted
+    // invoice total (after weight adjustments, discounts, edits, regeneration).
+    // Without this, GSTR-1 reflects pre-adjustment raw item rows and overstates
+    // turnover vs. the Invoice Register.
+    const rawItemSum = invoice.items.reduce((s, i) => s + Number(i.total_price || 0), 0);
+    const finalTotal = Number(invoice.total_amount || 0);
+    const scale = rawItemSum > 0 && finalTotal > 0 ? finalTotal / rawItemSum : 1;
+
+    invoice.items.forEach(rawItem => {
+      const item = scaleItem(rawItem, scale);
       totalValue += item.total_price;
       
       if (item.gst_type === 'nil') {
@@ -149,6 +159,23 @@ export function generateGSTR1(
 }
 
 /**
+ * Scale a single item's monetary fields by a factor.
+ * Used to project raw order_item rows onto the FINAL posted invoice value
+ * so GSTR-1 / GSTR-3B totals match orders.total_amount exactly.
+ */
+function scaleItem(item: InvoiceItemForReport, scale: number): InvoiceItemForReport {
+  if (scale === 1) return item;
+  return {
+    ...item,
+    total_price: +(Number(item.total_price || 0) * scale).toFixed(2),
+    taxable_value: +(Number(item.taxable_value || 0) * scale).toFixed(2),
+    cgst_amount: +(Number(item.cgst_amount || 0) * scale).toFixed(2),
+    sgst_amount: +(Number(item.sgst_amount || 0) * scale).toFixed(2),
+    igst_amount: +(Number(item.igst_amount || 0) * scale).toFixed(2),
+  };
+}
+
+/**
  * Generate GSTR-3B data from invoices
  */
 export function generateGSTR3B(
@@ -171,7 +198,12 @@ export function generateGSTR3B(
   };
   
   invoices.forEach(invoice => {
-    invoice.items.forEach(item => {
+    const rawItemSum = invoice.items.reduce((s, i) => s + Number(i.total_price || 0), 0);
+    const finalTotal = Number(invoice.total_amount || 0);
+    const scale = rawItemSum > 0 && finalTotal > 0 ? finalTotal / rawItemSum : 1;
+
+    invoice.items.forEach(rawItem => {
+      const item = scaleItem(rawItem, scale);
       if (item.gst_type === 'nil') {
         table31c.nil_rated += item.total_price;
       } else if (item.gst_type === 'exempt') {

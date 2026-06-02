@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -34,6 +34,7 @@ import {
   Calendar,
   IndianRupee,
   CalendarDays,
+  RefreshCw,
 } from 'lucide-react';
 import { writeExcelFile } from '@/lib/excel-utils';
 import { useFinancialYears } from '@/hooks/useFinancialYears';
@@ -46,6 +47,13 @@ export default function GSTReportsAdmin() {
   const { data: financialYears } = useFinancialYears();
   const [fyFilter, setFyFilter] = useState<string>('all');
   const [reconOpen, setReconOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleRebuildReports = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin', 'gstReportInvoices'] });
+    queryClient.invalidateQueries({ queryKey: ['admin', 'gstReportCreditNotes'] });
+    queryClient.invalidateQueries({ queryKey: ['admin', 'gstReconciliation'] });
+  };
   
   // Fetch business settings
   const { data: businessSettings } = useQuery({
@@ -445,6 +453,14 @@ export default function GSTReportsAdmin() {
                   </div>
                 </div>
                 <div className="mt-4 flex justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={handleRebuildReports}
+                    className="gap-2 mr-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Rebuild GST Reports
+                  </Button>
                   <Button
                     variant={reconciliation?.is_reconciled ? 'outline' : 'destructive'}
                     onClick={() => setReconOpen(true)}
