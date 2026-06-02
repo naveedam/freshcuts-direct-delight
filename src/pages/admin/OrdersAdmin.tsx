@@ -788,11 +788,6 @@ export default function OrdersAdmin() {
                         ) : (
                           <Badge variant="outline" className="text-xs">Pending</Badge>
                         )}
-                        {order.shipping_label_generated && (
-                          <Badge variant="secondary" className="text-xs">
-                            <Truck className="h-3 w-3" />
-                          </Badge>
-                        )}
                       </div>
                     </TableCell>
                     <TableCell>
