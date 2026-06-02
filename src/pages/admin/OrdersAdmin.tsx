@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, FileText, Truck, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays, FileEdit, CreditCard, BookOpen, Send, Wallet, AlertTriangle, IndianRupee, Tag } from 'lucide-react';
+import { Eye, FileText, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays, FileEdit, CreditCard, BookOpen, Send, Wallet, AlertTriangle, IndianRupee, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -446,45 +446,11 @@ export default function OrdersAdmin() {
     }
   };
 
-  const handleGenerateShippingLabel = async (orderId: string) => {
-    const order = orders?.find((o: any) => o.id === orderId);
-    if (order && !order.flat_number && !order.building_name) {
-      toast.error('Cannot generate shipping label: Flat/House Number and Building/Apartment Name are required. Please edit the order first.');
-      return;
-    }
-    setProcessingAction(`label-${orderId}`);
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-shipping-label', {
-        body: { orderId }
-      });
-
-      if (error) throw error;
-
-      // Mark shipping label as generated
-      await supabase
-        .from('orders')
-        .update({ shipping_label_generated: true })
-        .eq('id', orderId);
-
-      queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
-
-      // Open label in new tab
-      const blob = new Blob([data], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      toast.success('Shipping label generated');
-    } catch (error: any) {
-      toast.error('Failed to generate shipping label: ' + error.message);
-    } finally {
-      setProcessingAction(null);
-    }
-  };
-
   const handleGeneratePackingLabels = async (orderId: string) => {
     setProcessingAction(`packing-${orderId}`);
     try {
       const { data, error } = await supabase.functions.invoke('generate-packing-labels', {
-        body: { orderId, size: '4x6' }
+        body: { orderId }
       });
       if (error) throw error;
       const blob = new Blob([data], { type: 'text/html' });
@@ -822,11 +788,6 @@ export default function OrdersAdmin() {
                         ) : (
                           <Badge variant="outline" className="text-xs">Pending</Badge>
                         )}
-                        {order.shipping_label_generated && (
-                          <Badge variant="secondary" className="text-xs">
-                            <Truck className="h-3 w-3" />
-                          </Badge>
-                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -1089,16 +1050,16 @@ export default function OrdersAdmin() {
                   
                   <Button 
                     variant="outline"
-                    onClick={() => handleGenerateShippingLabel(selectedOrder.id)}
-                    disabled={processingAction === `label-${selectedOrder.id}`}
+                    onClick={() => handleGeneratePackingLabels(selectedOrder.id)}
+                    disabled={processingAction === `packing-${selectedOrder.id}`}
                     className="flex-1"
                   >
-                    {processingAction === `label-${selectedOrder.id}` ? (
+                    {processingAction === `packing-${selectedOrder.id}` ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
-                      <Truck className="h-4 w-4 mr-2" />
+                      <Tag className="h-4 w-4 mr-2" />
                     )}
-                    Label
+                    Packing Labels
                   </Button>
                 </div>
               </div>
