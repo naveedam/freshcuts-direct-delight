@@ -15,20 +15,6 @@ function esc(s: string | null | undefined): string {
     .replace(/'/g, '&#039;')
 }
 
-function formatQty(item: any, pricingModel: string | null): string {
-  const actual = Number(item.actual_weight) || 0
-  const billed = Number(item.billed_weight) || 0
-  const qty = Number(item.quantity) || 0
-  const isUnit = pricingModel === 'unit_based'
-  if (isUnit) {
-    return `${qty} ${qty === 1 ? 'unit' : 'units'}`
-  }
-  // weight-based: prefer actual, then billed, else quantity*0.5kg
-  const kg = actual > 0 ? actual : billed > 0 ? billed : qty * 0.5
-  if (kg >= 1) return `${kg.toFixed(3)} kg`
-  return `${Math.round(kg * 1000)} g`
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
@@ -61,14 +47,12 @@ Deno.serve(async (req) => {
       })
     }
 
-    const { orderId, size } = await req.json()
+    const { orderId } = await req.json()
     if (!orderId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId)) {
       return new Response(JSON.stringify({ error: 'Invalid order ID' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
-    const labelSize = size === '3x2' ? '3x2' : '4x6'
-
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -90,38 +74,14 @@ Deno.serve(async (req) => {
       })
     }
 
-    const productIds = Array.from(new Set(items.map((i: any) => i.product_id).filter(Boolean)))
-    const productPricing: Record<string, string | null> = {}
-    if (productIds.length > 0) {
-      const { data: products } = await supabase
-        .from('products').select('id, pricing_model').in('id', productIds)
-      for (const p of products || []) productPricing[p.id] = (p as any).pricing_model
-    }
-
-    const orderRef = order.invoice_number || `#${order.id.slice(0, 6).toUpperCase()}`
     const flat = order.flat_number || ''
-    const building = order.building_name || ''
-    const packDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 
-    const dims = labelSize === '3x2'
-      ? { w: '3in', h: '2in', brand: '11px', flat: '22px', bldg: '11px', prod: '15px', qty: '20px', meta: '8px', pad: '8px' }
-      : { w: '4in', h: '6in', brand: '14px', flat: '42px', bldg: '16px', prod: '26px', qty: '38px', meta: '10px', pad: '16px' }
-
-    const labelsHtml = items.map((item: any, idx: number) => {
-      const qtyStr = formatQty(item, productPricing[item.product_id || ''] || null)
+    const labelsHtml = items.map((item: any) => {
       return `
         <div class="label">
           <div class="brand">Fresh Cuts Daily</div>
           <div class="flat">${esc(flat) || '—'}</div>
-          <div class="bldg">${esc(building) || ''}</div>
-          <div class="divider"></div>
           <div class="product">${esc(item.product_name)}</div>
-          <div class="qty">${esc(qtyStr)}</div>
-          <div class="meta">
-            <span>${esc(orderRef)}</span>
-            <span>${esc(packDate)}</span>
-            <span>${idx + 1}/${items.length}</span>
-          </div>
         </div>`
     }).join('')
 
@@ -129,10 +89,10 @@ Deno.serve(async (req) => {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Packing Labels - ${esc(orderRef)}</title>
+<title>Packing Labels</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { background: #f0f0f0; font-family: 'Helvetica Neue', Arial, sans-serif; color: #000; }
+  html, body { background: #fff; font-family: Arial, Helvetica, sans-serif; color: #000; }
   body { padding: 12px; }
   .toolbar {
     max-width: 600px; margin: 0 auto 16px; display: flex; gap: 8px;
@@ -144,14 +104,16 @@ Deno.serve(async (req) => {
   }
   .toolbar button.primary { background: #000; color: #fff; }
   .label {
-    width: ${dims.w};
-    height: ${dims.h};
+    width: 4in;
+    height: 6in;
     background: #fff;
-    border: 1px solid #000;
-    margin: 0 auto 12px;
-    padding: ${dims.pad};
+    margin: 0 auto;
+    padding: 0.28in;
     display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.34in;
     page-break-inside: avoid;
     break-inside: avoid;
     page-break-after: always;
@@ -159,64 +121,32 @@ Deno.serve(async (req) => {
   }
   .label:last-child { page-break-after: auto; }
   .brand {
-    font-size: ${dims.brand};
+    font-size: 24px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 0;
     text-align: center;
-    border-bottom: 1px solid #000;
-    padding-bottom: 4px;
   }
   .flat {
-    font-size: ${dims.flat};
+    font-size: 74px;
     font-weight: 900;
     text-align: center;
-    line-height: 1.1;
-    margin-top: 6px;
-    letter-spacing: 1px;
-  }
-  .bldg {
-    font-size: ${dims.bldg};
-    font-weight: 600;
-    text-align: center;
-    margin-top: 2px;
-    text-transform: uppercase;
-  }
-  .divider {
-    border-top: 2px dashed #000;
-    margin: 8px 0;
+    line-height: 1;
+    letter-spacing: 0;
+    word-break: break-word;
   }
   .product {
-    font-size: ${dims.prod};
-    font-weight: 700;
-    text-align: center;
-    line-height: 1.2;
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .qty {
-    font-size: ${dims.qty};
+    font-size: 42px;
     font-weight: 900;
     text-align: center;
-    border: 2px solid #000;
-    padding: 4px;
-    margin-top: 4px;
-  }
-  .meta {
-    display: flex;
-    justify-content: space-between;
-    font-size: ${dims.meta};
-    margin-top: 6px;
-    color: #000;
-    font-weight: 500;
+    line-height: 1.08;
+    letter-spacing: 0;
+    word-break: break-word;
   }
   @media print {
     body { background: #fff; padding: 0; }
     .toolbar { display: none; }
-    .label { border: none; margin: 0; }
-    @page { size: ${dims.w} ${dims.h}; margin: 0; }
+    .label { margin: 0; }
+    @page { size: 4in 6in; margin: 0; }
   }
 </style>
 </head>
