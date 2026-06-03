@@ -67,7 +67,9 @@ Deno.serve(async (req) => {
     }
 
     const { data: items, error: itemsErr } = await supabase
-      .from('order_items').select('*').eq('order_id', orderId)
+      .from('order_items')
+      .select('*, products(pricing_model)')
+      .eq('order_id', orderId)
     if (itemsErr || !items || items.length === 0) {
       return new Response(JSON.stringify({ error: 'No items found for this order' }), {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -75,13 +77,31 @@ Deno.serve(async (req) => {
     }
 
     const flat = order.flat_number || ''
+    const building = order.building_name || ''
+    const total = items.length
 
-    const labelsHtml = items.map((item: any) => {
+    function formatQty(item: any): string {
+      const model = item.products?.pricing_model || 'weight_based'
+      if (model === 'unit_based') {
+        const n = Number(item.quantity || 0)
+        return `${n} ${n === 1 ? 'UNIT' : 'UNITS'}`
+      }
+      let kg: number
+      if (item.actual_weight != null) kg = Number(item.actual_weight)
+      else if (item.billed_weight != null) kg = Number(item.billed_weight)
+      else kg = Number(item.quantity || 0) * 0.5
+      return `${kg.toFixed(2)} KG`
+    }
+
+    const labelsHtml = items.map((item: any, idx: number) => {
       return `
         <div class="label">
-          <div class="brand">Fresh Cuts Daily</div>
+          <div class="counter">#${idx + 1}/${total}</div>
+          <div class="brand">FRESH CUTS DAILY</div>
           <div class="flat">${esc(flat) || '—'}</div>
-          <div class="product">${esc(item.product_name)}</div>
+          ${building ? `<div class="building">${esc(building)}</div>` : ''}
+          <div class="product">${esc(String(item.product_name).toUpperCase())}</div>
+          <div class="weight">${esc(formatQty(item))}</div>
         </div>`
     }).join('')
 
