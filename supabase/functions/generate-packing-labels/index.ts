@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
 <title>Packing Labels</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { background: #fff; font-family: Arial, Helvetica, sans-serif; color: #000; }
+  html, body { background: #ddd; font-family: Arial, Helvetica, sans-serif; color: #000; }
   body { padding: 12px; }
   .toolbar {
     max-width: 600px; margin: 0 auto 16px; display: flex; gap: 8px;
@@ -125,48 +125,71 @@ Deno.serve(async (req) => {
   .toolbar button.primary { background: #000; color: #fff; }
   .label {
     width: 4in;
-    height: 6in;
+    height: 2in;
     background: #fff;
-    margin: 0 auto;
-    padding: 0.28in;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.34in;
+    margin: 0 auto 8px;
+    padding: 0.06in 0.1in;
+    display: grid;
+    grid-template-rows: auto auto auto 1fr auto;
+    row-gap: 0.02in;
     page-break-inside: avoid;
     break-inside: avoid;
     page-break-after: always;
     overflow: hidden;
+    position: relative;
   }
   .label:last-child { page-break-after: auto; }
   .brand {
-    font-size: 24px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0;
+    letter-spacing: 1px;
     text-align: center;
+    border-bottom: 1px solid #000;
+    padding-bottom: 1px;
   }
   .flat {
-    font-size: 74px;
+    font-size: 54px;
     font-weight: 900;
     text-align: center;
     line-height: 1;
-    letter-spacing: 0;
+    letter-spacing: 1px;
     word-break: break-word;
   }
+  .building {
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
   .product {
-    font-size: 42px;
+    font-size: 22px;
     font-weight: 900;
     text-align: center;
-    line-height: 1.08;
-    letter-spacing: 0;
+    line-height: 1.05;
     word-break: break-word;
+    align-self: end;
+  }
+  .weight {
+    font-size: 18px;
+    font-weight: 900;
+    text-align: center;
+    line-height: 1;
+    border-top: 1px solid #000;
+    padding-top: 2px;
+  }
+  .counter {
+    position: absolute;
+    top: 2px;
+    right: 5px;
+    font-size: 9px;
+    font-weight: 700;
   }
   @media print {
     body { background: #fff; padding: 0; }
     .toolbar { display: none; }
     .label { margin: 0; }
-    @page { size: 4in 6in; margin: 0; }
+    @page { size: 4in 2in; margin: 0; }
   }
 </style>
 </head>
