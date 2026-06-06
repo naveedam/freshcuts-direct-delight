@@ -22,6 +22,8 @@ import GSTConfigAdmin from "./pages/admin/GSTConfigAdmin";
 import GSTReportsAdmin from "./pages/admin/GSTReportsAdmin";
 import VendorsAdmin from "./pages/admin/VendorsAdmin";
 import PurchaseOrdersAdmin from "./pages/admin/PurchaseOrdersAdmin";
+import VendorLedger from "./pages/admin/VendorLedger";
+import VendorProfitability from "./pages/admin/VendorProfitability";
 import CategoriesAdmin from "./pages/admin/CategoriesAdmin";
 import DocumentsAdmin from "./pages/admin/DocumentsAdmin";
 import BulkUploadAdmin from "./pages/admin/BulkUploadAdmin";
@@ -64,6 +66,8 @@ const App = () => (
               <Route path="/admin/orders" element={<RequireAdmin><OrdersAdmin /></RequireAdmin>} />
               <Route path="/admin/vendors" element={<RequireAdmin><VendorsAdmin /></RequireAdmin>} />
               <Route path="/admin/purchase-orders" element={<RequireAdmin><PurchaseOrdersAdmin /></RequireAdmin>} />
+              <Route path="/admin/vendor-ledger" element={<RequireAdmin><VendorLedger /></RequireAdmin>} />
+              <Route path="/admin/vendor-profitability" element={<RequireAdmin><VendorProfitability /></RequireAdmin>} />
               <Route path="/admin/documents" element={<RequireAdmin><DocumentsAdmin /></RequireAdmin>} />
               <Route path="/admin/shipping" element={<RequireAdmin><ShippingSettings /></RequireAdmin>} />
               <Route path="/admin/gst" element={<RequireAdmin><GSTConfigAdmin /></RequireAdmin>} />

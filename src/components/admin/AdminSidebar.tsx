@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, FileText, LogOut, Home, Building2, Truck, Receipt, BarChart3, Users, ClipboardList, FolderOpen, Layers, Upload, CalendarDays, Route } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, FileText, LogOut, Home, Building2, Truck, Receipt, BarChart3, Users, ClipboardList, FolderOpen, Layers, Upload, CalendarDays, Route, Wallet, TrendingUp } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -24,6 +24,8 @@ const menuItems = [
   { title: 'Orders', url: '/admin/orders', icon: ShoppingCart },
   { title: 'Vendors', url: '/admin/vendors', icon: Users },
   { title: 'Purchase Orders', url: '/admin/purchase-orders', icon: ClipboardList },
+  { title: 'Vendor Ledger', url: '/admin/vendor-ledger', icon: Wallet },
+  { title: 'Vendor Profitability', url: '/admin/vendor-profitability', icon: TrendingUp },
   { title: 'Documents', url: '/admin/documents', icon: FolderOpen },
   { title: 'Shipping', url: '/admin/shipping', icon: Truck },
   { title: 'Delivery Runs', url: '/admin/delivery-runs', icon: Route },
