@@ -36,17 +36,18 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
     }
   });
 
-  // Fetch the customer order linked via notes pattern (Order #xxxxxxxx)
+  // Fetch the customer order linked via PO items' order_id (populated when
+  // weight adjustment syncs) or via the notes short-id fallback.
   const orderShortId = purchaseOrder?.notes?.match(/Order #([a-f0-9]{8})/i)?.[1] || null;
+  const linkedOrderId = (purchaseOrder?.items || []).map((i: any) => i.order_id).find(Boolean) || null;
   const { data: linkedOrder } = useQuery({
-    queryKey: ['po-linked-order', purchaseOrder?.id, orderShortId],
-    enabled: !!purchaseOrder && !!orderShortId,
+    queryKey: ['po-linked-order', purchaseOrder?.id, linkedOrderId],
+    enabled: !!purchaseOrder && !!linkedOrderId,
     queryFn: async () => {
       const { data } = await supabase
         .from('orders')
         .select('id, invoice_number, flat_number, building_name')
-        .ilike('id', `${orderShortId}%`)
-        .limit(1)
+        .eq('id', linkedOrderId)
         .maybeSingle();
       return data;
     },
