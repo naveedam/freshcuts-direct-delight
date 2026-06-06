@@ -13,6 +13,7 @@ import { PurchaseOrder } from '@/types/vendor';
 import { format } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { VendorPaymentsDialog } from '@/components/admin/VendorPaymentsDialog';
+import { PO_STATUS_LABELS, PO_STATUS_STYLES } from '@/lib/po-lifecycle';
 
 interface PurchaseOrderDetailsDialogProps {
   purchaseOrder: PurchaseOrder | null;
@@ -33,6 +34,22 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
       if (error) throw error;
       return data;
     }
+  });
+
+  // Fetch the customer order linked via notes pattern (Order #xxxxxxxx)
+  const orderShortId = purchaseOrder?.notes?.match(/Order #([a-f0-9]{8})/i)?.[1] || null;
+  const { data: linkedOrder } = useQuery({
+    queryKey: ['po-linked-order', purchaseOrder?.id, orderShortId],
+    enabled: !!purchaseOrder && !!orderShortId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('orders')
+        .select('id, invoice_number, flat_number, building_name')
+        .ilike('id', `${orderShortId}%`)
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
   });
 
   const updateStatusMutation = useMutation({
@@ -74,21 +91,11 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
     return info.pricing_model === 'unit_based' ? (info.unit || 'units') : 'kg';
   };
 
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      draft: 'bg-gray-100 text-gray-800',
-      sent: 'bg-blue-100 text-blue-800',
-      confirmed: 'bg-indigo-100 text-indigo-800',
-      partially_received: 'bg-amber-100 text-amber-800',
-      received: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
-    };
-    const labels: Record<string, string> = {
-      draft: 'Draft', sent: 'Sent', confirmed: 'Confirmed',
-      partially_received: 'Partially Received', received: 'Received', cancelled: 'Cancelled',
-    };
-    return <Badge className={styles[status]}>{labels[status] || status}</Badge>;
-  };
+  const getStatusBadge = (status: string) => (
+    <Badge className={PO_STATUS_STYLES[status] || 'bg-gray-100 text-gray-800'}>
+      {PO_STATUS_LABELS[status] || status}
+    </Badge>
+  );
 
   const canSend = purchaseOrder.status === 'draft';
   const canConfirm = purchaseOrder.status === 'sent';
@@ -153,6 +160,27 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
                 )}
               </div>
             </div>
+
+            {linkedOrder && (
+              <div className="rounded-lg border bg-muted/30 p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">Customer Order</p>
+                  <p className="font-mono">{orderShortId}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Invoice</p>
+                  <p className="font-medium">{linkedOrder.invoice_number || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Apartment</p>
+                  <p className="font-medium">{linkedOrder.building_name || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Flat</p>
+                  <p className="font-medium">{linkedOrder.flat_number || '—'}</p>
+                </div>
+              </div>
+            )}
 
             <Separator />
 
