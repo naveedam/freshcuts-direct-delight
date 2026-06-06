@@ -75,8 +75,8 @@ export default function AdminDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_orders')
-        .select('id, total_amount, created_at')
-        .gte('created_at', monthStart.toISOString());
+        .select('id, vendor_id, total_amount, paid_amount, status, created_at, order_date, vendor:vendors(name)')
+        .gte('order_date', monthStart.toISOString());
       if (error) throw error;
       return data || [];
     }
@@ -277,6 +277,38 @@ export default function AdminDashboard() {
       .sort((a, b) => (a.stock_quantity ?? 0) - (b.stock_quantity ?? 0))
       .slice(0, 8);
   }, [products]);
+
+  // Procurement stats from POs
+  const procStats = useMemo(() => {
+    if (!purchaseOrders) return null;
+    const active = (purchaseOrders as any[]).filter(p => p.status !== 'cancelled');
+    const sumWhere = (pred: (p: any) => boolean) =>
+      active.filter(pred).reduce((s, p) => s + Number(p.total_amount || 0), 0);
+    const todayProc = sumWhere(p => new Date(p.order_date) >= today);
+    const weekProc = sumWhere(p => new Date(p.order_date) >= weekStart);
+    const monthProc = sumWhere(p => new Date(p.order_date) >= monthStart);
+    const outstanding = active.reduce(
+      (s, p) => s + Math.max(0, Number(p.total_amount || 0) - Number(p.paid_amount || 0)),
+      0,
+    );
+    const paymentsDue = active.filter(
+      p => p.status === 'payable' && Number(p.total_amount || 0) > Number(p.paid_amount || 0),
+    ).length;
+    const openPayables = active.filter(p => !['paid', 'cancelled'].includes(p.status)).length;
+
+    const byVendor = new Map<string, { name: string; total: number }>();
+    for (const p of active) {
+      if (new Date(p.order_date) < monthStart) continue;
+      const key = p.vendor_id;
+      const name = (p as any).vendor?.name || 'Unknown';
+      const cur = byVendor.get(key) || { name, total: 0 };
+      cur.total += Number(p.total_amount || 0);
+      byVendor.set(key, cur);
+    }
+    const topVendors = Array.from(byVendor.values()).sort((a, b) => b.total - a.total).slice(0, 5);
+
+    return { todayProc, weekProc, monthProc, outstanding, paymentsDue, openPayables, topVendors };
+  }, [purchaseOrders, today, weekStart, monthStart]);
 
   const StatCard = ({ title, value, icon: Icon, subtitle }: { title: string; value: string; icon: any; subtitle?: string }) => (
     <Card>
