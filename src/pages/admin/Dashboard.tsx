@@ -75,8 +75,8 @@ export default function AdminDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_orders')
-        .select('id, total_amount, created_at')
-        .gte('created_at', monthStart.toISOString());
+        .select('id, vendor_id, total_amount, paid_amount, status, created_at, order_date, vendor:vendors(name)')
+        .gte('order_date', monthStart.toISOString());
       if (error) throw error;
       return data || [];
     }
@@ -278,6 +278,38 @@ export default function AdminDashboard() {
       .slice(0, 8);
   }, [products]);
 
+  // Procurement stats from POs
+  const procStats = useMemo(() => {
+    if (!purchaseOrders) return null;
+    const active = (purchaseOrders as any[]).filter(p => p.status !== 'cancelled');
+    const sumWhere = (pred: (p: any) => boolean) =>
+      active.filter(pred).reduce((s, p) => s + Number(p.total_amount || 0), 0);
+    const todayProc = sumWhere(p => new Date(p.order_date) >= today);
+    const weekProc = sumWhere(p => new Date(p.order_date) >= weekStart);
+    const monthProc = sumWhere(p => new Date(p.order_date) >= monthStart);
+    const outstanding = active.reduce(
+      (s, p) => s + Math.max(0, Number(p.total_amount || 0) - Number(p.paid_amount || 0)),
+      0,
+    );
+    const paymentsDue = active.filter(
+      p => p.status === 'payable' && Number(p.total_amount || 0) > Number(p.paid_amount || 0),
+    ).length;
+    const openPayables = active.filter(p => !['paid', 'cancelled'].includes(p.status)).length;
+
+    const byVendor = new Map<string, { name: string; total: number }>();
+    for (const p of active) {
+      if (new Date(p.order_date) < monthStart) continue;
+      const key = p.vendor_id;
+      const name = (p as any).vendor?.name || 'Unknown';
+      const cur = byVendor.get(key) || { name, total: 0 };
+      cur.total += Number(p.total_amount || 0);
+      byVendor.set(key, cur);
+    }
+    const topVendors = Array.from(byVendor.values()).sort((a, b) => b.total - a.total).slice(0, 5);
+
+    return { todayProc, weekProc, monthProc, outstanding, paymentsDue, openPayables, topVendors };
+  }, [purchaseOrders, today, weekStart, monthStart]);
+
   const StatCard = ({ title, value, icon: Icon, subtitle }: { title: string; value: string; icon: any; subtitle?: string }) => (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -411,6 +443,41 @@ export default function AdminDashboard() {
               )}
             </CardContent>
           </Card>
+        </div>
+
+        {/* Procurement & Vendor Settlement Overview */}
+        <div>
+          <h2 className="font-heading text-xl font-semibold mb-3">Procurement & Settlement</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
+            <StatCard title="Today's Procurement" value={formatCurrency(procStats?.todayProc || 0)} icon={Package} />
+            <StatCard title="This Week" value={formatCurrency(procStats?.weekProc || 0)} icon={Package} />
+            <StatCard title="This Month" value={formatCurrency(procStats?.monthProc || 0)} icon={Package} />
+            <StatCard title="Vendor Outstanding" value={formatCurrency(procStats?.outstanding || 0)} icon={AlertTriangle} />
+            <StatCard title="Payments Due" value={String(procStats?.paymentsDue || 0)} icon={IndianRupee} subtitle="POs awaiting payment" />
+            <StatCard title="Open Payables" value={String(procStats?.openPayables || 0)} icon={FileText} />
+          </div>
+          {procStats?.topVendors?.length ? (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Star className="h-4 w-4" /> Top Vendors by Procurement Value (This Month)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {procStats.topVendors.map((v, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2.5 bg-muted/40 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-muted-foreground w-5">#{idx + 1}</span>
+                        <span className="text-sm font-medium">{v.name}</span>
+                      </div>
+                      <span className="text-sm font-bold">{formatCurrency(v.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
 
         {/* Vendor Procurement Summary */}

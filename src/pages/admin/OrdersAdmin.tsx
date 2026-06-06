@@ -403,6 +403,13 @@ export default function OrdersAdmin() {
 
       if (salesError) throw salesError;
 
+      // Transition any linked purchase orders to "payable" — additive, no
+      // change to invoice numbering or sale conversion logic.
+      try {
+        const { markPOsPayableOnInvoice } = await import('@/lib/po-lifecycle');
+        await markPOsPayableOnInvoice(orderId);
+      } catch (e) { /* best-effort */ }
+
       return invoiceNumber;
     },
     onSuccess: (invoiceNumber) => {

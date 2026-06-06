@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Loader2, Scale, Check, AlertCircle, Percent, IndianRupee } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 import { Badge } from '@/components/ui/badge';
+import { syncPOsFromWeightAdjustment } from '@/lib/po-lifecycle';
 
 interface OrderItem {
   id: string;
@@ -179,10 +180,16 @@ export function WeightAdjustmentDialog({
         .eq('id', order.id);
 
       if (orderError) throw orderError;
+
+      // Sync linked purchase orders with the finalized actuals (additive — no
+      // change to order/invoice logic). Failures are logged inside the helper.
+      await syncPOsFromWeightAdjustment(order.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'orderItems'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-order-stats'] });
       toast.success('Weights, prices and discount updated successfully');
       onOpenChange(false);
     },

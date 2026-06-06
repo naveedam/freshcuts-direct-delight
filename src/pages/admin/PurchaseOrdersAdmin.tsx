@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Loader2, Eye, Package, Trash2, FileText, PackageCheck, Calendar, Download, CreditCard } from 'lucide-react';
+import { Plus, Loader2, Eye, Package, Trash2, FileText, PackageCheck, Calendar, Download, CreditCard, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -21,10 +21,9 @@ import { PurchaseOrderDialog } from '@/components/admin/PurchaseOrderDialog';
 import { PurchaseOrderDetailsDialog } from '@/components/admin/PurchaseOrderDetailsDialog';
 import { ReceiveOrderDialog } from '@/components/admin/ReceiveOrderDialog';
 import { VendorPaymentsDialog } from '@/components/admin/VendorPaymentsDialog';
+import { VendorDailySummaryDialog } from '@/components/admin/VendorDailySummaryDialog';
 import { writeExcelFile } from '@/lib/excel-utils';
-
-type POStatus = 'draft' | 'sent' | 'confirmed' | 'partially_received' | 'received' | 'cancelled';
-type PaymentStatus = 'pending' | 'partial' | 'paid';
+import { PO_STATUS_LABELS, PO_STATUS_STYLES, ACTIVE_PO_STATUSES, ARCHIVED_PO_STATUSES } from '@/lib/po-lifecycle';
 
 export default function PurchaseOrdersAdmin() {
   const queryClient = useQueryClient();
@@ -35,9 +34,11 @@ export default function PurchaseOrdersAdmin() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [payingPO, setPayingPO] = useState<PurchaseOrder | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [vendorSummaryOpen, setVendorSummaryOpen] = useState(false);
 
   const { data: purchaseOrders, isLoading } = useQuery({
-    queryKey: ['admin', 'purchase-orders', statusFilter, paymentFilter],
+    queryKey: ['admin', 'purchase-orders', statusFilter, paymentFilter, showArchived],
     queryFn: async () => {
       let query = supabase
         .from('purchase_orders')
@@ -50,6 +51,8 @@ export default function PurchaseOrdersAdmin() {
       
       if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
+      } else if (!showArchived) {
+        query = query.in('status', ACTIVE_PO_STATUSES);
       }
       if (paymentFilter !== 'all') {
         query = query.eq('payment_status', paymentFilter);
@@ -126,25 +129,11 @@ export default function PurchaseOrdersAdmin() {
     toast.success('Purchase orders exported successfully');
   };
 
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      draft: 'bg-gray-100 text-gray-800 hover:bg-gray-100',
-      sent: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
-      confirmed: 'bg-indigo-100 text-indigo-800 hover:bg-indigo-100',
-      partially_received: 'bg-amber-100 text-amber-800 hover:bg-amber-100',
-      received: 'bg-green-100 text-green-800 hover:bg-green-100',
-      cancelled: 'bg-red-100 text-red-800 hover:bg-red-100',
-    };
-    const labels: Record<string, string> = {
-      draft: 'Draft',
-      sent: 'Sent',
-      confirmed: 'Confirmed',
-      partially_received: 'Partially Received',
-      received: 'Received',
-      cancelled: 'Cancelled',
-    };
-    return <Badge className={styles[status] || 'bg-gray-100 text-gray-800'}>{labels[status] || status}</Badge>;
-  };
+  const getStatusBadge = (status: string) => (
+    <Badge className={PO_STATUS_STYLES[status] || 'bg-gray-100 text-gray-800'}>
+      {PO_STATUS_LABELS[status] || status}
+    </Badge>
+  );
 
   const getPaymentBadge = (status: string) => {
     const styles: Record<string, string> = {
@@ -164,6 +153,10 @@ export default function PurchaseOrdersAdmin() {
             <p className="font-body text-muted-foreground">Manage orders to your vendors</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setVendorSummaryOpen(true)}>
+              <Send className="h-4 w-4 mr-2" />
+              Vendor Summary
+            </Button>
             <Button variant="outline" onClick={exportToExcel} disabled={!purchaseOrders?.length}>
               <Download className="h-4 w-4 mr-2" />
               Export Excel
@@ -223,12 +216,9 @@ export default function PurchaseOrdersAdmin() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="sent">Sent</SelectItem>
-              <SelectItem value="confirmed">Confirmed</SelectItem>
-              <SelectItem value="partially_received">Partially Received</SelectItem>
-              <SelectItem value="received">Received</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
+              {Object.entries(PO_STATUS_LABELS).map(([v, l]) => (
+                <SelectItem key={v} value={v}>{l}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={paymentFilter} onValueChange={setPaymentFilter}>
@@ -242,6 +232,13 @@ export default function PurchaseOrdersAdmin() {
               <SelectItem value="paid">Paid</SelectItem>
             </SelectContent>
           </Select>
+          <Button
+            variant={showArchived ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setShowArchived(s => !s)}
+          >
+            {showArchived ? 'Hide archived' : 'Show archived (paid/cancelled)'}
+          </Button>
         </div>
 
         {/* Table */}
@@ -389,6 +386,8 @@ export default function PurchaseOrdersAdmin() {
           preselectedPoId={payingPO.id}
         />
       )}
+
+      <VendorDailySummaryDialog open={vendorSummaryOpen} onOpenChange={setVendorSummaryOpen} />
     </AdminLayout>
   );
 }
