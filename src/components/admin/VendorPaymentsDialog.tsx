@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import { Vendor, VendorPayment } from '@/types/vendor';
 import { format } from 'date-fns';
+import { markPOPaidIfSettled } from '@/lib/po-lifecycle';
 
 interface VendorPaymentsDialogProps {
   vendor: Vendor;
@@ -120,6 +121,9 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
             paid_amount: newPaid,
             payment_status: newStatus
           }).eq('id', selectedPoId);
+
+          // If fully settled, transition PO status to 'paid' (auto-archive).
+          await markPOPaidIfSettled(selectedPoId);
         }
       }
     },
