@@ -445,6 +445,41 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
+        {/* Procurement & Vendor Settlement Overview */}
+        <div>
+          <h2 className="font-heading text-xl font-semibold mb-3">Procurement & Settlement</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
+            <StatCard title="Today's Procurement" value={formatCurrency(procStats?.todayProc || 0)} icon={Package} />
+            <StatCard title="This Week" value={formatCurrency(procStats?.weekProc || 0)} icon={Package} />
+            <StatCard title="This Month" value={formatCurrency(procStats?.monthProc || 0)} icon={Package} />
+            <StatCard title="Vendor Outstanding" value={formatCurrency(procStats?.outstanding || 0)} icon={AlertTriangle} />
+            <StatCard title="Payments Due" value={String(procStats?.paymentsDue || 0)} icon={IndianRupee} subtitle="POs awaiting payment" />
+            <StatCard title="Open Payables" value={String(procStats?.openPayables || 0)} icon={FileText} />
+          </div>
+          {procStats?.topVendors?.length ? (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Star className="h-4 w-4" /> Top Vendors by Procurement Value (This Month)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {procStats.topVendors.map((v, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2.5 bg-muted/40 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-muted-foreground w-5">#{idx + 1}</span>
+                        <span className="text-sm font-medium">{v.name}</span>
+                      </div>
+                      <span className="text-sm font-bold">{formatCurrency(v.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
+
         {/* Vendor Procurement Summary */}
         <Card>
           <CardHeader>
