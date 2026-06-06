@@ -471,7 +471,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
             .insert({
               po_number: poNumber || `PO-AUTO-${Date.now()}`,
               vendor_id: vendorId,
-              status: 'draft',
+              status: 'assigned',
               subtotal,
               tax_amount: taxAmount,
               total_amount: subtotal + taxAmount,
