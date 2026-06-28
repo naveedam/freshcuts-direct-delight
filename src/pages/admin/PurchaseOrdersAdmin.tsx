@@ -34,13 +34,20 @@ export default function PurchaseOrdersAdmin() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [payingPO, setPayingPO] = useState<PurchaseOrder | null>(null);
+  const [vendorFilter, setVendorFilter] = useState<string>('all');
+  const [weeklyPaymentOpen, setWeeklyPaymentOpen] = useState(false);
+  const [weeklyPayAmount, setWeeklyPayAmount] = useState('');
+  const [weeklyPayMethod, setWeeklyPayMethod] = useState('bank_transfer');
+  const [weeklyPayRef, setWeeklyPayRef] = useState('');
+  const [weeklyPayNotes, setWeeklyPayNotes] = useState('');
+  const [weeklyPayLoading, setWeeklyPayLoading] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
   const [vendorSummaryOpen, setVendorSummaryOpen] = useState(false);
 
   const { data: purchaseOrders, isLoading } = useQuery({
-    queryKey: ['admin', 'purchase-orders', statusFilter, paymentFilter, showArchived, fromDate, toDate],
+    queryKey: ['admin', 'purchase-orders', statusFilter, paymentFilter, showArchived, fromDate, toDate, vendorFilter],
     queryFn: async () => {
       let query = supabase
         .from('purchase_orders')
@@ -51,6 +58,7 @@ export default function PurchaseOrdersAdmin() {
         .order('order_date', { ascending: false });
       if (fromDate) query = query.gte('order_date', fromDate);
       if (toDate) query = query.lte('order_date', toDate);
+      if (vendorFilter !== 'all') query = query.eq('vendor_id', vendorFilter);
       
       if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
@@ -243,6 +251,17 @@ export default function PurchaseOrdersAdmin() {
               <SelectItem value="paid">Paid</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={vendorFilter} onValueChange={setVendorFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="All Vendors" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Vendors</SelectItem>
+              {vendors?.map(v => (
+                <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             variant={showArchived ? 'default' : 'outline'}
             size="sm"
@@ -250,7 +269,60 @@ export default function PurchaseOrdersAdmin() {
           >
             {showArchived ? 'Hide archived' : 'Show archived (paid/cancelled)'}
           </Button>
+          {vendorFilter !== 'all' && (
+            <Button
+              variant="default"
+              size="sm"
+              className="bg-green-600 hover:bg-green-700"
+              onClick={() => setWeeklyPaymentOpen(true)}
+            >
+              <Wallet className="h-4 w-4 mr-1" /> Record Payment
+            </Button>
+          )}
         </div>
+
+        {/* Weekly Payment Dialog */}
+        {weeklyPaymentOpen && (
+          <Card className="border-green-200 bg-green-50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-green-800">Record Vendor Payment — {vendors?.find(v => v.id === vendorFilter)?.name}</h3>
+                <Button variant="ghost" size="sm" onClick={() => setWeeklyPaymentOpen(false)}>✕</Button>
+              </div>
+              <div className="flex flex-wrap gap-3 items-end">
+                <div>
+                  <Label className="text-xs">Amount (₹)</Label>
+                  <Input type="number" value={weeklyPayAmount} onChange={e => setWeeklyPayAmount(e.target.value)} className="w-32" placeholder="0.00" />
+                </div>
+                <div>
+                  <Label className="text-xs">Method</Label>
+                  <Select value={weeklyPayMethod} onValueChange={setWeeklyPayMethod}>
+                    <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="upi">UPI</SelectItem>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="cheque">Cheque</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Reference / UTR</Label>
+                  <Input value={weeklyPayRef} onChange={e => setWeeklyPayRef(e.target.value)} className="w-40" placeholder="Optional" />
+                </div>
+                <div>
+                  <Label className="text-xs">Notes</Label>
+                  <Input value={weeklyPayNotes} onChange={e => setWeeklyPayNotes(e.target.value)} className="w-48" placeholder="e.g. Week 15-21 Jun" />
+                </div>
+                <Button onClick={handleWeeklyPayment} disabled={weeklyPayLoading} className="bg-green-600 hover:bg-green-700">
+                  {weeklyPayLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Wallet className="h-4 w-4 mr-1" />}
+                  Confirm Payment
+                </Button>
+              </div>
+              <p className="text-xs text-green-700 mt-2">This will record the payment and mark all pending POs in the current filter as paid.</p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Table */}
         <Card>
