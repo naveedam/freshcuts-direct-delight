@@ -799,7 +799,7 @@ export default function OrdersAdmin() {
                     </TableCell>
                     <TableCell>
                       {(() => {
-                        const invoiceDue = Math.max(0, (Number(order.total_amount) || 0) - (Number(order.amount_paid) || 0));
+                        const invoiceDue = Math.max(0, Number(order.balance_due) || ((Number(order.total_amount) || 0) - (Number(order.amount_paid) || 0)));
                         const pk = partyKeyForOrder(order);
                         const partyDue = pk ? (partyOutstandingMap.get(pk) || 0) : invoiceDue;
                         const otherPartyDue = Math.max(0, partyDue - invoiceDue);
