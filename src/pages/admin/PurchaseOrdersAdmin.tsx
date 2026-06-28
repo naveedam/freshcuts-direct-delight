@@ -135,10 +135,9 @@ export default function PurchaseOrdersAdmin() {
         reference_number: weeklyPayRef || null,
         notes: weeklyPayNotes || null,
       });
-      const poIds = (purchaseOrders || [])
-        .filter(po => po.payment_status === 'pending')
-        .map(po => po.id);
-      for (const po of (purchaseOrders || []).filter(p => p.payment_status === 'pending')) {
+      const pendingPOs = (purchaseOrders || []).filter(p => p.payment_status === 'pending');
+      const poIds = pendingPOs.map(po => po.id);
+      for (const po of pendingPOs) {
         await supabase.from('purchase_orders')
           .update({ payment_status: 'paid', paid_amount: po.total_amount })
           .eq('id', po.id);
