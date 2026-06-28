@@ -33,7 +33,7 @@ export function PartyLedgerSheet({ open, onOpenChange, party, title }: Props) {
       else if (party.type === 'email') q = q.eq('customer_email', party.value);
       else if (party.type === 'flat') {
         q = q.eq('flat_number', party.flat);
-        if (party.building) q = q.eq('building_name', party.building);
+        if (party.building) q = q.ilike('building_name', party.building);
       }
       const { data: orders, error } = await q.order('created_at', { ascending: true });
       if (error) throw error;

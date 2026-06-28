@@ -659,15 +659,23 @@ export default function OrdersAdmin() {
                   );
                 }
                 const firstOrder = filteredOrders?.[0];
-                if (searchQuery.trim() && firstOrder?.flat_number) {
-                  const title = firstOrder.building_name
-                    ? `${firstOrder.building_name} · Flat ${firstOrder.flat_number}`
-                    : `Flat ${firstOrder.flat_number}`;
-                  return (
-                    <Button variant="outline" size="sm" onClick={() => setLedgerParty({ key: { type: 'flat', building: firstOrder.building_name, flat: firstOrder.flat_number }, title })}>
-                      <BookOpen className="h-4 w-4 mr-1" /> View ledger
-                    </Button>
-                  );
+                if (searchQuery.trim() && firstOrder) {
+                  if (firstOrder.flat_number) {
+                    const title = firstOrder.building_name
+                      ? `${firstOrder.building_name} · Flat ${firstOrder.flat_number}`
+                      : `Flat ${firstOrder.flat_number}`;
+                    return (
+                      <Button variant="outline" size="sm" onClick={() => setLedgerParty({ key: { type: 'flat', building: firstOrder.building_name, flat: firstOrder.flat_number }, title })}>
+                        <BookOpen className="h-4 w-4 mr-1" /> View ledger
+                      </Button>
+                    );
+                  } else if (firstOrder.building_name) {
+                    return (
+                      <Button variant="outline" size="sm" onClick={() => setLedgerParty({ key: { type: 'building', value: firstOrder.building_name }, title: firstOrder.building_name })}>
+                        <BookOpen className="h-4 w-4 mr-1" /> View ledger
+                      </Button>
+                    );
+                  }
                 }
                 return null;
               })()}
