@@ -38,8 +38,23 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
 
   // Fetch the customer order linked via PO items' order_id (populated when
   // weight adjustment syncs) or via the notes short-id fallback.
+  // Fetch PO items separately since list query no longer embeds them
+  const { data: poItems } = useQuery({
+    queryKey: ['po-items', purchaseOrder?.id],
+    queryFn: async () => {
+      if (!purchaseOrder?.id) return [];
+      const { data, error } = await supabase
+        .from('purchase_order_items')
+        .select('*')
+        .eq('purchase_order_id', purchaseOrder.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!purchaseOrder?.id,
+  });
+  const items = poItems || items || [];
   const orderShortId = purchaseOrder?.notes?.match(/Order #([a-f0-9]{8})/i)?.[1] || null;
-  const linkedOrderId = (purchaseOrder?.items || []).map((i: any) => i.order_id).find(Boolean) || null;
+  const linkedOrderId = (items || []).map((i: any) => i.order_id).find(Boolean) || null;
   const { data: linkedOrder } = useQuery({
     queryKey: ['po-linked-order', purchaseOrder?.id, linkedOrderId],
     enabled: !!purchaseOrder && !!linkedOrderId,
@@ -102,16 +117,16 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
   const canConfirm = purchaseOrder.status === 'sent';
   const canCancel = ['draft', 'sent'].includes(purchaseOrder.status);
 
-  const totalOrdered = purchaseOrder.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-  const totalActualReceived = purchaseOrder.items?.reduce((sum, item) => sum + (item.actual_received_weight || 0), 0) || 0;
-  const hasGRNData = purchaseOrder.items?.some(item => item.actual_received_weight !== null);
+  const totalOrdered = items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+  const totalActualReceived = items?.reduce((sum, item) => sum + (item.actual_received_weight || 0), 0) || 0;
+  const hasGRNData = items?.some(item => item.actual_received_weight !== null);
 
-  const actualValue = purchaseOrder.items?.reduce((sum, item) => {
+  const actualValue = items?.reduce((sum, item) => {
     const received = item.actual_received_weight || 0;
     return sum + (received * item.unit_cost);
   }, 0) || 0;
 
-  const orderedValue = purchaseOrder.items?.reduce((sum, item) => sum + item.total_cost, 0) || 0;
+  const orderedValue = items?.reduce((sum, item) => sum + item.total_cost, 0) || 0;
   const valueVariance = actualValue - orderedValue;
 
   return (
@@ -203,7 +218,7 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {purchaseOrder.items?.map((item) => {
+                    {items?.map((item) => {
                       const unitLabel = getUnitLabel(item.product_id);
                       const actualWeight = item.actual_received_weight || 0;
                       const itemVariance = actualWeight - item.quantity;
