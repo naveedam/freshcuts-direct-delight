@@ -216,10 +216,7 @@ export default function PurchaseOrdersAdmin() {
               <Download className="h-4 w-4 mr-2" />
               Export Excel
             </Button>
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create PO
-            </Button>
+
           </div>
         </div>
 
