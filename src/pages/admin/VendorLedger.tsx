@@ -65,9 +65,10 @@ export default function VendorLedger() {
 
   const stats = useMemo(() => {
     if (!rows) return null;
-    const purchase = rows.reduce((s: number, r: any) => s + Number(r.total_amount || 0), 0);
-    const paid = rows.reduce((s: number, r: any) => s + Number(r.paid_amount || 0), 0);
-    const openPOs = rows.filter((r: any) => !['paid', 'cancelled'].includes(r.status)).length;
+    const activeRows = rows.filter((r: any) => r.status !== 'cancelled');
+    const purchase = activeRows.reduce((s: number, r: any) => s + Number(r.total_amount || 0), 0);
+    const paid = activeRows.reduce((s: number, r: any) => s + Number(r.paid_amount || 0), 0);
+    const openPOs = activeRows.filter((r: any) => r.status !== 'paid').length;
     const lastPaymentDate = vendorId !== 'all' && lastPayments?.[vendorId]
       ? format(new Date(lastPayments[vendorId]), 'dd MMM yyyy') : '—';
     return { purchase, paid, outstanding: purchase - paid, openPOs, lastPaymentDate };
