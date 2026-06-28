@@ -49,7 +49,7 @@ export default function PurchaseOrdersAdmin() {
           vendor:vendors(id, name, contact_person, email, phone),
           items:purchase_order_items(*)
         `)
-        .order('created_at', { ascending: false });
+        .order('order_date', { ascending: false });
       if (fromDate) query = query.gte('order_date', fromDate);
       if (toDate) query = query.lte('order_date', toDate);
       
