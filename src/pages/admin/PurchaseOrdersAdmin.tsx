@@ -46,8 +46,7 @@ export default function PurchaseOrdersAdmin() {
         .from('purchase_orders')
         .select(`
           *,
-          vendor:vendors(id, name, contact_person, email, phone),
-          items:purchase_order_items(*)
+          vendor:vendors(id, name, contact_person, email, phone)
         `)
         .order('order_date', { ascending: false });
       if (fromDate) query = query.gte('order_date', fromDate);
