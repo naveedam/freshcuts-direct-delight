@@ -35,10 +35,12 @@ export default function PurchaseOrdersAdmin() {
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [payingPO, setPayingPO] = useState<PurchaseOrder | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const today = new Date().toISOString().split('T')[0];
+  const [dateFilter, setDateFilter] = useState<string>(today);
   const [vendorSummaryOpen, setVendorSummaryOpen] = useState(false);
 
   const { data: purchaseOrders, isLoading } = useQuery({
-    queryKey: ['admin', 'purchase-orders', statusFilter, paymentFilter, showArchived],
+    queryKey: ['admin', 'purchase-orders', statusFilter, paymentFilter, showArchived, dateFilter],
     queryFn: async () => {
       let query = supabase
         .from('purchase_orders')
@@ -48,6 +50,7 @@ export default function PurchaseOrdersAdmin() {
           items:purchase_order_items(*)
         `)
         .order('created_at', { ascending: false });
+      if (dateFilter) query = query.eq('order_date', dateFilter);
       
       if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
@@ -209,7 +212,13 @@ export default function PurchaseOrdersAdmin() {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
+          <div className="flex items-center gap-2">
+            <Label className="text-sm whitespace-nowrap">Date</Label>
+            <Input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="w-40" />
+            <Button variant="ghost" size="sm" onClick={() => setDateFilter(today)} className="text-xs">Today</Button>
+            <Button variant="ghost" size="sm" onClick={() => setDateFilter('')} className="text-xs">All</Button>
+          </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Filter by status" />

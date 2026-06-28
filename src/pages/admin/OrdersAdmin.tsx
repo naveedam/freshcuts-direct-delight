@@ -713,7 +713,7 @@ export default function OrdersAdmin() {
                         {order.building_name && (
                           <button
                             type="button"
-                            className="font-medium text-sm text-primary hover:underline text-left"
+                            className="text-xs text-muted-foreground hover:underline text-left"
                             onClick={() => setLedgerParty({ key: { type: 'building', value: order.building_name }, title: order.building_name })}
                           >
                             {order.building_name}
@@ -722,7 +722,7 @@ export default function OrdersAdmin() {
                         {order.flat_number && (
                           <button
                             type="button"
-                            className="text-xs text-foreground hover:underline block text-left"
+                            className="font-medium text-sm text-primary hover:underline block text-left"
                             onClick={() => setLedgerParty({ key: { type: 'flat', building: order.building_name, flat: order.flat_number }, title: `${order.building_name || ''} · Flat ${order.flat_number}` })}
                           >
                             Flat: {order.flat_number}
