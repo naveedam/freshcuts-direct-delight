@@ -113,6 +113,49 @@ export default function PurchaseOrdersAdmin() {
     }
   });
 
+  const { data: vendors } = useQuery({
+    queryKey: ['admin', 'vendors-for-po-filter'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('vendors').select('id, name').eq('status', 'active').order('name');
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  const handleWeeklyPayment = async () => {
+    if (!vendorFilter || vendorFilter === 'all') return;
+    if (!weeklyPayAmount || parseFloat(weeklyPayAmount) <= 0) return;
+    setWeeklyPayLoading(true);
+    try {
+      await supabase.from('vendor_payments').insert({
+        vendor_id: vendorFilter,
+        amount: parseFloat(weeklyPayAmount),
+        payment_date: new Date().toISOString().split('T')[0],
+        payment_method: weeklyPayMethod,
+        reference_number: weeklyPayRef || null,
+        notes: weeklyPayNotes || null,
+      });
+      const poIds = (purchaseOrders || [])
+        .filter(po => po.payment_status === 'pending')
+        .map(po => po.id);
+      for (const po of (purchaseOrders || []).filter(p => p.payment_status === 'pending')) {
+        await supabase.from('purchase_orders')
+          .update({ payment_status: 'paid', paid_amount: po.total_amount })
+          .eq('id', po.id);
+      }
+      queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-order-stats'] });
+      toast.success('Payment recorded — ' + (poIds.length) + ' POs marked paid');
+      setWeeklyPaymentOpen(false);
+      setWeeklyPayAmount('');
+      setWeeklyPayRef('');
+      setWeeklyPayNotes('');
+    } catch (err: any) {
+      toast.error('Failed: ' + err.message);
+    }
+    setWeeklyPayLoading(false);
+  };
+
   const exportToExcel = () => {
     if (!purchaseOrders?.length) {
       toast.error('No purchase orders to export');
