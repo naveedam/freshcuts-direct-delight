@@ -650,11 +650,27 @@ export default function OrdersAdmin() {
                 <SummaryStat label="Outstanding" value={formatCurrency(partySummary.outstanding)} tone={partySummary.outstanding > 0 ? 'red' : 'green'} />
                 <SummaryStat label="Last Payment" value={partySummary.lastPayment ? partySummary.lastPayment.toLocaleDateString('en-IN') : '—'} />
               </div>
-              {buildingFilter && (
-                <Button variant="outline" size="sm" onClick={() => setLedgerParty({ key: { type: 'building', value: buildingFilter }, title: buildingFilter })}>
-                  <BookOpen className="h-4 w-4 mr-1" /> View ledger
-                </Button>
-              )}
+              {(() => {
+                if (buildingFilter) {
+                  return (
+                    <Button variant="outline" size="sm" onClick={() => setLedgerParty({ key: { type: 'building', value: buildingFilter }, title: buildingFilter })}>
+                      <BookOpen className="h-4 w-4 mr-1" /> View ledger
+                    </Button>
+                  );
+                }
+                const firstOrder = filteredOrders?.[0];
+                if (searchQuery.trim() && firstOrder?.flat_number) {
+                  const title = firstOrder.building_name
+                    ? `${firstOrder.building_name} · Flat ${firstOrder.flat_number}`
+                    : `Flat ${firstOrder.flat_number}`;
+                  return (
+                    <Button variant="outline" size="sm" onClick={() => setLedgerParty({ key: { type: 'flat', building: firstOrder.building_name, flat: firstOrder.flat_number }, title })}>
+                      <BookOpen className="h-4 w-4 mr-1" /> View ledger
+                    </Button>
+                  );
+                }
+                return null;
+              })()}
             </CardContent>
           </Card>
         )}
