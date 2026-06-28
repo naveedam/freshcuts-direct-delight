@@ -130,8 +130,8 @@ export default function AdminDashboard() {
     const monthInvoicedIds = new Set(monthInvoiced.map(o => o.id));
     const todayItems = orderItems?.filter(i => todayInvoicedIds.has(i.order_id)) || [];
     const monthItems = orderItems?.filter(i => monthInvoicedIds.has(i.order_id)) || [];
-    const vendorCostToday = todayItems.reduce((s, i) => s + (Number(i.vendor_cost || 0) * Number(i.quantity)), 0);
-    const vendorCostMonth = monthItems.reduce((s, i) => s + (Number(i.vendor_cost || 0) * Number(i.quantity)), 0);
+    const vendorCostToday = purchaseOrders?.filter(p => new Date(p.order_date) >= today).reduce((s, p) => s + Number(p.total_amount), 0) || 0;
+    const vendorCostMonth = purchaseOrders?.filter(p => new Date(p.order_date) >= monthStart).reduce((s, p) => s + Number(p.total_amount), 0) || 0;
 
     const shippingCostToday = todayInvoiced.reduce((s, o) => s + Number(o.shipping_cost || 0), 0);
     const shippingCostMonth = monthInvoiced.reduce((s, o) => s + Number(o.shipping_cost || 0), 0);
