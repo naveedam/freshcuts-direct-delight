@@ -35,12 +35,12 @@ export default function PurchaseOrdersAdmin() {
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [payingPO, setPayingPO] = useState<PurchaseOrder | null>(null);
   const [showArchived, setShowArchived] = useState(false);
-  const today = new Date().toISOString().split('T')[0];
-  const [dateFilter, setDateFilter] = useState<string>(today);
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
   const [vendorSummaryOpen, setVendorSummaryOpen] = useState(false);
 
   const { data: purchaseOrders, isLoading } = useQuery({
-    queryKey: ['admin', 'purchase-orders', statusFilter, paymentFilter, showArchived, dateFilter],
+    queryKey: ['admin', 'purchase-orders', statusFilter, paymentFilter, showArchived, fromDate, toDate],
     queryFn: async () => {
       let query = supabase
         .from('purchase_orders')
@@ -50,7 +50,8 @@ export default function PurchaseOrdersAdmin() {
           items:purchase_order_items(*)
         `)
         .order('created_at', { ascending: false });
-      if (dateFilter) query = query.eq('order_date', dateFilter);
+      if (fromDate) query = query.gte('order_date', fromDate);
+      if (toDate) query = query.lte('order_date', toDate);
       
       if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
@@ -76,13 +77,14 @@ export default function PurchaseOrdersAdmin() {
       
       if (error) throw error;
 
+      const active = data.filter(po => po.status !== 'cancelled');
       return {
-        total: data.length,
-        draft: data.filter(po => po.status === 'draft').length,
-        pending: data.filter(po => ['sent', 'confirmed'].includes(po.status)).length,
-        received: data.filter(po => po.status === 'received').length,
-        totalValue: data.reduce((sum, po) => sum + (po.total_amount || 0), 0),
-        unpaid: data.filter(po => po.payment_status === 'pending').reduce((sum, po) => sum + (po.total_amount || 0), 0),
+        total: active.length,
+        received: active.filter(po => po.status === 'received').length,
+        payable: active.filter(po => po.status === 'payable').length,
+        paid: active.filter(po => po.status === 'paid').length,
+        totalValue: active.reduce((sum, po) => sum + (po.total_amount || 0), 0),
+        unpaid: active.filter(po => po.payment_status === 'pending').reduce((sum, po) => sum + (po.total_amount || 0), 0),
       };
     }
   });
@@ -175,26 +177,26 @@ export default function PurchaseOrdersAdmin() {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total POs</CardDescription>
+              <CardDescription>Active POs</CardDescription>
               <CardTitle className="text-2xl">{stats?.total || 0}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Draft</CardDescription>
-              <CardTitle className="text-2xl">{stats?.draft || 0}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Pending</CardDescription>
-              <CardTitle className="text-2xl">{stats?.pending || 0}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Received</CardDescription>
               <CardTitle className="text-2xl">{stats?.received || 0}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Payable</CardDescription>
+              <CardTitle className="text-2xl">{stats?.payable || 0}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Paid</CardDescription>
+              <CardTitle className="text-2xl">{stats?.paid || 0}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
@@ -214,10 +216,11 @@ export default function PurchaseOrdersAdmin() {
         {/* Filters */}
         <div className="flex gap-4 items-center">
           <div className="flex items-center gap-2">
-            <Label className="text-sm whitespace-nowrap">Date</Label>
-            <Input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="w-40" />
-            <Button variant="ghost" size="sm" onClick={() => setDateFilter(today)} className="text-xs">Today</Button>
-            <Button variant="ghost" size="sm" onClick={() => setDateFilter('')} className="text-xs">All</Button>
+            <Label className="text-sm whitespace-nowrap">From</Label>
+            <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-36" />
+            <Label className="text-sm whitespace-nowrap">To</Label>
+            <Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="w-36" />
+            <Button variant="ghost" size="sm" onClick={() => { setFromDate(''); setToDate(''); }} className="text-xs">Clear</Button>
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[180px]">
