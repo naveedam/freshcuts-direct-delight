@@ -264,7 +264,7 @@ export default function PurchaseOrdersAdmin() {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-4 items-center">
+        <div className="flex flex-wrap gap-3 items-center">
           <div className="flex items-center gap-2">
             <Label className="text-sm whitespace-nowrap">From</Label>
             <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-36" />
