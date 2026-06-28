@@ -271,7 +271,7 @@ export async function markPOPaidIfSettled(poId: string): Promise<void> {
     if (total > 0 && paid >= total) {
       await supabase
         .from('purchase_orders')
-        .update({ status: 'paid', payment_status: 'paid' })
+        .update({ payment_status: 'paid' })
         .eq('id', poId);
     }
   } catch (err) {
