@@ -722,10 +722,10 @@ export default function OrdersAdmin() {
                         {order.flat_number && (
                           <button
                             type="button"
-                            className="font-medium text-sm text-primary hover:underline block text-left"
+                            className="font-medium text-sm text-blue-600 hover:text-blue-800 underline block text-left"
                             onClick={() => setLedgerParty({ key: { type: 'flat', building: order.building_name, flat: order.flat_number }, title: `${order.building_name || ''} · Flat ${order.flat_number}` })}
                           >
-                            Flat: {order.flat_number}
+                            {order.flat_number} · Ledger →
                           </button>
                         )}
                         <p className="text-xs text-muted-foreground">
