@@ -863,7 +863,7 @@ export default function OrdersAdmin() {
                                   <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); setLedgerParty({ key: lk, title: order.building_name || order.flat_number || order.phone || order.customer_email || 'Party' }); }}
-                                    className="text-[10px] text-muted-foreground hover:text-foreground hover:underline mt-0.5 leading-tight block"
+                                    className="text-[11px] font-medium text-orange-600 hover:text-orange-800 hover:underline mt-0.5 leading-tight block"
                                   >
                                     Party Due: {formatCurrency(partyDue)}
                                   </button>
