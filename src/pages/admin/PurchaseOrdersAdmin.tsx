@@ -23,7 +23,7 @@ import { ReceiveOrderDialog } from '@/components/admin/ReceiveOrderDialog';
 import { VendorPaymentsDialog } from '@/components/admin/VendorPaymentsDialog';
 import { VendorDailySummaryDialog } from '@/components/admin/VendorDailySummaryDialog';
 import { writeExcelFile } from '@/lib/excel-utils';
-import { PO_STATUS_LABELS, PO_STATUS_STYLES, ACTIVE_PO_STATUSES, ARCHIVED_PO_STATUSES } from '@/lib/po-lifecycle';
+import { PO_STATUS_LABELS, PO_STATUS_STYLES, ACTIVE_PO_STATUSES, ARCHIVED_PO_STATUSES, markPOsPayableOnInvoice } from '@/lib/po-lifecycle';
 
 export default function PurchaseOrdersAdmin() {
   const queryClient = useQueryClient();

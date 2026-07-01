@@ -19,6 +19,7 @@ import { OrderPaymentDialog } from '@/components/admin/OrderPaymentDialog';
 import { PartyLedgerSheet, type PartyKey } from '@/components/admin/PartyLedgerSheet';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/currency';
+import { markPOsPayableOnInvoice } from '@/lib/po-lifecycle';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -406,7 +407,7 @@ export default function OrdersAdmin() {
       // Transition any linked purchase orders to "payable" — additive, no
       // change to invoice numbering or sale conversion logic.
       try {
-        const { markPOsPayableOnInvoice } = await import('@/lib/po-lifecycle');
+        // markPOsPayableOnInvoice is statically imported at top of file
         await markPOsPayableOnInvoice(orderId);
       } catch (e) { /* best-effort */ }
 
