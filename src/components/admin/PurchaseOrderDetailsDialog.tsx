@@ -52,7 +52,7 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
     },
     enabled: !!purchaseOrder?.id,
   });
-  const items = poItems || items || [];
+  const items = poItems || [];
   const orderShortId = purchaseOrder?.notes?.match(/Order #([a-f0-9]{8})/i)?.[1] || null;
   const linkedOrderId = (items || []).map((i: any) => i.order_id).find(Boolean) || null;
   const { data: linkedOrder } = useQuery({
