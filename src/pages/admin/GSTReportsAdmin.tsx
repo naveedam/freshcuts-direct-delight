@@ -241,7 +241,7 @@ export default function GSTReportsAdmin() {
     
     writeExcelFile(`GSTR1_${selectedMonth}.xlsx`, [
       { name: 'Table 4 - Taxable Supplies', data: table4Data },
-      { name: 'Table 8 - Nil/Exempt', data: table8Data },
+      { name: 'Table 8 - Nil Exempt', data: table8Data },
       { name: 'HSN Summary', data: hsnData },
       { name: 'B2CS - Small Invoices', data: b2csData },
     ]);
