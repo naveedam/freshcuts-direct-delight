@@ -16,11 +16,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import { PurchaseOrder, Vendor } from '@/types/vendor';
 import { format } from 'date-fns';
-import { PurchaseOrderDialog } from '@/components/admin/PurchaseOrderDialog';
-import { PurchaseOrderDetailsDialog } from '@/components/admin/PurchaseOrderDetailsDialog';
-import { ReceiveOrderDialog } from '@/components/admin/ReceiveOrderDialog';
-import { VendorPaymentsDialog } from '@/components/admin/VendorPaymentsDialog';
-import { VendorDailySummaryDialog } from '@/components/admin/VendorDailySummaryDialog';
+import { lazy, Suspense } from 'react';
+const PurchaseOrderDialog = lazy(() => import('@/components/admin/PurchaseOrderDialog').then(m => ({ default: m.PurchaseOrderDialog })));
+const PurchaseOrderDetailsDialog = lazy(() => import('@/components/admin/PurchaseOrderDetailsDialog').then(m => ({ default: m.PurchaseOrderDetailsDialog })));
+const ReceiveOrderDialog = lazy(() => import('@/components/admin/ReceiveOrderDialog').then(m => ({ default: m.ReceiveOrderDialog })));
+const VendorPaymentsDialog = lazy(() => import('@/components/admin/VendorPaymentsDialog').then(m => ({ default: m.VendorPaymentsDialog })));
+const VendorDailySummaryDialog = lazy(() => import('@/components/admin/VendorDailySummaryDialog').then(m => ({ default: m.VendorDailySummaryDialog })));
 import { writeExcelFile } from '@/lib/excel-utils';
 import { PO_STATUS_LABELS, PO_STATUS_STYLES, ACTIVE_PO_STATUSES, ARCHIVED_PO_STATUSES, markPOsPayableOnInvoice } from '@/lib/po-lifecycle';
 
