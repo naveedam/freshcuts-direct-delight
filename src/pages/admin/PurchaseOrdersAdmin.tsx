@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -330,11 +329,11 @@ export default function PurchaseOrdersAdmin() {
               </div>
               <div className="flex flex-wrap gap-3 items-end">
                 <div>
-                  <Label className="text-xs">Amount (₹)</Label>
+                  <p className="text-xs mb-1">Amount (₹)</p>
                   <Input type="number" value={weeklyPayAmount} onChange={e => setWeeklyPayAmount(e.target.value)} className="w-32" placeholder="0.00" />
                 </div>
                 <div>
-                  <Label className="text-xs">Method</Label>
+                  <p className="text-xs mb-1">Method</p>
                   <Select value={weeklyPayMethod} onValueChange={setWeeklyPayMethod}>
                     <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -346,11 +345,11 @@ export default function PurchaseOrdersAdmin() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-xs">Reference / UTR</Label>
+                  <p className="text-xs mb-1">Reference / UTR</p>
                   <Input value={weeklyPayRef} onChange={e => setWeeklyPayRef(e.target.value)} className="w-40" placeholder="Optional" />
                 </div>
                 <div>
-                  <Label className="text-xs">Notes</Label>
+                  <p className="text-xs mb-1">Notes</p>
                   <Input value={weeklyPayNotes} onChange={e => setWeeklyPayNotes(e.target.value)} className="w-48" placeholder="e.g. Week 15-21 Jun" />
                 </div>
                 <Button onClick={handleWeeklyPayment} disabled={weeklyPayLoading} className="bg-green-600 hover:bg-green-700">
