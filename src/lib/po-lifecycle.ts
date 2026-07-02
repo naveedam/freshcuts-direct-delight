@@ -48,17 +48,34 @@ async function getOrCreateDailyPO(
 ): Promise<string | null> {
   const noteKey = dailyPONote(vendorId, date);
 
-  // Check if daily PO already exists for this vendor+date
-  const { data: existing } = await supabase
+  // Check if a daily PO already exists for THIS vendor on THIS date.
+  // Scope strictly by vendor_id — POs belonging to other vendors for the
+  // same customer order must NOT cause us to skip creation here.
+  const { data: existingTagged } = await supabase
     .from('purchase_orders')
     .select('id')
     .eq('vendor_id', vendorId)
     .eq('order_date', date)
     .ilike('notes', `%${noteKey}%`)
     .neq('status', 'cancelled')
+    .limit(1)
     .maybeSingle();
 
-  if (existing?.id) return existing.id;
+  if (existingTagged?.id) return existingTagged.id;
+
+  // Fallback: reuse any active PO for this vendor+date even if the notes
+  // marker is missing (legacy or manually created daily PO).
+  const { data: existingAny } = await supabase
+    .from('purchase_orders')
+    .select('id')
+    .eq('vendor_id', vendorId)
+    .eq('order_date', date)
+    .neq('status', 'cancelled')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingAny?.id) return existingAny.id;
 
   // Create new daily PO
   const { data: poNumber, error: rpcError } = await supabase.rpc('generate_po_number');
