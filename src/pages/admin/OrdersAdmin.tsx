@@ -285,6 +285,7 @@ export default function OrdersAdmin() {
       reason?: string;
     }) => {
       const updates: Record<string, any> = { status };
+      if (status === 'cancelled') updates.invoice_cancelled = true;
       if (status === 'cancelled' && cancelInvoice) {
         updates.invoice_cancelled = true;
         updates.invoice_cancelled_at = new Date().toISOString();
