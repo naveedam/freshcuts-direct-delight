@@ -10,7 +10,7 @@ import { formatCurrency } from '@/lib/currency';
 import { useNavigate } from 'react-router-dom';
 import {
   Package, ShoppingCart, IndianRupee, TrendingUp, Building2,
-  Plus, FileText, Truck, Upload, Receipt, AlertTriangle, BarChart3, CalendarDays, Star, Users
+  AlertTriangle, BarChart3, Star, Users, CreditCard, Clock, Wallet
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -41,7 +41,7 @@ export default function AdminDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('orders')
-        .select('id, total_amount, status, created_at, building_name, flat_number, discount_amount, shipping_cost, converted_to_sale, invoice_cancelled')
+        .select('id, total_amount, amount_paid, balance_due, status, created_at, building_name, flat_number, shipping_cost, converted_to_sale, invoice_cancelled, weight_finalized')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -53,18 +53,7 @@ export default function AdminDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('order_items')
-        .select('order_id, product_name, quantity, total_price, product_id, unit_price, vendor_cost');
-      if (error) throw error;
-      return data || [];
-    }
-  });
-
-  const { data: products } = useQuery({
-    queryKey: ['admin', 'dashboard-products'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name, category, stock_quantity, in_stock, pricing_model, unit');
+        .select('order_id, product_name, quantity, total_price, product_id');
       if (error) throw error;
       return data || [];
     }
@@ -75,14 +64,26 @@ export default function AdminDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_orders')
-        .select('id, vendor_id, total_amount, paid_amount, status, created_at, order_date, vendor:vendors(name)')
-        .gte('order_date', monthStart.toISOString());
+        .select('id, vendor_id, total_amount, paid_amount, payment_status, status, order_date, vendor:vendors(name)')
+        .gte('order_date', monthStart.toISOString())
+        .neq('status', 'cancelled');
       if (error) throw error;
       return data || [];
     }
   });
 
-  // Fetch vendors for procurement summary
+  const { data: customerPayments } = useQuery({
+    queryKey: ['admin', 'dashboard-customer-payments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customer_payments')
+        .select('amount, payment_date, order_id')
+        .gte('payment_date', today.toISOString());
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
   const { data: vendors } = useQuery({
     queryKey: ['admin', 'dashboard-vendors'],
     queryFn: async () => {
@@ -95,7 +96,6 @@ export default function AdminDashboard() {
     }
   });
 
-  // Fetch vendor-product mappings for procurement intelligence
   const { data: vendorProducts } = useQuery({
     queryKey: ['admin', 'dashboard-vendor-products'],
     queryFn: async () => {
@@ -107,125 +107,88 @@ export default function AdminDashboard() {
     }
   });
 
-  // Computed stats — only use invoiced (converted_to_sale) orders for revenue
+  const { data: products } = useQuery({
+    queryKey: ['admin', 'dashboard-products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, pricing_model, unit');
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // --- Computed stats ---
   const stats = useMemo(() => {
     if (!orders) return null;
-
     const todayOrders = orders.filter(o => new Date(o.created_at) >= today);
-    const monthOrders = orders.filter(o => new Date(o.created_at) >= monthStart);
-    const weekOrders = orders.filter(o => new Date(o.created_at) >= weekStart);
-
-    // Realized revenue: only from invoiced/finalized orders
-    const invoicedStatuses = new Set(['processing', 'shipped', 'delivered', 'completed']);
     const isLiveInvoice = (o: any) =>
-      !o.invoice_cancelled && o.status !== 'cancelled' && (o.converted_to_sale || invoicedStatuses.has(o.status));
+      !o.invoice_cancelled && o.status !== 'cancelled' && o.converted_to_sale;
     const todayInvoiced = todayOrders.filter(isLiveInvoice);
-    const monthInvoiced = monthOrders.filter(isLiveInvoice);
-
     const salesToday = todayInvoiced.reduce((s, o) => s + Number(o.total_amount), 0);
-    const salesMonth = monthInvoiced.reduce((s, o) => s + Number(o.total_amount), 0);
-
-    // Vendor cost from same invoiced orders (not from PO date)
-    const todayInvoicedIds = new Set(todayInvoiced.map(o => o.id));
-    const monthInvoicedIds = new Set(monthInvoiced.map(o => o.id));
-    const todayItems = orderItems?.filter(i => todayInvoicedIds.has(i.order_id)) || [];
-    const monthItems = orderItems?.filter(i => monthInvoicedIds.has(i.order_id)) || [];
-    const vendorCostToday = purchaseOrders?.filter(p => new Date(p.order_date) >= today).reduce((s, p) => s + Number(p.total_amount), 0) || 0;
-    const vendorCostMonth = purchaseOrders?.filter(p => new Date(p.order_date) >= monthStart).reduce((s, p) => s + Number(p.total_amount), 0) || 0;
-
-    const shippingCostToday = todayInvoiced.reduce((s, o) => s + Number(o.shipping_cost || 0), 0);
-    const shippingCostMonth = monthInvoiced.reduce((s, o) => s + Number(o.shipping_cost || 0), 0);
-    const profitToday = salesToday - vendorCostToday - shippingCostToday;
-    const netRevenueMonth = salesMonth - vendorCostMonth - shippingCostMonth;
-
-    const pending = orders.filter(o => o.status === 'pending').length;
-    const delivered = orders.filter(o => o.status === 'delivered').length;
-    const totalWeight = orderItems?.reduce((s, i) => s + Number(i.quantity), 0) || 0;
-
-    const weekRevenue = weekOrders.filter(isLiveInvoice)
-      .reduce((s, o) => s + Number(o.total_amount), 0);
-    const weekFinalizedOrders = weekOrders.filter(o => invoicedStatuses.has(o.status) && !o.invoice_cancelled && o.status !== 'cancelled');
-    const weekFinalizedIds = new Set(weekFinalizedOrders.map(o => o.id));
-    const weekFinalizedItems = orderItems?.filter(i => weekFinalizedIds.has(i.order_id)) || [];
-    const productSales: Record<string, { name: string; qty: number; productId: string | null }> = {};
-    weekFinalizedItems.forEach(i => {
-      const key = i.product_id || i.product_name;
-      if (!productSales[key]) productSales[key] = { name: i.product_name, qty: 0, productId: i.product_id };
-      productSales[key].qty += Number(i.quantity);
+    const vendorCostToday = (purchaseOrders || [])
+      .filter(p => new Date(p.order_date) >= today)
+      .reduce((s, p) => s + Number(p.total_amount), 0);
+    const profitToday = salesToday - vendorCostToday;
+    const collectionsToday = (customerPayments || []).reduce((s, p) => s + Number(p.amount), 0);
+    const ordersToday = todayOrders.length;
+    const pendingFinalization = todayOrders.filter(o =>
+      !o.weight_finalized && o.status !== 'cancelled'
+    ).length;
+    const totalOutstanding = orders
+      .filter(o => isLiveInvoice(o))
+      .reduce((s, o) => s + Math.max(0, Number(o.balance_due || 0) || (Number(o.total_amount) - Number(o.amount_paid || 0))), 0);
+    const overdueOrders = orders.filter(o => {
+      if (!isLiveInvoice(o)) return false;
+      const due = Number(o.balance_due || 0) || (Number(o.total_amount) - Number(o.amount_paid || 0));
+      if (due <= 0) return false;
+      const daysOld = (Date.now() - new Date(o.created_at).getTime()) / (1000 * 60 * 60 * 24);
+      return daysOld > 30;
     });
-    const topProduct = Object.values(productSales).sort((a, b) => b.qty - a.qty)[0]?.name || 'N/A';
-
-    const avgOrderValueToday = todayInvoiced.length > 0 ? salesToday / todayInvoiced.length : 0;
-
+    const overdueAmount = overdueOrders.reduce((s, o) =>
+      s + (Number(o.balance_due || 0) || (Number(o.total_amount) - Number(o.amount_paid || 0))), 0);
     return {
-      salesToday, salesMonth,
-      netRevenue: netRevenueMonth,
-      ordersToday: todayOrders.length,
-      pending, delivered, totalWeight,
-      weekOrders: weekOrders.length, weekRevenue, topProduct,
-      vendorCostToday, shippingCostToday, profitToday, avgOrderValueToday,
+      salesToday, vendorCostToday, profitToday, collectionsToday,
+      ordersToday, pendingFinalization, totalOutstanding, overdueAmount,
     };
-  }, [orders, orderItems, today, monthStart, weekStart]);
+  }, [orders, purchaseOrders, customerPayments, today]);
+
+  // Vendor payments due this week
+  const vendorPaymentsDue = useMemo(() => {
+    if (!purchaseOrders) return [];
+    const unpaid = (purchaseOrders as any[]).filter(p =>
+      p.payment_status === 'pending' &&
+      new Date(p.order_date) >= startOfDay(daysAgo(7))
+    );
+    const byVendor = new Map<string, { name: string; total: number; count: number }>();
+    unpaid.forEach(p => {
+      const name = p.vendor?.name || 'Unknown';
+      const cur = byVendor.get(p.vendor_id) || { name, total: 0, count: 0 };
+      cur.total += Number(p.total_amount || 0);
+      cur.count++;
+      byVendor.set(p.vendor_id, cur);
+    });
+    return Array.from(byVendor.values()).sort((a, b) => b.total - a.total);
+  }, [purchaseOrders]);
 
   // Top selling products today
   const topSellingToday = useMemo(() => {
     if (!orders || !orderItems) return [];
-    const todayOrderIds = new Set(orders.filter(o => new Date(o.created_at) >= today).map(o => o.id));
-    const todayItems = orderItems.filter(i => todayOrderIds.has(i.order_id));
-    const productMap: Record<string, { name: string; qty: number; revenue: number }> = {};
+    const todayIds = new Set(orders.filter(o => new Date(o.created_at) >= today).map(o => o.id));
+    const todayItems = orderItems.filter(i => todayIds.has(i.order_id));
+    const map: Record<string, { name: string; qty: number; revenue: number }> = {};
     todayItems.forEach(i => {
-      const key = i.product_name;
-      if (!productMap[key]) productMap[key] = { name: key, qty: 0, revenue: 0 };
-      productMap[key].qty += Number(i.quantity);
-      productMap[key].revenue += Number(i.total_price);
+      if (!map[i.product_name]) map[i.product_name] = { name: i.product_name, qty: 0, revenue: 0 };
+      map[i.product_name].qty += Number(i.quantity);
+      map[i.product_name].revenue += Number(i.total_price);
     });
-    return Object.values(productMap).sort((a, b) => b.qty - a.qty).slice(0, 8);
+    return Object.values(map).sort((a, b) => b.qty - a.qty).slice(0, 8);
   }, [orders, orderItems, today]);
 
-  // Vendor procurement summary: aggregate pending order items by vendor
-  const vendorProcurement = useMemo(() => {
-    if (!orders || !orderItems || !vendorProducts || !vendors || !products) return [];
-    const pendingOrderIds = new Set(orders.filter(o => o.status === 'pending' || o.status === 'processing').map(o => o.id));
-    const pendingItems = orderItems.filter(i => pendingOrderIds.has(i.order_id));
-
-    // Build product->preferred vendor map
-    const preferredVendorMap: Record<string, string> = {};
-    vendorProducts.forEach(vp => {
-      if (vp.is_preferred_vendor) preferredVendorMap[vp.product_id] = vp.vendor_id;
-    });
-    // Fallback: any vendor mapping
-    vendorProducts.forEach(vp => {
-      if (!preferredVendorMap[vp.product_id]) preferredVendorMap[vp.product_id] = vp.vendor_id;
-    });
-
-    const vendorMap = new Map(vendors.map(v => [v.id, v.name]));
-    const productUnitMap = new Map(products.map(p => [p.id, { unit: p.unit, pricing_model: p.pricing_model }]));
-
-    // Group: vendor -> product -> qty
-    const summary: Record<string, { vendorName: string; items: Record<string, { productName: string; qty: number; unit: string }> }> = {};
-
-    pendingItems.forEach(i => {
-      const vendorId = i.product_id ? preferredVendorMap[i.product_id] : null;
-      if (!vendorId) return;
-      const vendorName = vendorMap.get(vendorId) || 'Unknown';
-      if (!summary[vendorId]) summary[vendorId] = { vendorName, items: {} };
-      const key = i.product_name;
-      const pInfo = i.product_id ? productUnitMap.get(i.product_id) : null;
-      const unit = pInfo?.pricing_model === 'unit_based' ? (pInfo.unit || 'pcs') : 'kg';
-      if (!summary[vendorId].items[key]) summary[vendorId].items[key] = { productName: key, qty: 0, unit };
-      summary[vendorId].items[key].qty += Number(i.quantity);
-    });
-
-    return Object.values(summary).map(v => ({
-      vendorName: v.vendorName,
-      items: Object.values(v.items).sort((a, b) => b.qty - a.qty),
-    })).sort((a, b) => b.items.length - a.items.length);
-  }, [orders, orderItems, vendorProducts, vendors, products]);
-
-  // Today's apartment delivery demand
+  // Today's delivery demand by apartment
   const todayApartmentDemand = useMemo(() => {
     if (!orders) return [];
-    const todayOrders = orders.filter(o => new Date(o.created_at) >= today);
+    const todayOrders = orders.filter(o => new Date(o.created_at) >= today && o.status !== 'cancelled');
     const map: Record<string, { building: string; deliveries: number; flats: Set<string> }> = {};
     todayOrders.forEach(o => {
       if (!o.building_name) return;
@@ -236,8 +199,39 @@ export default function AdminDashboard() {
     return Object.values(map)
       .map(d => ({ building: d.building, deliveries: d.deliveries, flatsCount: d.flats.size }))
       .sort((a, b) => b.deliveries - a.deliveries)
-      .slice(0, 10);
+      .slice(0, 8);
   }, [orders, today]);
+
+  // Vendor procurement summary (pending orders)
+  const vendorProcurement = useMemo(() => {
+    if (!orders || !orderItems || !vendorProducts || !vendors || !products) return [];
+    const pendingIds = new Set(orders.filter(o => o.status === 'pending' || o.status === 'processing').map(o => o.id));
+    const pendingItems = orderItems.filter(i => pendingIds.has(i.order_id));
+    const preferredVendorMap: Record<string, string> = {};
+    vendorProducts.forEach(vp => {
+      if (vp.is_preferred_vendor) preferredVendorMap[vp.product_id] = vp.vendor_id;
+    });
+    vendorProducts.forEach(vp => {
+      if (!preferredVendorMap[vp.product_id]) preferredVendorMap[vp.product_id] = vp.vendor_id;
+    });
+    const vendorMap = new Map(vendors.map(v => [v.id, v.name]));
+    const productUnitMap = new Map(products.map(p => [p.id, { unit: p.unit, pricing_model: p.pricing_model }]));
+    const summary: Record<string, { vendorName: string; items: Record<string, { productName: string; qty: number; unit: string }> }> = {};
+    pendingItems.forEach(i => {
+      const vendorId = i.product_id ? preferredVendorMap[i.product_id] : null;
+      if (!vendorId) return;
+      const vendorName = vendorMap.get(vendorId) || 'Unknown';
+      if (!summary[vendorId]) summary[vendorId] = { vendorName, items: {} };
+      const pInfo = i.product_id ? productUnitMap.get(i.product_id) : null;
+      const unit = pInfo?.pricing_model === 'unit_based' ? (pInfo.unit || 'pcs') : 'kg';
+      if (!summary[vendorId].items[i.product_name]) summary[vendorId].items[i.product_name] = { productName: i.product_name, qty: 0, unit };
+      summary[vendorId].items[i.product_name].qty += Number(i.quantity);
+    });
+    return Object.values(summary).map(v => ({
+      vendorName: v.vendorName,
+      items: Object.values(v.items).sort((a, b) => b.qty - a.qty),
+    })).sort((a, b) => b.items.length - a.items.length);
+  }, [orders, orderItems, vendorProducts, vendors, products]);
 
   // Chart data
   const chartData = useMemo(() => {
@@ -246,8 +240,7 @@ export default function AdminDashboard() {
     if (chartPeriod === 'today') start = today;
     else if (chartPeriod === '7days') start = daysAgo(6);
     else start = monthStart;
-
-    const filtered = orders.filter(o => new Date(o.created_at) >= start);
+    const filtered = orders.filter(o => new Date(o.created_at) >= start && !o.invoice_cancelled && o.converted_to_sale);
     const dayMap: Record<string, number> = {};
     filtered.forEach(o => {
       const day = new Date(o.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
@@ -256,61 +249,9 @@ export default function AdminDashboard() {
     return Object.entries(dayMap).map(([day, sales]) => ({ day, sales: Math.round(sales) })).reverse();
   }, [orders, chartPeriod, today, monthStart]);
 
-  // Category performance (all time)
-  const categoryData = useMemo(() => {
-    if (!orderItems || !products) return [];
-    const productCatMap: Record<string, string> = {};
-    products.forEach(p => { productCatMap[p.id] = p.category; });
-    const catRevenue: Record<string, number> = {};
-    orderItems.forEach(i => {
-      const cat = (i.product_id && productCatMap[i.product_id]) || 'Other';
-      catRevenue[cat] = (catRevenue[cat] || 0) + Number(i.total_price);
-    });
-    return Object.entries(catRevenue).map(([category, revenue]) => ({ category, revenue })).sort((a, b) => b.revenue - a.revenue);
-  }, [orderItems, products]);
-
-  // Low stock
-  const lowStockItems = useMemo(() => {
-    if (!products) return [];
-    return products
-      .filter(p => p.in_stock && (p.stock_quantity ?? 0) <= 5)
-      .sort((a, b) => (a.stock_quantity ?? 0) - (b.stock_quantity ?? 0))
-      .slice(0, 8);
-  }, [products]);
-
-  // Procurement stats from POs
-  const procStats = useMemo(() => {
-    if (!purchaseOrders) return null;
-    const active = (purchaseOrders as any[]).filter(p => p.status !== 'cancelled');
-    const sumWhere = (pred: (p: any) => boolean) =>
-      active.filter(pred).reduce((s, p) => s + Number(p.total_amount || 0), 0);
-    const todayProc = sumWhere(p => new Date(p.order_date) >= today);
-    const weekProc = sumWhere(p => new Date(p.order_date) >= weekStart);
-    const monthProc = sumWhere(p => new Date(p.order_date) >= monthStart);
-    const outstanding = active.reduce(
-      (s, p) => s + Math.max(0, Number(p.total_amount || 0) - Number(p.paid_amount || 0)),
-      0,
-    );
-    const paymentsDue = active.filter(
-      p => p.status === 'payable' && Number(p.total_amount || 0) > Number(p.paid_amount || 0),
-    ).length;
-    const openPayables = active.filter(p => !['paid', 'cancelled'].includes(p.status)).length;
-
-    const byVendor = new Map<string, { name: string; total: number }>();
-    for (const p of active) {
-      if (new Date(p.order_date) < monthStart) continue;
-      const key = p.vendor_id;
-      const name = (p as any).vendor?.name || 'Unknown';
-      const cur = byVendor.get(key) || { name, total: 0 };
-      cur.total += Number(p.total_amount || 0);
-      byVendor.set(key, cur);
-    }
-    const topVendors = Array.from(byVendor.values()).sort((a, b) => b.total - a.total).slice(0, 5);
-
-    return { todayProc, weekProc, monthProc, outstanding, paymentsDue, openPayables, topVendors };
-  }, [purchaseOrders, today, weekStart, monthStart]);
-
-  const StatCard = ({ title, value, icon: Icon, subtitle }: { title: string; value: string; icon: any; subtitle?: string }) => (
+  const StatCard = ({ title, value, icon: Icon, subtitle, tone }: {
+    title: string; value: string; icon: any; subtitle?: string; tone?: 'red' | 'green' | 'amber';
+  }) => (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
@@ -319,7 +260,9 @@ export default function AdminDashboard() {
       <CardContent>
         {isLoading ? <Skeleton className="h-8 w-24" /> : (
           <>
-            <p className="text-2xl font-bold">{value}</p>
+            <p className={`text-2xl font-bold ${tone === 'red' ? 'text-destructive' : tone === 'green' ? 'text-green-600' : tone === 'amber' ? 'text-amber-600' : ''}`}>
+              {value}
+            </p>
             {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
           </>
         )}
@@ -332,33 +275,52 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         <div>
           <h1 className="font-heading text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="font-body text-muted-foreground">Business overview &amp; analytics</p>
+          <p className="font-body text-muted-foreground">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
 
-        {/* Financial Overview - Today's P&L */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-          <StatCard title="Sales Today" value={formatCurrency(stats?.salesToday || 0)} icon={IndianRupee} subtitle={`${stats?.ordersToday || 0} orders`} />
-          <StatCard title="Vendor Cost Today" value={formatCurrency(stats?.vendorCostToday || 0)} icon={Package} subtitle="Purchase cost" />
-          <StatCard title="Shipping Cost Today" value={formatCurrency(stats?.shippingCostToday || 0)} icon={Truck} subtitle="Delivery expense" />
-          <StatCard title="Profit Today" value={formatCurrency(stats?.profitToday || 0)} icon={TrendingUp} subtitle="Sales − Vendor − Shipping" />
-          <StatCard title="Avg Order Value" value={formatCurrency(stats?.avgOrderValueToday || 0)} icon={IndianRupee} subtitle="Today" />
-          <StatCard title="Net Revenue (Realized)" value={formatCurrency(stats?.netRevenue || 0)} icon={BarChart3} subtitle="Invoiced Sales − Costs" />
+        {/* Row 1: Today's P&L */}
+        <div>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Today's P&L</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard title="Sales Today" value={formatCurrency(stats?.salesToday || 0)} icon={IndianRupee} subtitle={`${stats?.ordersToday || 0} invoiced orders`} />
+            <StatCard title="Vendor Cost" value={formatCurrency(stats?.vendorCostToday || 0)} icon={Package} subtitle="Today's procurement" />
+            <StatCard title="Gross Profit" value={formatCurrency(stats?.profitToday || 0)} icon={TrendingUp} tone={stats?.profitToday && stats.profitToday > 0 ? 'green' : 'red'} subtitle="Sales − Vendor Cost" />
+            <StatCard title="Collections Today" value={formatCurrency(stats?.collectionsToday || 0)} icon={CreditCard} tone="green" subtitle="Payments received" />
+          </div>
         </div>
 
-        {/* Sales Trend + Operational */}
+        {/* Row 2: Operations */}
+        <div>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Operations</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <StatCard title="Orders Today" value={String(stats?.ordersToday || 0)} icon={ShoppingCart} subtitle="All orders received" />
+            <StatCard
+              title="Pending Finalization"
+              value={String(stats?.pendingFinalization || 0)}
+              icon={Clock}
+              tone={stats?.pendingFinalization ? 'amber' : undefined}
+              subtitle="Weights not yet finalized"
+            />
+            <div className="cursor-pointer" onClick={() => navigate('/admin/orders')}>
+              <StatCard
+                title="Customer Outstanding"
+                value={formatCurrency(stats?.totalOutstanding || 0)}
+                icon={AlertTriangle}
+                tone={stats?.totalOutstanding ? 'red' : undefined}
+                subtitle={`₹${((stats?.overdueAmount || 0) / 1000).toFixed(0)}k overdue 30+ days`}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Row 3: Sales Trend + Delivery Demand */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <Card className="lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Sales Trend</CardTitle>
               <div className="flex gap-1">
                 {periodOptions.map(p => (
-                  <Button
-                    key={p.value}
-                    size="sm"
-                    variant={chartPeriod === p.value ? 'default' : 'ghost'}
-                    className="h-7 text-xs"
-                    onClick={() => setChartPeriod(p.value)}
-                  >
+                  <Button key={p.value} size="sm" variant={chartPeriod === p.value ? 'default' : 'ghost'} className="h-7 text-xs" onClick={() => setChartPeriod(p.value)}>
                     {p.label}
                   </Button>
                 ))}
@@ -369,8 +331,8 @@ export default function AdminDashboard() {
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="day" className="text-xs" tick={{ fontSize: 11 }} />
-                    <YAxis className="text-xs" tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+                    <XAxis dataKey="day" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
                     <Tooltip formatter={(v: number) => formatCurrency(v)} />
                     <Bar dataKey="sales" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -381,60 +343,22 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <div className="space-y-4">
-            <StatCard title="Orders Today" value={String(stats?.ordersToday || 0)} icon={ShoppingCart} />
-            <StatCard title="Pending Orders" value={String(stats?.pending || 0)} icon={AlertTriangle} />
-            <StatCard title="Delivered Orders" value={String(stats?.delivered || 0)} icon={Truck} />
-            <StatCard title="Total Weight Sold" value={`${(stats?.totalWeight || 0).toFixed(1)} kg`} icon={Package} />
-          </div>
-        </div>
-
-        {/* Top Selling Products Today + Today's Apartment Delivery Demand */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Star className="h-4 w-4" /> Top Selling Products Today
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {topSellingToday.length > 0 ? (
-                <div className="space-y-2">
-                  {topSellingToday.map((p, idx) => (
-                    <div key={p.name} className="flex items-center justify-between p-2.5 bg-muted/40 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-muted-foreground w-5">#{idx + 1}</span>
-                        <span className="text-sm font-medium truncate">{p.name}</span>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-bold">{p.qty % 1 === 0 ? p.qty : p.qty.toFixed(2)}</p>
-                        <p className="text-xs text-muted-foreground">{formatCurrency(p.revenue)}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-6">No sales today yet</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Building2 className="h-4 w-4" /> Today's Delivery Demand
+                <Building2 className="h-4 w-4" /> Today's Deliveries
               </CardTitle>
             </CardHeader>
             <CardContent>
               {todayApartmentDemand.length > 0 ? (
                 <div className="space-y-2">
                   {todayApartmentDemand.map((apt) => (
-                    <div key={apt.building} className="flex items-center justify-between p-2.5 bg-muted/40 rounded-lg">
+                    <div key={apt.building} className="flex items-center justify-between p-2 bg-muted/40 rounded-lg">
                       <div>
-                        <p className="font-medium text-sm">{apt.building}</p>
+                        <p className="font-medium text-sm leading-tight">{apt.building}</p>
                         <p className="text-xs text-muted-foreground">{apt.flatsCount} flats</p>
                       </div>
-                      <Badge variant="secondary">{apt.deliveries} deliveries</Badge>
+                      <Badge variant="secondary">{apt.deliveries}</Badge>
                     </div>
                   ))}
                 </div>
@@ -445,92 +369,32 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Procurement & Vendor Settlement Overview */}
-        <div>
-          <h2 className="font-heading text-xl font-semibold mb-3">Procurement & Settlement</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
-            <StatCard title="Today's Procurement" value={formatCurrency(procStats?.todayProc || 0)} icon={Package} />
-            <StatCard title="This Week" value={formatCurrency(procStats?.weekProc || 0)} icon={Package} />
-            <StatCard title="This Month" value={formatCurrency(procStats?.monthProc || 0)} icon={Package} />
-            <StatCard title="Vendor Outstanding" value={formatCurrency(procStats?.outstanding || 0)} icon={AlertTriangle} />
-            <StatCard title="Payments Due" value={String(procStats?.paymentsDue || 0)} icon={IndianRupee} subtitle="POs awaiting payment" />
-            <StatCard title="Open Payables" value={String(procStats?.openPayables || 0)} icon={FileText} />
-          </div>
-          {procStats?.topVendors?.length ? (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Star className="h-4 w-4" /> Top Vendors by Procurement Value (This Month)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {procStats.topVendors.map((v, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2.5 bg-muted/40 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-muted-foreground w-5">#{idx + 1}</span>
-                        <span className="text-sm font-medium">{v.name}</span>
-                      </div>
-                      <span className="text-sm font-bold">{formatCurrency(v.total)}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
-        </div>
-
-        {/* Vendor Procurement Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4" /> Vendor Procurement Summary
-              <Badge variant="outline" className="ml-2 text-xs">Pending Orders</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {vendorProcurement.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {vendorProcurement.map((v) => (
-                  <div key={v.vendorName} className="border rounded-lg p-3 space-y-2">
-                    <p className="font-semibold text-sm border-b pb-1">{v.vendorName}</p>
-                    {v.items.map((item) => (
-                      <div key={item.productName} className="flex items-center justify-between text-sm">
-                        <span className="truncate mr-2 text-muted-foreground">{item.productName}</span>
-                        <span className="font-medium shrink-0">
-                          {item.qty % 1 === 0 ? item.qty : item.qty.toFixed(2)} {item.unit}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-muted-foreground py-6">No pending procurement needed</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Category Performance + Weekly Snapshot */}
+        {/* Row 4: Top Products + Vendor Payments Due */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" /> Category Performance
+                <Star className="h-4 w-4" /> Top Products Today
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {categoryData.length > 0 ? (
+              {topSellingToday.length > 0 ? (
                 <div className="space-y-2">
-                  {categoryData.map((cat) => (
-                    <div key={cat.category} className="flex items-center justify-between p-2.5 bg-muted/40 rounded-lg">
-                      <span className="text-sm font-medium">{cat.category}</span>
-                      <span className="text-sm font-bold">{formatCurrency(cat.revenue)}</span>
+                  {topSellingToday.map((p, idx) => (
+                    <div key={p.name} className="flex items-center justify-between p-2 bg-muted/40 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-muted-foreground w-5">#{idx + 1}</span>
+                        <span className="text-sm font-medium truncate">{p.name}</span>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold">{p.qty % 1 === 0 ? p.qty : p.qty.toFixed(2)} kg</p>
+                        <p className="text-xs text-muted-foreground">{formatCurrency(p.revenue)}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-muted-foreground py-6">No category data yet</p>
+                <p className="text-center text-muted-foreground py-6">No orders today yet</p>
               )}
             </CardContent>
           </Card>
@@ -538,75 +402,50 @@ export default function AdminDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <CalendarDays className="h-4 w-4" /> Weekly Snapshot
+                <Wallet className="h-4 w-4" /> Vendor Payments Due
+                <Badge variant="outline" className="ml-1 text-xs">Last 7 days</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-3 bg-muted/40 rounded-lg">
-                  <p className="text-2xl font-bold">{stats?.weekOrders || 0}</p>
-                  <p className="text-xs text-muted-foreground">Orders</p>
+              {vendorPaymentsDue.length > 0 ? (
+                <div className="space-y-2">
+                  {vendorPaymentsDue.map((v) => (
+                    <div key={v.name} className="flex items-center justify-between p-2 bg-amber-50 border border-amber-200 rounded-lg cursor-pointer" onClick={() => navigate('/admin/purchase-orders')}>
+                      <div>
+                        <p className="font-medium text-sm">{v.name}</p>
+                        <p className="text-xs text-muted-foreground">{v.count} PO{v.count > 1 ? 's' : ''} unpaid</p>
+                      </div>
+                      <span className="text-sm font-bold text-amber-700">{formatCurrency(v.total)}</span>
+                    </div>
+                  ))}
                 </div>
-                <div className="text-center p-3 bg-muted/40 rounded-lg">
-                  <p className="text-lg font-bold">{formatCurrency(stats?.weekRevenue || 0)}</p>
-                  <p className="text-xs text-muted-foreground">Revenue</p>
-                </div>
-                <div className="text-center p-3 bg-muted/40 rounded-lg">
-                  <p className="text-sm font-bold truncate">{stats?.topProduct || 'N/A'}</p>
-                  <p className="text-xs text-muted-foreground">Top Product</p>
-                </div>
-              </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-6 text-green-600 font-medium">All vendors paid ✓</p>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => navigate('/admin/orders')}>
-                <Plus className="h-4 w-4" />
-                <span className="text-xs">Create Order</span>
-              </Button>
-              <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => navigate('/admin/orders')}>
-                <FileText className="h-4 w-4" />
-                <span className="text-xs">Generate Invoice</span>
-              </Button>
-              <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => navigate('/admin/purchase-orders')}>
-                <Truck className="h-4 w-4" />
-                <span className="text-xs">Purchase Order</span>
-              </Button>
-              <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => navigate('/admin/bulk-upload')}>
-                <Upload className="h-4 w-4" />
-                <span className="text-xs">Upload Products</span>
-              </Button>
-              <Button variant="outline" className="h-auto py-3 flex-col gap-1" onClick={() => navigate('/admin/gst-reports')}>
-                <Receipt className="h-4 w-4" />
-                <span className="text-xs">GST Reports</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Low Stock Reminder */}
-        {lowStockItems.length > 0 && (
+        {/* Row 5: Vendor Procurement Summary */}
+        {vendorProcurement.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2 text-amber-600">
-                <AlertTriangle className="h-4 w-4" /> Low Stock Reminder
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="h-4 w-4" /> Procurement Required
+                <Badge variant="outline" className="ml-1 text-xs">Pending Orders</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {lowStockItems.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
-                    <span className="text-sm truncate mr-2">{p.name}</span>
-                    <Badge variant="destructive" className="text-xs shrink-0">
-                      {p.stock_quantity ?? 0} left
-                    </Badge>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {vendorProcurement.map((v) => (
+                  <div key={v.vendorName} className="border rounded-lg p-3 space-y-2">
+                    <p className="font-semibold text-sm border-b pb-1">{v.vendorName}</p>
+                    {v.items.map((item) => (
+                      <div key={item.productName} className="flex items-center justify-between text-sm">
+                        <span className="truncate mr-2 text-muted-foreground">{item.productName}</span>
+                        <span className="font-medium shrink-0">{item.qty % 1 === 0 ? item.qty : item.qty.toFixed(2)} {item.unit}</span>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
