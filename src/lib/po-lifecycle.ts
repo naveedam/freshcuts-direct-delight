@@ -89,7 +89,7 @@ async function getOrCreateDailyPO(
     .insert({
       po_number: poNumber,
       vendor_id: vendorId,
-      status: 'assigned',
+      status: 'draft',
       order_date: date,
       subtotal: 0,
       tax_amount: 0,
