@@ -46,11 +46,13 @@ export default function ExpensesAdmin() {
   const { data: expenses, isLoading } = useQuery({
     queryKey: ['expenses', filterMonth],
     queryFn: async () => {
+      const [year, month] = filterMonth.split('-').map(Number);
+      const lastDay = new Date(year, month, 0).getDate();
       const { data, error } = await supabase
         .from('expenses')
         .select('*')
         .gte('expense_date', filterMonth + '-01')
-        .lte('expense_date', filterMonth + '-31')
+        .lte('expense_date', filterMonth + '-' + String(lastDay).padStart(2, '0'))
         .order('expense_date', { ascending: false });
       if (error) throw error;
       return data || [];
