@@ -157,11 +157,7 @@ export default function AdminDashboard() {
       .filter(p => new Date(p.order_date) >= today)
       .reduce((s, p) => s + Number(p.total_amount), 0);
     const expensesToday = (todayExpenses || []).reduce((s, e) => s + Number(e.amount), 0);
-    const expensesMonth = (monthExpenses || []).reduce((s, e) => s + Number(e.amount), 0);
     const profitToday = salesToday - vendorCostToday - expensesToday;
-    const netProfitMonth = (purchaseOrders || [])
-      .filter(p => new Date(p.order_date) >= monthStart)
-      .reduce((s, p) => s - Number(p.total_amount), salesMonth) - expensesMonth;
     const collectionsToday = (customerPayments || []).reduce((s, p) => s + Number(p.amount), 0);
     const ordersToday = todayOrders.length;
     const pendingFinalization = todayOrders.filter(o =>
@@ -180,7 +176,7 @@ export default function AdminDashboard() {
     const overdueAmount = overdueOrders.reduce((s, o) =>
       s + (Number(o.balance_due || 0) || (Number(o.total_amount) - Number(o.amount_paid || 0))), 0);
     return {
-      salesToday, vendorCostToday, profitToday, collectionsToday, expensesToday, expensesMonth,
+      salesToday, vendorCostToday, profitToday, collectionsToday, expensesToday,
       ordersToday, pendingFinalization, totalOutstanding, overdueAmount,
     };
   }, [orders, purchaseOrders, customerPayments, today]);
