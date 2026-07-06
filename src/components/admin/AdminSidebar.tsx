@@ -26,7 +26,6 @@ const menuItems = [
   { title: 'Purchase Orders', url: '/admin/purchase-orders', icon: ClipboardList },
   { title: 'Vendor Ledger', url: '/admin/vendor-ledger', icon: Wallet },
   { title: 'Vendor Profitability', url: '/admin/vendor-profitability', icon: TrendingUp },
-  { title: 'Documents', url: '/admin/documents', icon: FolderOpen },
   { title: 'Shipping', url: '/admin/shipping', icon: Truck },
   { title: 'Delivery Runs', url: '/admin/delivery-runs', icon: Route },
   { title: 'GST Config', url: '/admin/gst', icon: Receipt },
