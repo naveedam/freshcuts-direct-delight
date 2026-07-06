@@ -31,6 +31,7 @@ const menuItems = [
   { title: 'Delivery Runs', url: '/admin/delivery-runs', icon: Route },
   { title: 'GST Config', url: '/admin/gst', icon: Receipt },
   { title: 'GST Reports', url: '/admin/gst-reports', icon: BarChart3 },
+  { title: 'Expenses', url: '/admin/expenses', icon: Receipt },
   { title: 'Page Content', url: '/admin/content', icon: FileText },
   { title: 'Business Settings', url: '/admin/settings', icon: Building2 },
   { title: 'Financial Years', url: '/admin/financial-years', icon: CalendarDays },

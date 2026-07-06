@@ -20,6 +20,7 @@ import BusinessSettings from "./pages/admin/BusinessSettings";
 import ShippingSettings from "./pages/admin/ShippingSettings";
 import GSTConfigAdmin from "./pages/admin/GSTConfigAdmin";
 import GSTReportsAdmin from "./pages/admin/GSTReportsAdmin";
+import ExpensesAdmin from "./pages/admin/ExpensesAdmin";
 import VendorsAdmin from "./pages/admin/VendorsAdmin";
 import PurchaseOrdersAdmin from "./pages/admin/PurchaseOrdersAdmin";
 import VendorLedger from "./pages/admin/VendorLedger";
@@ -72,6 +73,7 @@ const App = () => (
               <Route path="/admin/shipping" element={<RequireAdmin><ShippingSettings /></RequireAdmin>} />
               <Route path="/admin/gst" element={<RequireAdmin><GSTConfigAdmin /></RequireAdmin>} />
               <Route path="/admin/gst-reports" element={<RequireAdmin><GSTReportsAdmin /></RequireAdmin>} />
+              <Route path="/admin/expenses" element={<RequireAdmin><ExpensesAdmin /></RequireAdmin>} />
               <Route path="/admin/content" element={<RequireAdmin><ContentAdmin /></RequireAdmin>} />
               <Route path="/admin/settings" element={<RequireAdmin><BusinessSettings /></RequireAdmin>} />
               <Route path="/admin/financial-years" element={<RequireAdmin><FinancialYearsAdmin /></RequireAdmin>} />
