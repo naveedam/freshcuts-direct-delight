@@ -261,7 +261,20 @@ export default function ExpensesAdmin() {
             <div className="flex flex-wrap gap-3 items-center justify-between">
               <CardTitle className="text-base">Expense Log</CardTitle>
               <div className="flex gap-3">
-                <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-36" />
+                <Select value={filterMonth} onValueChange={setFilterMonth}>
+                  <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2026-04">April 2026</SelectItem>
+                    <SelectItem value="2026-05">May 2026</SelectItem>
+                    <SelectItem value="2026-06">June 2026</SelectItem>
+                    <SelectItem value="2026-07">July 2026</SelectItem>
+                    <SelectItem value="2026-08">August 2026</SelectItem>
+                    <SelectItem value="2026-09">September 2026</SelectItem>
+                    <SelectItem value="2026-10">October 2026</SelectItem>
+                    <SelectItem value="2026-11">November 2026</SelectItem>
+                    <SelectItem value="2026-12">December 2026</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select value={filterCategory} onValueChange={setFilterCategory}>
                   <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                   <SelectContent>
