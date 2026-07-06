@@ -10,7 +10,7 @@ import { formatCurrency } from '@/lib/currency';
 import { useNavigate } from 'react-router-dom';
 import {
   Package, ShoppingCart, IndianRupee, TrendingUp, Building2,
-  AlertTriangle, BarChart3, Star, Users, CreditCard, Clock, Wallet
+  AlertTriangle, BarChart3, Star, Users, CreditCard, Clock, Wallet, Receipt
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -84,6 +84,33 @@ export default function AdminDashboard() {
     }
   });
 
+  const { data: todayExpenses } = useQuery({
+    queryKey: ['admin', 'dashboard-expenses-today'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('amount')
+        .eq('expense_date', today);
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  const { data: monthExpenses } = useQuery({
+    queryKey: ['admin', 'dashboard-expenses-month'],
+    queryFn: async () => {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('amount')
+        .gte('expense_date', monthStart);
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
   const { data: vendors } = useQuery({
     queryKey: ['admin', 'dashboard-vendors'],
     queryFn: async () => {
@@ -129,7 +156,12 @@ export default function AdminDashboard() {
     const vendorCostToday = (purchaseOrders || [])
       .filter(p => new Date(p.order_date) >= today)
       .reduce((s, p) => s + Number(p.total_amount), 0);
-    const profitToday = salesToday - vendorCostToday;
+    const expensesToday = (todayExpenses || []).reduce((s, e) => s + Number(e.amount), 0);
+    const expensesMonth = (monthExpenses || []).reduce((s, e) => s + Number(e.amount), 0);
+    const profitToday = salesToday - vendorCostToday - expensesToday;
+    const netProfitMonth = (purchaseOrders || [])
+      .filter(p => new Date(p.order_date) >= monthStart)
+      .reduce((s, p) => s - Number(p.total_amount), salesMonth) - expensesMonth;
     const collectionsToday = (customerPayments || []).reduce((s, p) => s + Number(p.amount), 0);
     const ordersToday = todayOrders.length;
     const pendingFinalization = todayOrders.filter(o =>
@@ -148,7 +180,7 @@ export default function AdminDashboard() {
     const overdueAmount = overdueOrders.reduce((s, o) =>
       s + (Number(o.balance_due || 0) || (Number(o.total_amount) - Number(o.amount_paid || 0))), 0);
     return {
-      salesToday, vendorCostToday, profitToday, collectionsToday,
+      salesToday, vendorCostToday, profitToday, collectionsToday, expensesToday, expensesMonth,
       ordersToday, pendingFinalization, totalOutstanding, overdueAmount,
     };
   }, [orders, purchaseOrders, customerPayments, today]);
@@ -284,7 +316,8 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard title="Sales Today" value={formatCurrency(stats?.salesToday || 0)} icon={IndianRupee} subtitle={`${stats?.ordersToday || 0} invoiced orders`} />
             <StatCard title="Vendor Cost" value={formatCurrency(stats?.vendorCostToday || 0)} icon={Package} subtitle="Today's procurement" />
-            <StatCard title="Gross Profit" value={formatCurrency(stats?.profitToday || 0)} icon={TrendingUp} tone={stats?.profitToday && stats.profitToday > 0 ? 'green' : 'red'} subtitle="Sales − Vendor Cost" />
+            <StatCard title="Operating Expenses" value={formatCurrency(stats?.expensesToday || 0)} icon={Receipt} subtitle="Delivery, packaging etc" />
+            <StatCard title="Net Profit Today" value={formatCurrency(stats?.profitToday || 0)} icon={TrendingUp} tone={stats?.profitToday && stats.profitToday > 0 ? 'green' : 'red'} subtitle="Sales − Vendor − Expenses" />
             <StatCard title="Collections Today" value={formatCurrency(stats?.collectionsToday || 0)} icon={CreditCard} tone="green" subtitle="Payments received" />
           </div>
         </div>
