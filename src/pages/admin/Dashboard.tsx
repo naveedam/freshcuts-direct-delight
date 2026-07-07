@@ -309,7 +309,7 @@ export default function AdminDashboard() {
         {/* Row 1: Today's P&L */}
         <div>
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Today's P&L</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <StatCard title="Sales Today" value={formatCurrency(stats?.salesToday || 0)} icon={IndianRupee} subtitle={`${stats?.ordersToday || 0} invoiced orders`} />
             <StatCard title="Vendor Cost" value={formatCurrency(stats?.vendorCostToday || 0)} icon={Package} subtitle="Today's procurement" />
             <StatCard title="Operating Expenses" value={formatCurrency(stats?.expensesToday || 0)} icon={Receipt} subtitle="Delivery, packaging etc" />
