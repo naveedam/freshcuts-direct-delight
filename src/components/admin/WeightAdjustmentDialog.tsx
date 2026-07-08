@@ -121,7 +121,19 @@ export function WeightAdjustmentDialog({
     return 0;
   }, [discountType, discountValue, subtotal]);
 
-  const newTotal = subtotal - discountAmount;
+  const totalGST = useMemo(() => {
+    return orderItems.reduce((sum, item) => {
+      const adjusted = adjustedItems[item.id];
+      const totalPrice = adjusted
+        ? (parseFloat(adjusted.weight) || item.quantity) * (parseFloat(adjusted.price) || item.unit_price)
+        : item.quantity * item.unit_price;
+      if ((item.gst_type === 'taxable' || item.gst_type === 'Taxable') && item.gst_rate > 0) {
+        return sum + (totalPrice * item.gst_rate) / 100;
+      }
+      return sum;
+    }, 0);
+  }, [orderItems, adjustedItems]);
+  const newTotal = subtotal - discountAmount + totalGST;
 
   const updateItemsMutation = useMutation({
     mutationFn: async () => {
