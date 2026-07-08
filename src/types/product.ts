@@ -15,6 +15,8 @@ export interface Product {
   inStock: boolean;
   featured?: boolean;
   pricingModel?: PricingModel;
+  gstRate?: number;
+  gstType?: string;
 }
 
 export interface CartItem {

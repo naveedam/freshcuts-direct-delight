@@ -15,6 +15,8 @@ const mapDbProduct = (dbProduct: any): Product => ({
   inStock: dbProduct.in_stock ?? true,
   featured: false,
   pricingModel: dbProduct.pricing_model || 'weight_based',
+  gstRate: dbProduct.gst_rate || 0,
+  gstType: dbProduct.gst_type || 'Exempt',
 });
 
 export function useProducts() {
@@ -85,6 +87,7 @@ export function useFeaturedProducts() {
         .from('products')
         .select('*')
         .eq('in_stock', true)
+        .eq('is_published', true)
         .limit(8)
         .order('created_at', { ascending: false });
       

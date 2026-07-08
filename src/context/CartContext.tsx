@@ -67,7 +67,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = items.reduce((sum, item) => sum + calculatePrice(item.product.price, item.quantity, item.product.pricingModel || 'weight_based'), 0);
+  const totalPrice = items.reduce((sum, item) => {
+    const basePrice = calculatePrice(item.product.price, item.quantity, item.product.pricingModel || 'weight_based');
+    const gstRate = item.product.gstRate || 0;
+    const gstType = item.product.gstType || 'Exempt';
+    const gst = (gstType === 'Taxable' && gstRate > 0) ? (basePrice * gstRate) / 100 : 0;
+    return sum + basePrice + gst;
+  }, 0);
 
   return (
     <CartContext.Provider value={{
