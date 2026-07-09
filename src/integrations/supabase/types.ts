@@ -351,6 +351,48 @@ export type Database = {
           },
         ]
       }
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string | null
+          created_by: string | null
+          expense_date: string
+          id: string
+          notes: string | null
+          paid_by: string
+          payee: string | null
+          sub_category: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string | null
+          created_by?: string | null
+          expense_date?: string
+          id?: string
+          notes?: string | null
+          paid_by?: string
+          payee?: string | null
+          sub_category?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string | null
+          created_by?: string | null
+          expense_date?: string
+          id?: string
+          notes?: string | null
+          paid_by?: string
+          payee?: string | null
+          sub_category?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       financial_years: {
         Row: {
           created_at: string
@@ -482,6 +524,7 @@ export type Database = {
           unit_price: number
           vendor_cost: number | null
           vendor_id: string | null
+          vendor_supplied_weight: number | null
           weight_adjusted_at: string | null
         }
         Insert: {
@@ -504,6 +547,7 @@ export type Database = {
           unit_price: number
           vendor_cost?: number | null
           vendor_id?: string | null
+          vendor_supplied_weight?: number | null
           weight_adjusted_at?: string | null
         }
         Update: {
@@ -526,6 +570,7 @@ export type Database = {
           unit_price?: number
           vendor_cost?: number | null
           vendor_id?: string | null
+          vendor_supplied_weight?: number | null
           weight_adjusted_at?: string | null
         }
         Relationships: [
