@@ -296,7 +296,7 @@ export default function PurchaseOrdersAdmin() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Vendors</SelectItem>
-              {vendors?.map(v => (
+              {vendors?.filter(v => v.id && v.name).map(v => (
                 <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
               ))}
             </SelectContent>
