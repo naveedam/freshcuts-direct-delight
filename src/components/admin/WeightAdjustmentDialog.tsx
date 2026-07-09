@@ -260,6 +260,7 @@ export function WeightAdjustmentDialog({
         )}
 
         <div className="space-y-4">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -358,6 +359,7 @@ export function WeightAdjustmentDialog({
               })}
             </TableBody>
           </Table>
+          </div>
 
           {/* Discount Section */}
           {!order.weight_finalized && (
