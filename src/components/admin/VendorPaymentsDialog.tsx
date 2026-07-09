@@ -32,7 +32,7 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
   const [paymentMethod, setPaymentMethod] = useState<string>('bank_transfer');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [notes, setNotes] = useState('');
-  const [selectedPoId, setSelectedPoId] = useState<string>(preselectedPoId || '');
+  const [selectedPoId, setSelectedPoId] = useState<string>(preselectedPoId || 'general');
 
   // Fetch payments
   const { data: payments, isLoading } = useQuery({
@@ -218,7 +218,7 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
                       <SelectValue placeholder="General payment (no PO)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">General Payment</SelectItem>
+                      <SelectItem value="general">General Payment</SelectItem>
                       {vendorPOs?.map(po => (
                         <SelectItem key={po.id} value={po.id}>
                           {po.po_number} — {formatCurrency(po.total_amount)}
