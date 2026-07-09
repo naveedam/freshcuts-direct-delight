@@ -22,6 +22,7 @@ interface OrderItem {
   total_price: number;
   actual_weight: number | null;
   weight_adjusted_at: string | null;
+  vendor_supplied_weight?: number | null;
   gst_rate: number;
   gst_type: string;
   hsn_code: string | null;
@@ -55,6 +56,7 @@ export function WeightAdjustmentDialog({
 }: WeightAdjustmentDialogProps) {
   const queryClient = useQueryClient();
   const [adjustedItems, setAdjustedItems] = useState<Record<string, { weight: string; price: string }>>({});
+  const [vendorWeights, setVendorWeights] = useState<Record<string, string>>({});
   const [discountType, setDiscountType] = useState<'none' | 'percentage' | 'flat'>('none');
   const [discountValue, setDiscountValue] = useState('0');
 
@@ -91,13 +93,16 @@ export function WeightAdjustmentDialog({
   useEffect(() => {
     if (open && orderItems) {
       const initial: Record<string, { weight: string; price: string }> = {};
+      const initialVendor: Record<string, string> = {};
       orderItems.forEach(item => {
         initial[item.id] = {
           weight: item.actual_weight?.toString() || item.quantity.toString(),
           price: item.unit_price.toString()
         };
+        initialVendor[item.id] = (item.vendor_supplied_weight ?? item.actual_weight)?.toString() || item.quantity.toString();
       });
       setAdjustedItems(initial);
+      setVendorWeights(initialVendor);
       setDiscountType((order?.discount_type as any) || 'none');
       setDiscountValue(order?.discount_value?.toString() || '0');
     }
@@ -148,6 +153,9 @@ export function WeightAdjustmentDialog({
         const actualWeight = parseFloat(adjusted.weight) || item.quantity;
         const unitPrice = parseFloat(adjusted.price) || item.unit_price;
         const totalPrice = actualWeight * unitPrice;
+        const vendorRaw = vendorWeights[item.id];
+        const vendorWeightParsed = vendorRaw !== undefined && vendorRaw !== '' ? parseFloat(vendorRaw) : NaN;
+        const vendorSuppliedWeight = isFinite(vendorWeightParsed) && vendorWeightParsed > 0 ? vendorWeightParsed : actualWeight;
         
         let taxableValue = totalPrice;
         let cgst = 0, sgst = 0, igst = 0;
@@ -166,6 +174,7 @@ export function WeightAdjustmentDialog({
           .from('order_items')
           .update({
             actual_weight: actualWeight,
+            vendor_supplied_weight: vendorSuppliedWeight,
             unit_price: unitPrice,
             total_price: totalPrice,
             taxable_value: taxableValue,
@@ -224,6 +233,10 @@ export function WeightAdjustmentDialog({
     }));
   };
 
+  const handleVendorWeightChange = (itemId: string, weight: string) => {
+    setVendorWeights(prev => ({ ...prev, [itemId]: weight }));
+  };
+
   if (!order) return null;
 
   return (
@@ -254,6 +267,7 @@ export function WeightAdjustmentDialog({
                 <TableHead>Type</TableHead>
                 <TableHead>Ordered</TableHead>
                 <TableHead>Actual</TableHead>
+                <TableHead>Vendor Wt</TableHead>
                 <TableHead>Unit Price (₹)</TableHead>
                 <TableHead className="text-right">Total</TableHead>
               </TableRow>
@@ -300,6 +314,23 @@ export function WeightAdjustmentDialog({
                             }
                             handleWeightChange(item.id, val);
                           }}
+                          className="w-24"
+                          disabled={order.weight_finalized}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {isUnit ? 'units' : 'kg'}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          step={isUnit ? '1' : '0.01'}
+                          min="0"
+                          placeholder={adjustedItems[item.id]?.weight || ''}
+                          value={vendorWeights[item.id] ?? ''}
+                          onChange={(e) => handleVendorWeightChange(item.id, e.target.value)}
                           className="w-24"
                           disabled={order.weight_finalized}
                         />
