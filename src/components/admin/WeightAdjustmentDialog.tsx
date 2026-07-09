@@ -261,104 +261,100 @@ export function WeightAdjustmentDialog({
 
         <div className="space-y-4">
           <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Ordered</TableHead>
-                <TableHead>Actual</TableHead>
-                <TableHead>Vendor Wt</TableHead>
-                <TableHead>Unit Price (₹)</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orderItems.map((item) => {
-                const pm = getItemPricingModel(item);
-                const isUnit = pm === 'unit_based';
-                return (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{item.product_name}</p>
-                        {item.hsn_code && (
-                          <p className="text-xs text-muted-foreground">HSN: {item.hsn_code}</p>
-                        )}
-                        <Badge variant="outline" className="text-xs mt-1">
-                          {(item.gst_type === 'taxable' || item.gst_type === 'Taxable') ? `GST ${item.gst_rate}%` : item.gst_type}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="text-xs">
-                        {isUnit ? 'Unit' : 'Weight'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-muted-foreground">
-                        {item.quantity} {isUnit ? (item.quantity === 1 ? 'unit' : 'units') : 'kg'}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          step={isUnit ? '1' : '0.01'}
-                          min={isUnit ? '1' : '0.01'}
-                          value={adjustedItems[item.id]?.weight || ''}
-                          onChange={(e) => {
-                            let val = e.target.value;
-                            if (isUnit) {
-                              const parsed = parseInt(val, 10);
-                              val = isNaN(parsed) || parsed < 1 ? '1' : parsed.toString();
-                            }
-                            handleWeightChange(item.id, val);
-                          }}
-                          className="w-24"
-                          disabled={order.weight_finalized}
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {isUnit ? 'units' : 'kg'}
+            <Table className="table-fixed w-full min-w-[720px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[40%] px-2 py-2">Product</TableHead>
+                  <TableHead className="w-24 px-2 py-2 text-center">Ordered</TableHead>
+                  <TableHead className="w-28 px-2 py-2 text-center">Actual</TableHead>
+                  <TableHead className="w-28 px-2 py-2 text-center">Vendor Wt</TableHead>
+                  <TableHead className="w-28 px-2 py-2 text-center">Unit Price</TableHead>
+                  <TableHead className="w-24 px-2 py-2 text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {orderItems.map((item) => {
+                  const pm = getItemPricingModel(item);
+                  const isUnit = pm === 'unit_based';
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell className="px-2 py-2">
+                        <div>
+                          <p className="font-medium text-sm">{item.product_name}</p>
+                          {item.hsn_code && (
+                            <p className="text-xs text-muted-foreground">HSN: {item.hsn_code}</p>
+                          )}
+                          <Badge variant="outline" className="text-xs mt-1">
+                            {(item.gst_type === 'taxable' || item.gst_type === 'Taxable') ? `GST ${item.gst_rate}%` : item.gst_type}
+                          </Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-2 py-2 text-center">
+                        <span className="text-muted-foreground text-sm">
+                          {item.quantity} {isUnit ? (item.quantity === 1 ? 'unit' : 'units') : 'kg'}
                         </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          step={isUnit ? '1' : '0.01'}
-                          min="0"
-                          placeholder={adjustedItems[item.id]?.weight || ''}
-                          value={vendorWeights[item.id] ?? ''}
-                          onChange={(e) => handleVendorWeightChange(item.id, e.target.value)}
-                          className="w-24"
-                          disabled={order.weight_finalized}
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {isUnit ? 'units' : 'kg'}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={adjustedItems[item.id]?.price || ''}
-                        onChange={(e) => handlePriceChange(item.id, e.target.value)}
-                        className="w-24"
-                        disabled={order.weight_finalized}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(calculateItemTotal(item.id, item))}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                      </TableCell>
+                      <TableCell className="px-2 py-2">
+                        <div className="flex items-center justify-center gap-1">
+                          <Input
+                            type="number"
+                            step={isUnit ? '1' : '0.01'}
+                            min={isUnit ? '1' : '0.01'}
+                            value={adjustedItems[item.id]?.weight || ''}
+                            onChange={(e) => {
+                              let val = e.target.value;
+                              if (isUnit) {
+                                const parsed = parseInt(val, 10);
+                                val = isNaN(parsed) || parsed < 1 ? '1' : parsed.toString();
+                              }
+                              handleWeightChange(item.id, val);
+                            }}
+                            className="w-20 px-1"
+                            disabled={order.weight_finalized}
+                          />
+                          <span className="text-xs text-muted-foreground w-8">
+                            {isUnit ? 'unit' : 'kg'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-2 py-2">
+                        <div className="flex items-center justify-center gap-1">
+                          <Input
+                            type="number"
+                            step={isUnit ? '1' : '0.01'}
+                            min="0"
+                            placeholder={adjustedItems[item.id]?.weight || ''}
+                            value={vendorWeights[item.id] ?? ''}
+                            onChange={(e) => handleVendorWeightChange(item.id, e.target.value)}
+                            className="w-20 px-1"
+                            disabled={order.weight_finalized}
+                          />
+                          <span className="text-xs text-muted-foreground w-8">
+                            {isUnit ? 'unit' : 'kg'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-2 py-2">
+                        <div className="flex justify-center">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={adjustedItems[item.id]?.price || ''}
+                            onChange={(e) => handlePriceChange(item.id, e.target.value)}
+                            className="w-20 px-1"
+                            disabled={order.weight_finalized}
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-2 py-2 text-right font-medium text-sm">
+                        {formatCurrency(calculateItemTotal(item.id, item))}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
 
           {/* Discount Section */}
