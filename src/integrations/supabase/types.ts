@@ -524,6 +524,7 @@ export type Database = {
           unit_price: number
           vendor_cost: number | null
           vendor_id: string | null
+          vendor_supplied_weight: number | null
           weight_adjusted_at: string | null
         }
         Insert: {
@@ -546,6 +547,7 @@ export type Database = {
           unit_price: number
           vendor_cost?: number | null
           vendor_id?: string | null
+          vendor_supplied_weight?: number | null
           weight_adjusted_at?: string | null
         }
         Update: {
@@ -568,6 +570,7 @@ export type Database = {
           unit_price?: number
           vendor_cost?: number | null
           vendor_id?: string | null
+          vendor_supplied_weight?: number | null
           weight_adjusted_at?: string | null
         }
         Relationships: [
