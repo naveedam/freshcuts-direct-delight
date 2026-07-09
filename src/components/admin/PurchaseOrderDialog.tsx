@@ -357,8 +357,8 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
                                 {(vendorId && vendorProducts?.length 
                                   ? vendorProducts.map(vp => vp.product)
                                   : products
-                                )?.map(product => (
-                                  <SelectItem key={product?.id} value={product?.id || ''}>
+                                )?.filter(product => product?.id).map(product => (
+                                  <SelectItem key={product?.id} value={product?.id || 'unknown'}>
                                     {product?.name}
                                   </SelectItem>
                                 ))}
