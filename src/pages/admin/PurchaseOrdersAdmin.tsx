@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabase-paginate';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,8 +70,7 @@ export default function PurchaseOrdersAdmin() {
         query = query.eq('payment_status', paymentFilter);
       }
       
-      const { data, error } = await query;
-      if (error) throw error;
+      const data = await fetchAllRows<any>(() => query);
       return data as unknown as PurchaseOrder[];
     }
   });
@@ -78,11 +78,9 @@ export default function PurchaseOrdersAdmin() {
   const { data: stats } = useQuery({
     queryKey: ['admin', 'purchase-order-stats'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('purchase_orders')
-        .select('status, payment_status, total_amount');
-      
-      if (error) throw error;
+      const data = await fetchAllRows<any>(() =>
+        supabase.from('purchase_orders').select('status, payment_status, total_amount')
+      );
 
       const active = data.filter(po => po.status !== 'cancelled');
       return {
