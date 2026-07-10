@@ -78,8 +78,9 @@ export default function OrdersAdmin() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayMs = today.getTime();
+    const todayStr = new Date().toISOString().split('T')[0];
     const todaysCollection = (allPayments || [])
-      .filter((p) => new Date(p.payment_date).getTime() >= todayMs)
+      .filter((p) => p.payment_date && p.payment_date.slice(0, 10) === todayStr)
       .reduce((s, p) => s + Number(p.amount || 0), 0);
 
     let outstanding = 0;

@@ -60,7 +60,7 @@ export function OrderPaymentDialog({ open, onOpenChange, order }: OrderPaymentDi
     mutationFn: async () => {
       const payAmount = parseFloat(amount);
       if (isNaN(payAmount) || payAmount <= 0) throw new Error('Invalid amount');
-      if (payAmount > balanceDue + 0.01) throw new Error('Payment exceeds balance due');
+      // Excess payments allowed — will show as credit (negative balance)
 
       const { error: payError } = await supabase.from('customer_payments').insert({
         order_id: order.id,
@@ -78,7 +78,7 @@ export function OrderPaymentDialog({ open, onOpenChange, order }: OrderPaymentDi
 
       const { error: orderErr } = await supabase.from('orders').update({
         amount_paid: newTotalPaid,
-        balance_due: Math.max(0, newBalance),
+        balance_due: newBalance,
         payment_status: newStatus,
       }).eq('id', order.id);
       if (orderErr) throw orderErr;
