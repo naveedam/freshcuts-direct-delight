@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabase-paginate';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,20 +28,16 @@ export default function VendorProfitability() {
         .select('id, status, converted_to_sale, invoice_cancelled, created_at');
       if (fromDate) q = q.gte('created_at', `${fromDate}T00:00:00`);
       if (toDate) q = q.lte('created_at', `${toDate}T23:59:59.999`);
-      const { data, error } = await q;
-      if (error) throw error;
-      return data || [];
+      return await fetchAllRows<any>(() => q);
     },
   });
 
   const { data: items } = useQuery({
     queryKey: ['vendor-profit', 'items'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('order_items')
-        .select('order_id, vendor_id, quantity, actual_weight, unit_price, total_price, vendor_cost');
-      if (error) throw error;
-      return data || [];
+      return await fetchAllRows<any>(() =>
+        supabase.from('order_items').select('order_id, vendor_id, quantity, actual_weight, unit_price, total_price, vendor_cost')
+      );
     },
   });
 
