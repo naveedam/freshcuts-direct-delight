@@ -97,19 +97,15 @@ export default function GSTReportsAdmin() {
         query = query.eq('financial_year_id', fyFilter);
       }
       
-      const { data: orders, error: ordersError } = await query;
-      if (ordersError) throw ordersError;
+      const orders = await fetchAllRows<any>(() => query);
       
       if (!orders?.length) return [];
       
       // Fetch order items for all orders
       const orderIds = orders.map(o => o.id);
-      const { data: items, error: itemsError } = await supabase
-        .from('order_items')
-        .select('*')
-        .in('order_id', orderIds);
-      
-      if (itemsError) throw itemsError;
+      const items = await fetchAllRows<any>(() =>
+        supabase.from('order_items').select('*').in('order_id', orderIds)
+      );
       
       // Map to InvoiceForReport format
       const invoiceData: InvoiceForReport[] = orders.map(order => ({
