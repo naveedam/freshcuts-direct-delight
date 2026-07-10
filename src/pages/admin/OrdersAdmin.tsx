@@ -88,6 +88,7 @@ export default function OrdersAdmin() {
     const now = Date.now();
     for (const o of orders || []) {
       if (o.invoice_cancelled) continue;
+      if (o.status === 'cancelled') continue;
       const out = (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0);
       if (out <= 0.01) continue;
       outstanding += out;
@@ -180,6 +181,7 @@ export default function OrdersAdmin() {
     const m = new Map<string, number>();
     for (const o of orders || []) {
       if (o.invoice_cancelled) continue;
+      if (o.status === 'cancelled') continue;
       const out = (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0);
       if (out <= 0.01) continue;
       const k = partyKeyForOrder(o);
