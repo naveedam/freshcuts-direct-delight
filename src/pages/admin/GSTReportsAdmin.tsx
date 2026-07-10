@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabase-paginate';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -97,19 +98,15 @@ export default function GSTReportsAdmin() {
         query = query.eq('financial_year_id', fyFilter);
       }
       
-      const { data: orders, error: ordersError } = await query;
-      if (ordersError) throw ordersError;
+      const orders = await fetchAllRows<any>(() => query);
       
       if (!orders?.length) return [];
       
       // Fetch order items for all orders
       const orderIds = orders.map(o => o.id);
-      const { data: items, error: itemsError } = await supabase
-        .from('order_items')
-        .select('*')
-        .in('order_id', orderIds);
-      
-      if (itemsError) throw itemsError;
+      const items = await fetchAllRows<any>(() =>
+        supabase.from('order_items').select('*').in('order_id', orderIds)
+      );
       
       // Map to InvoiceForReport format
       const invoiceData: InvoiceForReport[] = orders.map(order => ({

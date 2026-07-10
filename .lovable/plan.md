@@ -1,124 +1,52 @@
-# Vendor Settlement & Procurement Tracking
+# Fix: Orders ribbon undercounts because queries hit the 1000-row default limit
 
-Additive enhancement to the **existing** Purchase Order system. No replacement, no consolidated POs, no inventory module. The current flow (Order → Vendor Assign → PO → Weight Adjust → Invoice → Customer Pay → Vendor Settle) stays byte-identical; we only automate status, add reporting, and add settlement screens.
+## Diagnosis
 
-## 1. PO Status Lifecycle (automatic)
+I queried the DB directly for Villa 170:
 
-Extend `purchase_orders.status` enum-by-convention to support: `draft → assigned → received → payable → paid → cancelled`. Existing `draft/sent/confirmed/partially_received/received/cancelled` strings remain valid (legacy data unaffected).
+- 15 orders, all fully paid, totalling **₹66,313.10** — matches the Ledger exactly.
+- The ribbon shows only **14 orders / ₹61,543 billed / ₹36,899 paid**.
+- The missing order is `INV-2026-00093` (03-Apr-2026, ₹4,769.80). That accounts for the 1-order and ₹4,770 gap in **billed**, but not the ₹29,414 gap in **paid**.
 
-Triggers (app-level, in the existing mutation paths — no DB triggers on production tables):
+Row counts in the database:
+- `orders`: **1,180 rows**
+- `customer_payments`: **1,083 rows**
 
-| Action | Where | New status |
-|---|---|---|
-| Vendor assigned to order_item | `WeightAdjustmentDialog` / vendor assign mutation | `assigned` |
-| Actual weight finalized on the order | weight finalize mutation | `received` + sync `actual_received_weight`, `received_quantity`, recompute `total_amount` |
-| Invoice generated (sale created) | invoice generator | `payable` |
-| `paid_amount >= total_amount` | `VendorPaymentsDialog` after insert | `paid` |
+`src/pages/admin/OrdersAdmin.tsx` fetches both with plain `select('*')` — Supabase's PostgREST client silently caps responses at **1,000 rows** unless a range is set. So:
 
-All transitions are idempotent and forward-only (a manual `cancelled` from admin still allowed).
+- The `orders` query drops ~180 oldest rows → Villa 170's April order is missing from the ribbon.
+- The `customer_payments` query drops ~83 oldest rows → historical payments for this party (and every long-standing party) disappear from the ribbon's "Paid" total.
 
-## 2. Weight Adjustment = Goods Received
+The Ledger sheet is correct because it queries the DB **scoped to one party** (`WHERE flat_number='Villa 170'`), so it never hits the 1000-row ceiling.
 
-When `order_items.actual_weight` is set and `orders.weight_finalized = true`:
-- For each PO linked to that order, update its `purchase_order_items`:
-  - `received_quantity = actual_weight` (or ordered qty for unit-based)
-  - `actual_received_weight = actual_weight`
-  - `total_cost = actual_weight * unit_cost`
-  - `received_at = now()`
-- Recompute PO `subtotal` and `total_amount` from items.
-- Set PO `status = 'received'`, `received_date = now()`.
+Same silent truncation affects the top-of-page widgets (Total Outstanding, Overdue) and the Party Due badges — they'll drift as the business grows.
 
-No separate GRN screen required. Existing `ReceiveOrderDialog` stays as a manual override but is no longer the only path.
+## Fix
 
-## 3. Vendor Ledger (new screen `/admin/vendors/:id/ledger`)
+Fetch orders and payments in **paged batches until exhausted**, so the client-side aggregations see every row.
 
-Summary cards: Purchase Value, Paid Value, Outstanding, Open POs, Last Payment Date.
+### 1. `src/pages/admin/OrdersAdmin.tsx`
+- Replace the `orders` query body with a loop using `.range(from, from+999)` that keeps requesting 1000-row pages until a short page is returned, then concatenates.
+- Do the same for the `allPayments` query.
+- Keep the existing `queryKey`s and downstream logic unchanged — only the fetch changes.
 
-Detail table (one row per PO): Date · PO# · Customer Order# · Invoice# · Purchase ₹ · Paid ₹ · Outstanding ₹ · Status.
+### 2. Audit other admin pages that aggregate all-time data
+Quick sweep for the same pattern and apply the same paging helper where the count could exceed 1000:
+- `src/pages/admin/Dashboard.tsx` (revenue / outstanding widgets)
+- `src/pages/admin/GSTReportsAdmin.tsx` (invoice register)
+- `src/lib/gst-reports.ts` / `src/lib/gst-reconciliation.ts` (if they pull orders or sales)
+- `src/pages/admin/VendorLedger.tsx`, `VendorProfitability.tsx`, `PurchaseOrdersAdmin.tsx`
 
-Filters: vendor (when accessed from list view), date range, status. Export to Excel via existing `excel-utils`.
+Only change files where a full-history aggregation is done client-side. Detail dialogs already scope by id and are unaffected.
 
-## 4. Vendor Payment (already exists, minor polish)
+### 3. Small shared helper (optional but cleaner)
+Add `fetchAllRows(query, pageSize = 1000)` in `src/lib/supabase-paginate.ts` so each call site becomes a one-liner instead of hand-rolling the loop.
 
-`VendorPaymentsDialog` already supports Cash / UPI / Bank Transfer / Cheque / Other plus reference + notes + partial payments. Add:
-- After payment insert, if `paid_amount >= total_amount` → set PO `status = 'paid'`.
-- Show "Outstanding" badge on PO list rows.
+## Out of scope
+- No schema changes.
+- No change to Ledger sheet, invoice generation, or PO logic.
+- Not switching to server-side aggregation yet (RPC) — paged fetch is enough for current scale (~1k–5k rows) and preserves the existing filter UX.
 
-## 5. Procurement Dashboard (new section in `Dashboard.tsx`)
-
-Cards:
-- Today's Procurement (sum of PO totals where `order_date::date = today`)
-- This Week / This Month Procurement
-- Vendor Outstanding (sum `total_amount - paid_amount` across active POs)
-- Payments Due (POs where status = `payable` and outstanding > 0)
-- Open Payables count
-
-Plus a **Top 5 Vendors by Procurement Value** list (current month).
-
-## 6. Daily Vendor Procurement Summary (new dialog)
-
-"Vendor Summary" button on `PurchaseOrdersAdmin`. Picks date (default today), groups all active POs for that date by vendor, lists product · actual_qty · cost · subtotal. Actions:
-- Print (browser print)
-- Download PDF (reuse `generate-purchase-order` pattern → new lightweight HTML template `vendor-daily-summary`)
-- WhatsApp share via `https://wa.me/<vendor.phone>?text=<encoded summary>`
-
-Pure reporting layer — no new entities, just a SELECT/JOIN over `purchase_orders` + items.
-
-## 7. Vendor Profitability Report
-
-New tab on Vendor Ledger or new page `/admin/vendors/profitability`.
-
-For each vendor in date range:
-- Sales Value = Σ `order_items.total_price` where `vendor_id = v` and order is invoiced
-- Vendor Cost = Σ `order_items.vendor_cost * actual_weight` (fallback to `quantity`)
-- Margin = Sales − Cost, Margin % = Margin / Sales × 100
-
-Sortable. Export Excel.
-
-## 8. PO Visibility (retain & enrich)
-
-`PurchaseOrderDetailsDialog` already shows items. Add per-item columns:
-- Customer Order # (link), Invoice #, Apartment, Flat #, Ordered Qty, Actual Qty.
-
-Resolved by joining `purchase_order_items.order_id` → `orders` (already present).
-
-## 9. Auto-Archive Paid POs
-
-`PurchaseOrdersAdmin` default view filters out `status = 'paid'` and `cancelled`. Add a "Show archived" toggle. Paid POs remain reachable via Vendor Ledger and global search — no deletion, no schema change.
-
-## 10. Safety / Non-Goals
-
-Untouched: Orders, Order Items, Order Processing, Weight Adjustment business logic (we only **read** results to update POs), Invoices, GST Reports & Reconciliation, Customer Payments, Customer/Party Ledger, Packing Labels, Website Ordering, WhatsApp Ordering, Storefront, Auth.
-
-Migration scope: zero schema changes required — all needed columns (`status`, `paid_amount`, `actual_received_weight`, `received_quantity`, `received_at`, `vendor_cost`, `actual_weight`, `invoice_number`, `flat_number`, `building_name`) already exist.
-
-## Files
-
-**New**
-- `src/pages/admin/VendorLedger.tsx`
-- `src/pages/admin/VendorProfitability.tsx`
-- `src/components/admin/VendorDailySummaryDialog.tsx`
-- `src/lib/po-lifecycle.ts` — pure helpers: `syncPOFromWeightAdjustment`, `markPOPayableOnInvoice`, `markPOPaidIfSettled`, `transitionPOOnVendorAssign`
-
-**Edited (minimal, additive)**
-- `src/pages/admin/PurchaseOrdersAdmin.tsx` — archive filter, Vendor Summary button, status badges for new states, outstanding column
-- `src/pages/admin/Dashboard.tsx` — procurement cards + top vendors
-- `src/components/admin/WeightAdjustmentDialog.tsx` — call `syncPOFromWeightAdjustment` after finalize
-- `src/components/admin/VendorPaymentsDialog.tsx` — call `markPOPaidIfSettled` after payment
-- `src/components/admin/PurchaseOrderDetailsDialog.tsx` — enrich item rows
-- `src/lib/invoice-generator.ts` (or the invoice creation site) — call `markPOPayableOnInvoice`
-- `src/components/admin/AdminSidebar.tsx` — add "Vendor Ledger" + "Vendor Profitability" links
-- `src/App.tsx` — routes
-
-**No edits** to: GST reports/reconciliation, packing label, shipping label, edge functions for invoices, orders flow, cart, checkout, storefront.
-
-## Testing checklist
-
-- Assign vendor to an order item → PO row flips to `assigned`.
-- Finalize weight on the order → linked PO updates `received_quantity` + `total_amount`, status `received`.
-- Generate invoice → PO → `payable`.
-- Record full payment in VendorPaymentsDialog → PO → `paid`, disappears from default list.
-- Record partial payment → PO stays `payable`, outstanding updates in ledger.
-- Vendor Daily Summary → groups correctly, WhatsApp link opens with prefilled text.
-- Vendor Profitability numbers reconcile against existing reports.
-- Regression spot-checks: Orders create/edit, weight adjust dialog, invoice PDF, GST reconciliation total, packing label print — all unchanged.
+## Verification
+- Reload `/admin/orders`, search "villa 170", confirm ribbon shows **15 / ₹66,313 / ₹66,313 / ₹0**, matching the Ledger.
+- Confirm the top "Total Outstanding" and "Overdue" widgets increase to reflect the previously-hidden older orders.

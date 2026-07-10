@@ -25,6 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFinancialYears } from '@/hooks/useFinancialYears';
+import { fetchAllRows } from '@/lib/supabase-paginate';
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
@@ -52,12 +53,9 @@ export default function OrdersAdmin() {
   const { data: orders, isLoading } = useQuery({
     queryKey: ['admin', 'orders'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
+      return await fetchAllRows<any>(() =>
+        supabase.from('orders').select('*').order('created_at', { ascending: false })
+      );
     }
   });
 
@@ -65,11 +63,9 @@ export default function OrdersAdmin() {
   const { data: allPayments } = useQuery({
     queryKey: ['admin', 'all-customer-payments'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('customer_payments')
-        .select('order_id, amount, payment_date');
-      if (error) throw error;
-      return data || [];
+      return await fetchAllRows<any>(() =>
+        supabase.from('customer_payments').select('order_id, amount, payment_date')
+      );
     },
     refetchInterval: 60000,
   });
