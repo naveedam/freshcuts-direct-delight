@@ -1,5 +1,3 @@
-import type { PostgrestFilterBuilder } from '@supabase/postgrest-js';
-
 /**
  * Fetch every row for a Supabase query, working around the PostgREST
  * default 1000-row response cap by paging with .range() until a short
@@ -11,7 +9,7 @@ import type { PostgrestFilterBuilder } from '@supabase/postgrest-js';
  *   );
  */
 export async function fetchAllRows<T = any>(
-  buildQuery: () => PostgrestFilterBuilder<any, any, any> | any,
+  buildQuery: () => any,
   pageSize = 1000,
 ): Promise<T[]> {
   const all: T[] = [];
