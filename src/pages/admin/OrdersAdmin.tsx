@@ -71,6 +71,7 @@ export default function OrdersAdmin() {
       if (error) throw error;
       return data || [];
     },
+    refetchInterval: 60000,
   });
 
   // Dashboard widgets — global
@@ -89,7 +90,7 @@ export default function OrdersAdmin() {
     for (const o of orders || []) {
       if (o.invoice_cancelled) continue;
       if (o.status === 'cancelled') continue;
-      const out = (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0);
+      const out = Number(o.balance_due) || Math.max(0, (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0));
       if (out <= 0.01) continue;
       outstanding += out;
       const days = (now - new Date(o.created_at).getTime()) / 86400000;
@@ -164,7 +165,7 @@ export default function OrdersAdmin() {
       orderCount: filteredOrders.length,
       billed,
       paid,
-      outstanding: billed - paid,
+      outstanding: filteredOrders.reduce((s: number, o: any) => s + (Number(o.balance_due) || Math.max(0, (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0))), 0),
       lastPayment: lastPayment ? new Date(lastPayment) : null,
     };
   }, [filtersActive, filteredOrders, allPayments]);
@@ -182,7 +183,7 @@ export default function OrdersAdmin() {
     for (const o of orders || []) {
       if (o.invoice_cancelled) continue;
       if (o.status === 'cancelled') continue;
-      const out = (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0);
+      const out = Number(o.balance_due) || Math.max(0, (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0));
       if (out <= 0.01) continue;
       const k = partyKeyForOrder(o);
       if (!k) continue;
