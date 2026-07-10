@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabase-paginate';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,23 +40,21 @@ export default function AdminDashboard() {
   const { data: orders, isLoading } = useQuery({
     queryKey: ['admin', 'dashboard-orders'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('id, total_amount, amount_paid, balance_due, status, created_at, building_name, flat_number, shipping_cost, converted_to_sale, invoice_cancelled, weight_finalized')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data || [];
+      return await fetchAllRows<any>(() =>
+        supabase
+          .from('orders')
+          .select('id, total_amount, amount_paid, balance_due, status, created_at, building_name, flat_number, shipping_cost, converted_to_sale, invoice_cancelled, weight_finalized')
+          .order('created_at', { ascending: false })
+      );
     }
   });
 
   const { data: orderItems } = useQuery({
     queryKey: ['admin', 'dashboard-items'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('order_items')
-        .select('order_id, product_name, quantity, total_price, product_id');
-      if (error) throw error;
-      return data || [];
+      return await fetchAllRows<any>(() =>
+        supabase.from('order_items').select('order_id, product_name, quantity, total_price, product_id')
+      );
     }
   });
 
