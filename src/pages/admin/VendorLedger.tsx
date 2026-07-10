@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabase-paginate';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,9 +46,7 @@ export default function VendorLedger() {
       if (statusFilter !== 'all') q = q.eq('status', statusFilter);
       if (fromDate) q = q.gte('order_date', `${fromDate}T00:00:00`);
       if (toDate) q = q.lte('order_date', `${toDate}T23:59:59.999`);
-      const { data, error } = await q;
-      if (error) throw error;
-      return data || [];
+      return await fetchAllRows<any>(() => q);
     },
   });
 
@@ -56,7 +55,7 @@ export default function VendorLedger() {
     queryFn: async () => {
       let q = supabase.from('vendor_payments').select('vendor_id, payment_date').order('payment_date', { ascending: false });
       if (vendorId !== 'all') q = q.eq('vendor_id', vendorId);
-      const { data } = await q;
+      const data = await fetchAllRows<any>(() => q);
       const map: Record<string, string> = {};
       (data || []).forEach((p: any) => { if (!map[p.vendor_id]) map[p.vendor_id] = p.payment_date; });
       return map;
