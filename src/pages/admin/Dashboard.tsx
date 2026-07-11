@@ -157,7 +157,10 @@ export default function AdminDashboard() {
       .reduce((s, p) => s + Number(p.total_amount), 0);
     const expensesToday = (todayExpenses || []).reduce((s, e) => s + Number(e.amount), 0);
     const profitToday = salesToday - vendorCostToday - expensesToday;
-    const collectionsToday = (customerPayments || []).reduce((s, p) => s + Number(p.amount), 0);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const collectionsToday = (customerPayments || [])
+      .filter(p => p.payment_date && p.payment_date.slice(0, 10) === todayStr)
+      .reduce((s, p) => s + Number(p.amount), 0);
     const ordersToday = todayOrders.length;
     const pendingFinalization = todayOrders.filter(o =>
       !o.weight_finalized && o.status !== 'cancelled'
@@ -203,9 +206,10 @@ export default function AdminDashboard() {
     if (!orders || !orderItems) return [];
     const todayIds = new Set(orders.filter(o => new Date(o.created_at) >= today).map(o => o.id));
     const todayItems = orderItems.filter(i => todayIds.has(i.order_id));
-    const map: Record<string, { name: string; qty: number; revenue: number }> = {};
+    const productUnitMap2 = new Map((products || []).map(p => [p.id, p.unit || 'kg']));
+    const map: Record<string, { name: string; qty: number; revenue: number; unit: string }> = {};
     todayItems.forEach(i => {
-      if (!map[i.product_name]) map[i.product_name] = { name: i.product_name, qty: 0, revenue: 0 };
+      if (!map[i.product_name]) map[i.product_name] = { name: i.product_name, qty: 0, revenue: 0, unit: (i.product_id && productUnitMap2.get(i.product_id)) || 'kg' };
       map[i.product_name].qty += Number(i.quantity);
       map[i.product_name].revenue += Number(i.total_price);
     });
@@ -415,7 +419,7 @@ export default function AdminDashboard() {
                         <span className="text-sm font-medium truncate">{p.name}</span>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-sm font-bold">{p.qty % 1 === 0 ? p.qty : p.qty.toFixed(2)} kg</p>
+                        <p className="text-sm font-bold">{p.qty % 1 === 0 ? p.qty : p.qty.toFixed(2)} {p.unit || 'kg'}</p>
                         <p className="text-xs text-muted-foreground">{formatCurrency(p.revenue)}</p>
                       </div>
                     </div>
