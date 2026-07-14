@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabase-paginate';
@@ -33,9 +33,14 @@ function daysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [chartPeriod, setChartPeriod] = useState<Period>('7days');
-  const today = startOfDay(new Date());
-  const monthStart = startOfMonth(new Date());
-  const weekStart = startOfWeek(new Date());
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+  const today = startOfDay(now);
+  const monthStart = startOfMonth(now);
+  const weekStart = startOfWeek(now);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['admin', 'dashboard-orders'],
