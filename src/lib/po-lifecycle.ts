@@ -146,7 +146,7 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<void
   try {
     const { data: orderItems, error: itemsError } = await supabase
       .from('order_items')
-      .select('id, product_id, product_name, actual_weight, quantity, vendor_id, vendor_cost')
+      .select('id, product_id, product_name, actual_weight, vendor_supplied_weight, quantity, vendor_id, vendor_cost')
       .eq('order_id', orderId)
       .not('vendor_id', 'is', null);
 
@@ -185,7 +185,7 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<void
       if (!poId) continue;
 
       for (const item of items) {
-        const actualQty = Number(item.actual_weight ?? item.quantity ?? 1);
+        const actualQty = Number(item.vendor_supplied_weight ?? item.actual_weight ?? item.quantity ?? 1);
         const unitCost =
           costMap[`${vendorId}:${item.product_id}`] ??
           Number(item.vendor_cost ?? 0);
