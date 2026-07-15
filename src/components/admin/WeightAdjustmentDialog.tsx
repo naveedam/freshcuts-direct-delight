@@ -439,7 +439,15 @@ export function WeightAdjustmentDialog({
             )}
             {(!order.weight_finalized || correctionMode) && (
               <Button 
-                onClick={() => updateItemsMutation.mutate()}
+                onClick={() => {
+                  if (correctionMode) {
+                    const confirmed = window.confirm(
+                      'This order has already been finalized and may have been invoiced to the customer. Saving this correction will update the order total and resync the linked vendor PO. Continue?'
+                    );
+                    if (!confirmed) return;
+                  }
+                  updateItemsMutation.mutate();
+                }}
                 disabled={updateItemsMutation.isPending}
               >
                 {updateItemsMutation.isPending ? (

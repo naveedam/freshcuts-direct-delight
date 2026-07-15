@@ -780,10 +780,18 @@ export default function OrdersAdmin() {
                     </TableCell>
                     <TableCell>
                       {order.weight_finalized ? (
-                        <Badge variant="default" className="bg-green-600 text-xs">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Finalized
-                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 gap-1 text-xs p-1"
+                          onClick={() => setWeightAdjustOrder(order)}
+                          title="Click to correct finalized weights"
+                        >
+                          <Badge variant="default" className="bg-green-600 text-xs">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Finalized
+                          </Badge>
+                        </Button>
                       ) : (
                         <Button
                           size="sm"
