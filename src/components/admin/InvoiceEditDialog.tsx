@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Loader2, FileText, Pencil, Save, X, Share2 } from 'lucide-react';
 import { ShareInvoiceDialog } from './ShareInvoiceDialog';
 import { useAuth } from '@/context/AuthContext';
+import { syncPOsFromWeightAdjustment } from '@/lib/po-lifecycle';
 
 interface OrderItem {
   id: string;
@@ -143,9 +144,14 @@ export function InvoiceEditDialog({ open, onOpenChange, order, orderItems }: Inv
         if (error) throw error;
       }
 
-      // Update order total
+      // Update order total and recompute balance due against amount already paid
+      const amountPaid = Number(order.amount_paid) || 0;
+      const newBalanceDue = Math.max(0, totals.grandTotal - amountPaid);
+      const newPaymentStatus = newBalanceDue <= 0.01 ? 'paid' : (amountPaid > 0 ? 'partial' : 'unpaid');
       const { error: orderError } = await supabase.from('orders').update({
         total_amount: totals.grandTotal,
+        balance_due: newBalanceDue,
+        payment_status: newPaymentStatus,
       }).eq('id', order.id);
       if (orderError) throw orderError;
 
@@ -180,6 +186,9 @@ export function InvoiceEditDialog({ open, onOpenChange, order, orderItems }: Inv
           };
         }),
       });
+
+      // Resync linked vendor PO(s) with the corrected actual weights
+      await syncPOsFromWeightAdjustment(order.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
