@@ -9,3 +9,9 @@
 ### Verified
 - Confirmed vendor POs for Aqsa Mutton Stall and Feroz Fish Stall are correctly computed from actual/vendor-supplied weight rather than customer-billed weight.
 - Confirmed "Party Due" aggregation (grouped by flat + building, falling back to phone) is computing correctly; an earlier apparent discrepancy was a stale client-side cache, not a logic error.
+
+## 2026-07-15 (follow-up)
+
+### Fixed
+- The "Finalized" badge on the Orders admin table was previously a static, non-clickable badge — making the new weight-correction flow (added earlier today) unreachable for orders already marked finalized. It's now clickable and opens the same Weight Adjustment dialog.
+- Added a confirmation prompt before saving any weight correction, since the order may already have been invoiced to the customer.
