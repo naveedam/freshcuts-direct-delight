@@ -59,6 +59,7 @@ export function WeightAdjustmentDialog({
   const [vendorWeights, setVendorWeights] = useState<Record<string, string>>({});
   const [discountType, setDiscountType] = useState<'none' | 'percentage' | 'flat'>('none');
   const [discountValue, setDiscountValue] = useState('0');
+  const [correctionMode, setCorrectionMode] = useState(false);
 
   // Fetch product pricing models for the items
   const productIds = orderItems.map(i => i.product_id).filter(Boolean) as string[];
@@ -105,6 +106,7 @@ export function WeightAdjustmentDialog({
       setVendorWeights(initialVendor);
       setDiscountType((order?.discount_type as any) || 'none');
       setDiscountValue(order?.discount_value?.toString() || '0');
+      setCorrectionMode(false);
     }
   }, [open, orderItems, order]);
 
@@ -255,7 +257,7 @@ export function WeightAdjustmentDialog({
         {order.weight_finalized && (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 text-green-800">
             <Check className="h-4 w-4" />
-            <span className="text-sm">Weights have been finalized for this order</span>
+            <span className="text-sm">{correctionMode ? 'Correction mode — edit and save to resync PO' : 'Weights have been finalized for this order'}</span>
           </div>
         )}
 
@@ -310,7 +312,7 @@ export function WeightAdjustmentDialog({
                               handleWeightChange(item.id, val);
                             }}
                             className="w-20 px-1"
-                            disabled={order.weight_finalized}
+                            disabled={order.weight_finalized && !correctionMode}
                           />
                           <span className="text-xs text-muted-foreground w-8">
                             {isUnit ? 'unit' : 'kg'}
@@ -327,7 +329,7 @@ export function WeightAdjustmentDialog({
                             value={vendorWeights[item.id] ?? ''}
                             onChange={(e) => handleVendorWeightChange(item.id, e.target.value)}
                             className="w-20 px-1"
-                            disabled={order.weight_finalized}
+                            disabled={order.weight_finalized && !correctionMode}
                           />
                           <span className="text-xs text-muted-foreground w-8">
                             {isUnit ? 'unit' : 'kg'}
@@ -343,7 +345,7 @@ export function WeightAdjustmentDialog({
                             value={adjustedItems[item.id]?.price || ''}
                             onChange={(e) => handlePriceChange(item.id, e.target.value)}
                             className="w-20 px-1"
-                            disabled={order.weight_finalized}
+                            disabled={order.weight_finalized && !correctionMode}
                           />
                         </div>
                       </TableCell>
@@ -429,7 +431,13 @@ export function WeightAdjustmentDialog({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            {!order.weight_finalized && (
+            {order.weight_finalized && !correctionMode && (
+              <Button variant="outline" onClick={() => setCorrectionMode(true)}>
+                <Scale className="h-4 w-4 mr-2" />
+                Correct Weights
+              </Button>
+            )}
+            {(!order.weight_finalized || correctionMode) && (
               <Button 
                 onClick={() => updateItemsMutation.mutate()}
                 disabled={updateItemsMutation.isPending}
@@ -442,7 +450,7 @@ export function WeightAdjustmentDialog({
                 ) : (
                   <>
                     <Check className="h-4 w-4 mr-2" />
-                    Finalize Weights
+                    {order.weight_finalized ? 'Save Correction' : 'Finalize Weights'}
                   </>
                 )}
               </Button>
