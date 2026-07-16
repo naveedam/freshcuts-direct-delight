@@ -26,3 +26,13 @@
 ### Fixed
 - Party Due aggregation was silently dropping credit balances (orders with negative `balance_due` from accepted overpayments) instead of netting them against other dues. A party with a ₹232 credit and a ₹1402 invoice due now correctly shows Party Due as ₹1,170 instead of the full ₹1,402.
 - Added an explicit green "Credit: ₹X" indicator next to Party Due whenever a party has a net credit balance, linking to their ledger.
+
+## 2026-07-16 (security fixes)
+
+### Fixed — Critical
+- Invoices storage bucket was public with no authentication required — any customer invoice file was accessible to anyone with (or guessing) the file URL. Bucket is now private; access requires admin role or (for a customer's own invoice) ownership — served via signed URLs going forward.
+- Customer-facing order details page exposed internal vendor cost data (`vendor_cost`, `vendor_id`, `vendor_supplied_weight`) via an unrestricted `select('*')` on `order_items`. Added a column-limited view (`order_items_customer_view`) for customer-facing queries; vendor cost data is no longer reachable by customer accounts.
+
+### Fixed — Warnings
+- Business settings and GST configuration (GSTIN, business email, phone) were readable by any authenticated user, not just admins. Restricted to admin role.
+- Several `SECURITY DEFINER` database functions meant only to run via internal triggers (financial year assignment, PO sync, invoice/credit-note numbering, etc.) had default `EXECUTE` permission open to all authenticated and anonymous users. Revoked direct execute access; trigger-based invocation is unaffected.
