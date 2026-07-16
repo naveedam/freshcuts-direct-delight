@@ -179,11 +179,26 @@ export default function OrdersAdmin() {
     for (const o of orders || []) {
       if (o.invoice_cancelled) continue;
       if (o.status === 'cancelled') continue;
-      const out = Number(o.balance_due) || Math.max(0, (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0));
-      if (out <= 0.01) continue;
+      const hasBalanceDue = o.balance_due !== null && o.balance_due !== undefined;
+      const out = hasBalanceDue ? Number(o.balance_due) : ((Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0));
+      if (Math.abs(out) <= 0.01) continue; // skip only true zero, not credits (negative) or dues (positive)
       const k = partyKeyForOrder(o);
       if (!k) continue;
       m.set(k, (m.get(k) || 0) + out);
+    }
+    return m;
+  }, [orders]);
+  const partyCreditMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const o of orders || []) {
+      if (o.invoice_cancelled) continue;
+      if (o.status === 'cancelled') continue;
+      const hasBalanceDue = o.balance_due !== null && o.balance_due !== undefined;
+      const out = hasBalanceDue ? Number(o.balance_due) : ((Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0));
+      if (out >= -0.01) continue; // only accumulate credit (negative balance_due)
+      const k = partyKeyForOrder(o);
+      if (!k) continue;
+      m.set(k, (m.get(k) || 0) + Math.abs(out));
     }
     return m;
   }, [orders]);
@@ -836,7 +851,8 @@ export default function OrdersAdmin() {
                         const invoiceDue = Math.max(0, Number(order.balance_due) || ((Number(order.total_amount) || 0) - (Number(order.amount_paid) || 0)));
                         const pk = partyKeyForOrder(order);
                         const partyDue = pk ? (partyOutstandingMap.get(pk) || 0) : invoiceDue;
-                        const otherPartyDue = Math.max(0, partyDue - invoiceDue);
+                        const otherPartyDue = Math.abs(partyDue - invoiceDue) > 0.01 ? Math.max(0, partyDue) : 0;
+                        const partyCredit = pk ? (partyCreditMap.get(pk) || 0) : 0;
                         const lk = ledgerKeyForOrder(order);
                         return (
                           <TooltipProvider delayDuration={150}>
@@ -879,6 +895,20 @@ export default function OrdersAdmin() {
                                   </button>
                                 </TooltipTrigger>
                                 <TooltipContent>Total pending across all invoices for this party — click to view ledger</TooltipContent>
+                              </Tooltip>
+                            )}
+                            {!order.invoice_cancelled && partyCredit > 0.01 && lk && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setLedgerParty({ key: lk, title: order.building_name || order.flat_number || order.phone || order.customer_email || 'Party' }); }}
+                                    className="text-[11px] font-medium text-green-600 hover:text-green-800 hover:underline mt-0.5 leading-tight block"
+                                  >
+                                    Credit: {formatCurrency(partyCredit)}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Credit balance from excess payment — click to view ledger</TooltipContent>
                               </Tooltip>
                             )}
                           </TooltipProvider>
