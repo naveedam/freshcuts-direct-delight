@@ -20,3 +20,9 @@
 
 ### Fixed
 - Editing an invoice's quantity/rate via "Preview & Edit Invoice" updated `total_amount` but not `balance_due` — meaning the customer's outstanding due stayed stuck at the pre-edit amount (found on INV-2026-01314: total corrected from ₹329 to ₹282, but Party Due still showed ₹329). Balance due and payment status now recompute correctly on save, and the linked vendor PO resyncs too.
+
+## 2026-07-16 (party due / credit balance fix)
+
+### Fixed
+- Party Due aggregation was silently dropping credit balances (orders with negative `balance_due` from accepted overpayments) instead of netting them against other dues. A party with a ₹232 credit and a ₹1402 invoice due now correctly shows Party Due as ₹1,170 instead of the full ₹1,402.
+- Added an explicit green "Credit: ₹X" indicator next to Party Due whenever a party has a net credit balance, linking to their ledger.
