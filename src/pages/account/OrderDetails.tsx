@@ -53,7 +53,7 @@ export default function OrderDetails() {
     queryKey: ['order-items', orderId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('order_items')
+        .from('order_items_customer_view')
         .select('*')
         .eq('order_id', orderId!);
       if (error) throw error;
