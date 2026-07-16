@@ -179,8 +179,7 @@ export default function OrdersAdmin() {
     for (const o of orders || []) {
       if (o.invoice_cancelled) continue;
       if (o.status === 'cancelled') continue;
-      const hasBalanceDue = o.balance_due !== null && o.balance_due !== undefined;
-      const out = hasBalanceDue ? Number(o.balance_due) : ((Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0));
+      const out = Number(o.balance_due) || ((Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0));
       if (Math.abs(out) <= 0.01) continue; // skip only true zero, not credits (negative) or dues (positive)
       const k = partyKeyForOrder(o);
       if (!k) continue;
@@ -193,8 +192,7 @@ export default function OrdersAdmin() {
     for (const o of orders || []) {
       if (o.invoice_cancelled) continue;
       if (o.status === 'cancelled') continue;
-      const hasBalanceDue = o.balance_due !== null && o.balance_due !== undefined;
-      const out = hasBalanceDue ? Number(o.balance_due) : ((Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0));
+      const out = Number(o.balance_due) || ((Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0));
       if (out >= -0.01) continue; // only accumulate credit (negative balance_due)
       const k = partyKeyForOrder(o);
       if (!k) continue;
