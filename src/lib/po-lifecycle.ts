@@ -191,9 +191,14 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<{ su
 
       for (const item of items) {
         const actualQty = Number(item.vendor_supplied_weight ?? item.actual_weight ?? item.quantity ?? 1);
-        const unitCost =
-          costMap[`${vendorId}:${item.product_id}`] ??
-          Number(item.vendor_cost ?? 0);
+        // A mapped cost_price of 0 means "not yet set" (the DB column is
+        // NOT NULL, so 0 is the only way to represent "unknown"), not a
+        // real zero price — treat it the same as unmapped and fall back
+        // to the manually-entered vendor_cost on the order item.
+        const mappedCost = costMap[`${vendorId}:${item.product_id}`];
+        const unitCost = (mappedCost && mappedCost > 0)
+          ? mappedCost
+          : Number(item.vendor_cost ?? 0);
         const totalCost = actualQty * unitCost;
         const gstRate = item.product_id ? (gstMap[item.product_id] ?? 0) : 0;
         const taxAmount = Math.round(totalCost * gstRate) / 100;
