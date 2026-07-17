@@ -226,6 +226,14 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
     setLineItems(updated);
   };
 
+  const getVendorsForProduct = (productId: string | null) => {
+    if (!productId || !vendorProducts || !vendors) return vendors || [];
+    const allowedVendorIds = new Set(
+      vendorProducts.filter(vp => vp.product_id === productId).map(vp => vp.vendor_id)
+    );
+    if (allowedVendorIds.size === 0) return vendors; // no mapping yet — fall back to full list rather than blocking entry
+    return vendors.filter(v => allowedVendorIds.has(v.id));
+  };
   const selectProduct = (index: number, productId: string) => {
     const product = products?.find(p => p.id === productId);
     if (product) {
@@ -699,7 +707,7 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="none" className="text-xs">No vendor</SelectItem>
-                              {vendors?.map((v) => (
+                              {getVendorsForProduct(item.product_id)?.map((v) => (
                                 <SelectItem key={v.id} value={v.id} className="text-xs">
                                   {v.name}
                                 </SelectItem>
