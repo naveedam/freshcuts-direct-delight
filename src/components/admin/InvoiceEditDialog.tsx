@@ -188,12 +188,15 @@ export function InvoiceEditDialog({ open, onOpenChange, order, orderItems }: Inv
       });
 
       // Resync linked vendor PO(s) with the corrected actual weights
-      await syncPOsFromWeightAdjustment(order.id);
+      return await syncPOsFromWeightAdjustment(order.id);
     },
-    onSuccess: () => {
+    onSuccess: (poSyncResult) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'orderItems'] });
       toast.success('Invoice items updated successfully');
+      if (poSyncResult && poSyncResult.success === false) {
+        toast.warning('Invoice updated, but vendor PO sync failed: ' + (poSyncResult.error || 'unknown error') + '. Please check the purchase order manually.');
+      }
       setEditMode(false);
     },
     onError: (error) => {

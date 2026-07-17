@@ -134,7 +134,7 @@ async function refreshPOTotals(poId: string): Promise<void> {
  *   3. Refresh PO totals
  *   4. Transition PO to 'received'
  */
-export async function syncPOsFromWeightAdjustment(orderId: string): Promise<void> {
+export async function syncPOsFromWeightAdjustment(orderId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const { data: orderItems, error: itemsError } = await supabase
       .from('order_items')
@@ -142,7 +142,8 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<void
       .eq('order_id', orderId)
       .not('vendor_id', 'is', null);
 
-    if (itemsError || !orderItems?.length) return;
+    if (itemsError) return { success: false, error: itemsError.message };
+    if (!orderItems?.length) return { success: true };
 
     // Group by vendor
     const byVendor: Record<string, typeof orderItems> = {};
@@ -152,7 +153,7 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<void
       byVendor[item.vendor_id].push(item);
     }
 
-    if (!Object.keys(byVendor).length) return;
+    if (!Object.keys(byVendor).length) return { success: true };
 
     // Fetch vendor_products cost prices
     const productIds = orderItems.map((i) => i.product_id).filter(Boolean) as string[];
@@ -257,8 +258,10 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<void
           .eq('id', poId);
       }
     }
-  } catch (err) {
+    return { success: true };
+  } catch (err: any) {
     console.error('[po-lifecycle] syncPOsFromWeightAdjustment failed:', err);
+    return { success: false, error: err?.message || 'Unknown error' };
   }
 }
 

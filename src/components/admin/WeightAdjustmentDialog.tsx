@@ -205,14 +205,17 @@ export function WeightAdjustmentDialog({
       if (orderError) throw orderError;
 
       // Sync linked purchase orders with the finalized actuals (additive — no
-      // change to order/invoice logic). Failures are logged inside the helper.
-      await syncPOsFromWeightAdjustment(order.id);
+      // change to order/invoice logic).
+      return await syncPOsFromWeightAdjustment(order.id);
     },
-    onSuccess: () => {
+    onSuccess: (poSyncResult) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'orderItems'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-orders'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-order-stats'] });
+      if (poSyncResult && poSyncResult.success === false) {
+        toast.warning('Weights saved, but vendor PO sync failed: ' + (poSyncResult.error || 'unknown error') + '. Please check the purchase order manually.');
+      }
       toast.success('Weights, prices and discount updated successfully');
       onOpenChange(false);
     },
