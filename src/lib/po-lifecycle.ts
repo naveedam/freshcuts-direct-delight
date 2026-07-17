@@ -114,22 +114,14 @@ async function getOrCreateDailyPO(
 async function refreshPOTotals(poId: string): Promise<void> {
   const { data: items } = await supabase
     .from('purchase_order_items')
-    .select('total_cost')
+    .select('total_cost, tax_amount')
     .eq('purchase_order_id', poId);
-
   const subtotal = (items || []).reduce((s, i) => s + Number(i.total_cost || 0), 0);
-
-  const { data: po } = await supabase
-    .from('purchase_orders')
-    .select('tax_amount')
-    .eq('id', poId)
-    .single();
-
-  const total = subtotal + Number(po?.tax_amount || 0);
-
+  const taxAmount = (items || []).reduce((s, i) => s + Number(i.tax_amount || 0), 0);
+  const total = subtotal + taxAmount;
   await supabase
     .from('purchase_orders')
-    .update({ subtotal, total_amount: total })
+    .update({ subtotal, tax_amount: taxAmount, total_amount: total })
     .eq('id', poId);
 }
 
@@ -176,6 +168,18 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<void
     for (const vp of vendorProducts || []) {
       costMap[`${vp.vendor_id}:${vp.product_id}`] = vp.cost_price;
     }
+    // Vendor PO tax mirrors the same GST rate charged to the customer for
+    // this product (products.gst_rate) — we pay tax on purchase and collect
+    // the same on sale; both are reported via the monthly GST reports.
+    const { data: productGst } = await supabase
+      .from('products')
+      .select('id, gst_rate, gst_type')
+      .in('id', productIds);
+    const gstMap: Record<string, number> = {};
+    for (const p of productGst || []) {
+      const nt = String(p.gst_type || '').toLowerCase();
+      gstMap[p.id] = (nt === 'taxable' && Number(p.gst_rate) > 0) ? Number(p.gst_rate) : 0;
+    }
 
     const today = new Date().toISOString().split('T')[0];
     const now = new Date().toISOString();
@@ -190,6 +194,8 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<void
           costMap[`${vendorId}:${item.product_id}`] ??
           Number(item.vendor_cost ?? 0);
         const totalCost = actualQty * unitCost;
+        const gstRate = item.product_id ? (gstMap[item.product_id] ?? 0) : 0;
+        const taxAmount = Math.round(totalCost * gstRate) / 100;
 
         // Check if this order_id + product already has a line in this PO
         const { data: existing } = await supabase
@@ -208,6 +214,7 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<void
               quantity: actualQty,
               unit_cost: unitCost,
               total_cost: totalCost,
+              tax_amount: taxAmount,
               actual_received_weight: actualQty,
               received_quantity: Math.max(1, Math.round(actualQty)),
               received_at: now,
@@ -224,6 +231,7 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<void
               quantity: actualQty,
               unit_cost: unitCost,
               total_cost: totalCost,
+              tax_amount: taxAmount,
               actual_received_weight: actualQty,
               received_quantity: Math.max(1, Math.round(actualQty)),
               received_at: now,
