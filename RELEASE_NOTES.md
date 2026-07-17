@@ -36,3 +36,12 @@
 ### Fixed — Warnings
 - Business settings and GST configuration (GSTIN, business email, phone) were readable by any authenticated user, not just admins. Restricted to admin role.
 - Several `SECURITY DEFINER` database functions meant only to run via internal triggers (financial year assignment, PO sync, invoice/credit-note numbering, etc.) had default `EXECUTE` permission open to all authenticated and anonymous users. Revoked direct execute access; trigger-based invocation is unaffected.
+
+## 2026-07-16 (vendor PO GST fix)
+
+### Fixed
+- Vendor purchase orders were computed as quantity x unit_cost only, with no GST component, even for vendors who charge tax on their invoices (found via SRY Enterprises — PO showed basic value while the actual payment made was GST-inclusive). Purchase order line items now carry their own `tax_amount`, computed from the same `products.gst_rate` used for customer-facing sales, since GST paid on purchase and GST collected on sale are both reported via the monthly GST returns.
+- Backfilled the two existing SRY Enterprises POs that were missing tax; confirmed no other vendor POs across the system were affected.
+
+### Noted internally (no code change)
+- 6 Golden Prize Sardine variants (HSN 16041310) were found still taxed at the pre-1-April-2026 rate of 12% instead of the corrected 5%. Product master fixed. One invoice (INV-2026-01332) was affected, overcharging the customer ₹15.82 — noted internally, no credit note issued given the immaterial amount.
