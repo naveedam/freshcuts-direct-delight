@@ -45,3 +45,13 @@
 
 ### Noted internally (no code change)
 - 6 Golden Prize Sardine variants (HSN 16041310) were found still taxed at the pre-1-April-2026 rate of 12% instead of the corrected 5%. Product master fixed. One invoice (INV-2026-01332) was affected, overcharging the customer ₹15.82 — noted internally, no credit note issued given the immaterial amount.
+
+## 2026-07-16 (vendor-product mapping & PO sync reliability)
+
+### Fixed
+- Vendor dropdown at order entry previously allowed any vendor to be assigned to any product, with no constraint — this let a Chicken order (B1503, 16 July) get misrouted to Aqsa Mutton Stall instead of a poultry vendor. Populated the vendor_products mapping table for the full catalog (Seafood & Fish -> Feroz + Mangaluru, Lamb & Mutton -> Aqsa + Crown + Musavir, Poultry -> M N Broilers + Bismillah + Al Azeez + Tannu + A S Chicken + Crown, Eggs -> A J Eggs, Kebabs -> Patli Galli, Fresh Paneer -> Patiala Lassi, everything else -> SRY Enterprises + Jagadamba Marketing) and restricted the order-entry dropdown to only show vendors mapped to the selected product.
+- A vendor PO sync could silently fail with zero visible error, leaving a correctly-vendor-tagged line item completely absent from that vendor's purchase order (found via manual reconciliation: Feroz Fish Stall was missing a Seer Fish Fillets line, T2 1204, 16 July). The sync function now reports success/failure explicitly, and the admin sees an on-screen warning immediately if it fails, instead of only discovering it through manual tallying.
+- Backfilled the missing Feroz PO line for the affected order.
+
+### Data cleanup
+- Fixed "Beef Soup Bones" being miscategorized under Pantry Essentials instead of Beef (Beef category is currently unpublished/hidden from the storefront).
