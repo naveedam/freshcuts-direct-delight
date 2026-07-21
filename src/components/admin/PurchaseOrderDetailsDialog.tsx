@@ -6,8 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Send, XCircle, CheckCircle, Loader2, TrendingDown, TrendingUp, Minus, AlertTriangle, CreditCard } from 'lucide-react';
+import { Send, XCircle, CheckCircle, Loader2, TrendingDown, TrendingUp, Minus, AlertTriangle, CreditCard, Pencil, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
 import { formatCurrency } from '@/lib/currency';
 import { PurchaseOrder } from '@/types/vendor';
 import { format } from 'date-fns';
@@ -23,6 +24,8 @@ interface PurchaseOrderDetailsDialogProps {
 export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseOrderDetailsDialogProps) {
   const queryClient = useQueryClient();
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editedCost, setEditedCost] = useState('');
 
   // Fetch products for pricing model info
   const { data: products } = useQuery({
@@ -91,6 +94,57 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
     }
   });
 
+  // Settlement-time price correction — updates only this line item's cost
+  // (never order_item_id/order_id/received_* fields, so it never breaks the
+  // link back to the customer order or reintroduces duplicate PO items on a
+  // future sync), then rolls up the parent PO's totals.
+  const updateItemCostMutation = useMutation({
+    mutationFn: async ({ itemId, newUnitCost }: { itemId: string; newUnitCost: number }) => {
+      const item = items.find((i: any) => i.id === itemId);
+      if (!item) throw new Error('Item not found');
+      const basisQty = item.actual_received_weight && item.actual_received_weight > 0
+        ? item.actual_received_weight
+        : item.quantity;
+      const newTotalCost = Math.round(basisQty * newUnitCost * 100) / 100;
+      let newTaxAmount = 0;
+      if (item.product_id) {
+        const { data: product } = await supabase
+          .from('products')
+          .select('gst_rate, gst_type')
+          .eq('id', item.product_id)
+          .maybeSingle();
+        const nt = String(product?.gst_type || '').toLowerCase();
+        const gstRate = (nt === 'taxable' && Number(product?.gst_rate) > 0) ? Number(product?.gst_rate) : 0;
+        newTaxAmount = Math.round(newTotalCost * gstRate) / 100;
+      }
+      const { error: itemError } = await supabase
+        .from('purchase_order_items')
+        .update({ unit_cost: newUnitCost, total_cost: newTotalCost, tax_amount: newTaxAmount })
+        .eq('id', itemId);
+      if (itemError) throw itemError;
+      const { data: allItems } = await supabase
+        .from('purchase_order_items')
+        .select('total_cost, tax_amount')
+        .eq('purchase_order_id', purchaseOrder!.id);
+      const subtotal = (allItems || []).reduce((s, i: any) => s + Number(i.total_cost || 0), 0);
+      const taxAmount = (allItems || []).reduce((s, i: any) => s + Number(i.tax_amount || 0), 0);
+      const { error: poError } = await supabase
+        .from('purchase_orders')
+        .update({ subtotal, tax_amount: taxAmount, total_amount: subtotal + taxAmount })
+        .eq('id', purchaseOrder!.id);
+      if (poError) throw poError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['po-items', purchaseOrder?.id] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-order-stats'] });
+      toast.success('Price updated');
+      setEditingItemId(null);
+    },
+    onError: (error: Error) => {
+      toast.error('Failed to update price: ' + error.message);
+    }
+  });
   if (!purchaseOrder) return null;
 
   const getProductInfo = (productId: string | null) => {
@@ -252,7 +306,63 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-right">{formatCurrency(item.unit_cost)}/{unitLabel}</TableCell>
+                          <TableCell className="text-right">
+                            {editingItemId === item.id ? (
+                              <div className="flex items-center justify-end gap-1">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  autoFocus
+                                  value={editedCost}
+                                  onChange={(e) => setEditedCost(e.target.value)}
+                                  className="w-24 h-8 text-right"
+                                />
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8"
+                                  disabled={updateItemCostMutation.isPending}
+                                  onClick={() => {
+                                    const parsed = parseFloat(editedCost);
+                                    if (isNaN(parsed) || parsed < 0) {
+                                      toast.error('Enter a valid cost');
+                                      return;
+                                    }
+                                    updateItemCostMutation.mutate({ itemId: item.id, newUnitCost: parsed });
+                                  }}
+                                >
+                                  {updateItemCostMutation.isPending
+                                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    : <Check className="h-3.5 w-3.5 text-green-600" />}
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8"
+                                  onClick={() => setEditingItemId(null)}
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-end gap-1">
+                                {formatCurrency(item.unit_cost)}/{unitLabel}
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6"
+                                  title="Correct vendor price at settlement"
+                                  onClick={() => {
+                                    setEditingItemId(item.id);
+                                    setEditedCost(String(item.unit_cost));
+                                  }}
+                                >
+                                  <Pencil className="h-3 w-3 text-muted-foreground" />
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">{formatCurrency(item.total_cost)}</TableCell>
                           <TableCell className="text-right">
                             {actualWeight > 0 ? (
