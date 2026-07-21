@@ -303,8 +303,8 @@ export function WeightAdjustmentDialog({
                         <div className="flex items-center justify-center gap-1">
                           <Input
                             type="number"
-                            step={isUnit ? '1' : '0.01'}
-                            min={isUnit ? '1' : '0.01'}
+                            step={isUnit ? '1' : '0.001'}
+                            min={isUnit ? '1' : '0.001'}
                             value={adjustedItems[item.id]?.weight || ''}
                             onChange={(e) => {
                               let val = e.target.value;
@@ -326,7 +326,7 @@ export function WeightAdjustmentDialog({
                         <div className="flex items-center justify-center gap-1">
                           <Input
                             type="number"
-                            step={isUnit ? '1' : '0.01'}
+                            step={isUnit ? '1' : '0.001'}
                             min="0"
                             placeholder={adjustedItems[item.id]?.weight || ''}
                             value={vendorWeights[item.id] ?? ''}

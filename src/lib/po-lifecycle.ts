@@ -145,6 +145,18 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<{ su
     if (itemsError) return { success: false, error: itemsError.message };
     if (!orderItems?.length) return { success: true };
 
+    // Use the order's own date (when it was actually placed/finalized), not
+    // the current date — this function can run well after the order date
+    // (e.g. an invoice edit days later), and must attach to the PO for the
+    // order's real date, not create a fresh "today" PO each time it runs.
+    const { data: orderRow } = await supabase
+      .from('orders')
+      .select('created_at')
+      .eq('id', orderId)
+      .single();
+    const poDate = (orderRow?.created_at ? new Date(orderRow.created_at) : new Date())
+      .toISOString().split('T')[0];
+
     // Group by vendor
     const byVendor: Record<string, typeof orderItems> = {};
     for (const item of orderItems) {
@@ -182,11 +194,11 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<{ su
       gstMap[p.id] = (nt === 'taxable' && Number(p.gst_rate) > 0) ? Number(p.gst_rate) : 0;
     }
 
-    const today = new Date().toISOString().split('T')[0];
+
     const now = new Date().toISOString();
 
     for (const [vendorId, items] of Object.entries(byVendor)) {
-      const poId = await getOrCreateDailyPO(vendorId, today);
+      const poId = await getOrCreateDailyPO(vendorId, poDate);
       if (!poId) continue;
 
       for (const item of items) {
