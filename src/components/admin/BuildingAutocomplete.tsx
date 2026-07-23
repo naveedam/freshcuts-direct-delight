@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 interface BuildingAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
+  flatNumber?: string;
   placeholder?: string;
   id?: string;
 }
@@ -17,6 +18,7 @@ interface BuildingAutocompleteProps {
 export function BuildingAutocomplete({
   value,
   onChange,
+  flatNumber = '',
   placeholder = 'Start typing apartment name...',
   id,
 }: BuildingAutocompleteProps) {
@@ -24,24 +26,29 @@ export function BuildingAutocomplete({
   const [highlight, setHighlight] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { data: buildings = [] } = useQuery({
-    queryKey: ['distinct-building-names'],
+  const { data: pairs = [] } = useQuery({
+    queryKey: ['building-flat-pairs-for-building'],
     queryFn: async () => {
-      const data = await fetchAllRows<{ building_name: string }>(() =>
+      const data = await fetchAllRows<{ building_name: string; flat_number: string }>(() =>
         supabase
           .from('orders')
-          .select('building_name')
+          .select('building_name, flat_number')
           .not('building_name', 'is', null)
       );
-      const set = new Set<string>();
-      (data ?? []).forEach((r: any) => {
-        const v = (r.building_name ?? '').trim();
-        if (v) set.add(v);
-      });
-      return Array.from(set).sort((a, b) => a.localeCompare(b));
+      return (data ?? []).map((r: any) => ({
+        building: (r.building_name ?? '').trim(),
+        flat: (r.flat_number ?? '').trim(),
+      })).filter((p) => p.building);
     },
     staleTime: 5 * 60 * 1000,
   });
+  const buildings = useMemo(() => {
+    const fn = flatNumber.trim().toLowerCase();
+    const source = fn ? pairs.filter((p) => p.flat.toLowerCase() === fn) : pairs;
+    const set = new Set<string>();
+    source.forEach((p) => { if (p.building) set.add(p.building); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [pairs, flatNumber]);
 
   const suggestions = useMemo(() => {
     const q = value.trim().toLowerCase();

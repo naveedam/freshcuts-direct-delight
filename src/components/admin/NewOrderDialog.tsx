@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/currency';
 import { BuildingAutocomplete } from './BuildingAutocomplete';
+import { FlatAutocomplete } from './FlatAutocomplete';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
 
@@ -575,15 +576,16 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
                 <BuildingAutocomplete
                   value={buildingName}
                   onChange={setBuildingName}
+                  flatNumber={flatNumber}
                 />
               </div>
               <div className="space-y-2">
                 <Label>Flat / House Number</Label>
-                <Input
+                <FlatAutocomplete
                   value={flatNumber}
-                  onChange={(e) => setFlatNumber(e.target.value)}
-                  placeholder="e.g. A-402"
-                  maxLength={20}
+                  onChange={setFlatNumber}
+                  buildingName={buildingName}
+                  onBuildingMatch={setBuildingName}
                 />
               </div>
             </div>
