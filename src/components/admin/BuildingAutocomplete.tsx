@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabase-paginate';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MapPin, Check } from 'lucide-react';
@@ -26,13 +27,12 @@ export function BuildingAutocomplete({
   const { data: buildings = [] } = useQuery({
     queryKey: ['distinct-building-names'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('building_name')
-        .not('building_name', 'is', null)
-        .order('building_name', { ascending: true })
-        .limit(2000);
-      if (error) throw error;
+      const data = await fetchAllRows<{ building_name: string }>(() =>
+        supabase
+          .from('orders')
+          .select('building_name')
+          .not('building_name', 'is', null)
+      );
       const set = new Set<string>();
       (data ?? []).forEach((r: any) => {
         const v = (r.building_name ?? '').trim();
