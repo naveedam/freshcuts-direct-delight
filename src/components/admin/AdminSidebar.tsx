@@ -19,6 +19,7 @@ import {
 const menuItems = [
   { title: 'Dashboard', url: '/admin', icon: LayoutDashboard },
   { title: 'Products', url: '/admin/products', icon: Package },
+  { title: "Today's Catch", url: '/admin/todays-catch', icon: Building2 },
   { title: 'Bulk Upload', url: '/admin/products/bulk-upload', icon: Upload },
   { title: 'Categories', url: '/admin/categories', icon: Layers },
   { title: 'Orders', url: '/admin/orders', icon: ShoppingCart },
