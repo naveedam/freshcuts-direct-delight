@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -38,6 +38,17 @@ interface OrderLineItem {
 interface NewOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  prefill?: {
+    customerEmail?: string;
+    customerPhone?: string;
+    buildingName?: string;
+    flatNumber?: string;
+    shippingAddress?: string;
+    shippingCity?: string;
+    shippingPostalCode?: string;
+    placeOfSupply?: string;
+    lineItems?: OrderLineItem[];
+  } | null;
 }
 
 const INDIAN_STATES = [
@@ -101,7 +112,7 @@ const defaultCustomItem: Omit<OrderLineItem, 'product_id'> & { product_id: null 
   save_to_catalog: false,
 };
 
-export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
+export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogProps) {
   const queryClient = useQueryClient();
   
   // Customer details
@@ -122,6 +133,24 @@ export function NewOrderDialog({ open, onOpenChange }: NewOrderDialogProps) {
   const [lineItems, setLineItems] = useState<OrderLineItem[]>([
     { product_id: null, product_name: '', quantity: 1, unit_price: 0, vendor_cost: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }
   ]);
+
+  // Prefill from a "Repeat Order" action — only applies when the dialog opens with data
+  useEffect(() => {
+    if (open && prefill) {
+      setCustomerEmail(prefill.customerEmail || '');
+      setCustomerPhone(prefill.customerPhone || '');
+      setBuildingName(prefill.buildingName || '');
+      setFlatNumber(prefill.flatNumber || '');
+      setShippingAddress(prefill.shippingAddress || '');
+      setShippingCity(prefill.shippingCity || '');
+      setShippingPostalCode(prefill.shippingPostalCode || '');
+      setPlaceOfSupply(prefill.placeOfSupply || '29');
+      if (prefill.lineItems && prefill.lineItems.length > 0) {
+        setLineItems(prefill.lineItems);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, prefill]);
 
   // Custom item dialog
   const [customItemOpen, setCustomItemOpen] = useState(false);

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, FileText, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays, FileEdit, CreditCard, BookOpen, Send, Wallet, AlertTriangle, IndianRupee, Tag } from 'lucide-react';
+import { Eye, FileText, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays, FileEdit, CreditCard, BookOpen, Send, Wallet, AlertTriangle, IndianRupee, Tag, Repeat, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +47,8 @@ export default function OrdersAdmin() {
   const [dateTo, setDateTo] = useState<string>('');
   const [cancelTarget, setCancelTarget] = useState<any>(null);
   const [cancelReason, setCancelReason] = useState<string>('');
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [repeatOrderPrefill, setRepeatOrderPrefill] = useState<any>(null);
   const [ledgerParty, setLedgerParty] = useState<{ key: PartyKey; title: string } | null>(null);
   const { data: financialYears } = useFinancialYears();
 
@@ -220,6 +222,43 @@ export default function OrdersAdmin() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
+  const handleRepeatOrder = async (order: any) => {
+    const { data: items, error } = await supabase
+      .from('order_items')
+      .select('*')
+      .eq('order_id', order.id);
+    if (error) {
+      toast.error('Failed to load items for repeat order: ' + error.message);
+      return;
+    }
+    const dbGstTypeToUi = (t: string) => t === 'nil' ? 'Nil-rated' : t === 'taxable' ? 'Taxable' : 'Exempt';
+    const lineItems = (items || [])
+      .filter((it: any) => Number(it.quantity) > 0)
+      .map((it: any) => ({
+        product_id: it.product_id || null,
+        product_name: it.product_name,
+        quantity: Number(it.quantity),
+        unit_price: Number(it.unit_price),
+        vendor_cost: Number(it.vendor_cost) || 0,
+        hsn_code: it.hsn_code || '',
+        gst_type: dbGstTypeToUi(it.gst_type),
+        gst_rate: Number(it.gst_rate) || 0,
+        vendor_id: it.vendor_id || null,
+      }));
+    setRepeatOrderPrefill({
+      customerEmail: order.customer_email || '',
+      customerPhone: order.phone || '',
+      buildingName: order.building_name || '',
+      flatNumber: order.flat_number || '',
+      shippingAddress: order.shipping_address || '',
+      shippingCity: order.shipping_city || '',
+      shippingPostalCode: order.shipping_postal_code || '',
+      placeOfSupply: order.place_of_supply || '29',
+      lineItems,
+    });
+    setNewOrderOpen(true);
+  };
+
   // Check if an order belongs to a closed FY
   const isOrderInClosedFY = (order: any): boolean => {
     if (!order.financial_year_id || !financialYears) return false;
@@ -370,6 +409,48 @@ export default function OrdersAdmin() {
     onError: (error) => {
       toast.error('Failed to update status: ' + error.message);
     }
+  });
+
+  const deleteOrderMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      // Guard: block delete if any customer payments exist against this order —
+      // those are financial records and shouldn't silently disappear.
+      const { data: payments, error: paymentsError } = await supabase
+        .from('customer_payments')
+        .select('id')
+        .eq('order_id', orderId)
+        .limit(1);
+      if (paymentsError) throw paymentsError;
+      if (payments && payments.length > 0) {
+        throw new Error('This order has payment records against it and cannot be deleted.');
+      }
+
+      const { error: editLogsError } = await supabase
+        .from('order_edit_logs' as any)
+        .delete()
+        .eq('order_id', orderId);
+      if (editLogsError) console.error('Failed to delete order edit logs:', editLogsError);
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .delete()
+        .eq('order_id', orderId);
+      if (itemsError) throw itemsError;
+
+      const { error: orderError } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', orderId);
+      if (orderError) throw orderError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
+      toast.success('Order deleted');
+      setDeleteTarget(null);
+    },
+    onError: (error: any) => {
+      toast.error('Failed to delete order: ' + error.message);
+    },
   });
 
   const handleStatusChange = (order: any, status: string) => {
@@ -652,7 +733,11 @@ export default function OrdersAdmin() {
         </div>
 
         {/* New Order Dialog */}
-        <NewOrderDialog open={newOrderOpen} onOpenChange={setNewOrderOpen} />
+        <NewOrderDialog
+          open={newOrderOpen}
+          onOpenChange={(o) => { setNewOrderOpen(o); if (!o) setRepeatOrderPrefill(null); }}
+          prefill={repeatOrderPrefill}
+        />
 
         {/* Party summary bar */}
         {partySummary && (
@@ -941,6 +1026,27 @@ export default function OrdersAdmin() {
                           <Pencil className="h-4 w-4" />
                         </Button>
                         
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRepeatOrder(order)}
+                          title="Repeat Order — prefill a new order with this customer's usual items"
+                        >
+                          <Repeat className="h-4 w-4" />
+                        </Button>
+
+                        {order.status === 'cancelled' && !order.converted_to_sale && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDeleteTarget(order)}
+                            title="Delete cancelled order (no invoice generated)"
+                            className="text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+
                         {!order.converted_to_sale && (
                           <Button 
                             size="sm" 
@@ -1277,6 +1383,38 @@ export default function OrdersAdmin() {
                 disabled={updateStatusMutation.isPending}
               >
                 Cancel with Credit Note
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Cancelled Order Confirmation */}
+        <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete this cancelled order?</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">
+                This will permanently delete order
+                {deleteTarget?.id ? <> <span className="font-mono text-foreground">#{deleteTarget.id.slice(0, 8)}</span></> : null}
+                {' '}and its line items. This cannot be undone.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Only available for cancelled orders with no invoice generated. If this order has payment records, deletion will be blocked.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
+                Keep Order
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteTarget && deleteOrderMutation.mutate(deleteTarget.id)}
+                disabled={deleteOrderMutation.isPending}
+              >
+                {deleteOrderMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Delete Permanently
               </Button>
             </div>
           </DialogContent>
