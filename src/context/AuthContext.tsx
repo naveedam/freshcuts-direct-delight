@@ -29,15 +29,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
 
-        // Check admin role with setTimeout to avoid deadlock
+        // Check admin role with setTimeout to avoid deadlock. loading only
+        // clears once this resolves, so RequireAdmin never sees a stale
+        // isAdmin=false for a session that's still being checked.
         if (session?.user) {
           setTimeout(() => {
-            checkAdminRole(session.user.id);
+            checkAdminRole(session.user.id).finally(() => setLoading(false));
           }, 0);
         } else {
           setIsAdmin(false);
+          setLoading(false);
         }
       }
     );
@@ -46,10 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
 
       if (session?.user) {
-        checkAdminRole(session.user.id);
+        checkAdminRole(session.user.id).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
       }
     });
 
