@@ -343,6 +343,7 @@ export default function OrdersAdmin() {
       if (status === 'cancelled' && cancelInvoice) {
         updates.invoice_cancelled = true;
         updates.invoice_cancelled_at = new Date().toISOString();
+        updates.balance_due = 0;
         if (reason) updates.invoice_cancelled_reason = reason;
         const {
           data: { user },
