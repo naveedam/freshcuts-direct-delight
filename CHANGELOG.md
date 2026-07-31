@@ -20,3 +20,4 @@ All notable changes to FreshCuts Daily are documented here.
 
 ### Security
 - Full security audit performed — see `docs/security-audit-2026-07-30.md` for the complete findings.
+- Confirmed Lovable is **not** actively connected to the GitHub repo (Lovable's "Connect project" screen shows a "Connect" button, not a connected state) — commit history visible in Lovable is just a read-only display of GitHub activity, not a live two-way sync. No action needed; noting this so it doesn't need re-checking later.
