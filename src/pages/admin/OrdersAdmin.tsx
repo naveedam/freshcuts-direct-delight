@@ -163,7 +163,9 @@ export default function OrdersAdmin() {
       orderCount: filteredOrders.length,
       billed,
       paid,
-      outstanding: filteredOrders.reduce((s: number, o: any) => s + (Number(o.balance_due) || Math.max(0, (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0))), 0),
+      outstanding: filteredOrders
+        .filter((o: any) => !o.invoice_cancelled && o.status !== 'cancelled')
+        .reduce((s: number, o: any) => s + (Number(o.balance_due) || Math.max(0, (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0))), 0),
       lastPayment: lastPayment ? new Date(lastPayment) : null,
     };
   }, [filtersActive, filteredOrders, allPayments]);
