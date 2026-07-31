@@ -39,18 +39,20 @@ import UserDashboard from "./pages/account/UserDashboard";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import { RequireAdmin } from "./components/auth/RequireAdmin";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <CartProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <CartProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/category/:categoryId" element={<CategoryPage />} />
               <Route path="/product/:productId" element={<ProductPage />} />
@@ -89,12 +91,13 @@ const App = () => (
               <Route path="/account/profile" element={<ProfileSettings />} />
               
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </CartProvider>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+              </Routes>
+            </BrowserRouter>
+          </CartProvider>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
