@@ -23,6 +23,7 @@ import { PurchaseOrderDetailsDialog } from '@/components/admin/PurchaseOrderDeta
 import { ReceiveOrderDialog } from '@/components/admin/ReceiveOrderDialog';
 import { VendorPaymentsDialog } from '@/components/admin/VendorPaymentsDialog';
 import { VendorDailySummaryDialog } from '@/components/admin/VendorDailySummaryDialog';
+import { VendorLedgerSheet } from '@/components/admin/VendorLedgerSheet';
 import { writeExcelFile } from '@/lib/excel-utils';
 import { PO_STATUS_LABELS, PO_STATUS_STYLES, ACTIVE_PO_STATUSES, ARCHIVED_PO_STATUSES, markPOsPayableOnInvoice, markPOPaidIfSettled } from '@/lib/po-lifecycle';
 
@@ -46,6 +47,7 @@ export default function PurchaseOrdersAdmin() {
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
   const [vendorSummaryOpen, setVendorSummaryOpen] = useState(false);
+  const [ledgerVendor, setLedgerVendor] = useState<{ id: string; name: string } | null>(null);
 
   const { data: purchaseOrders, isLoading } = useQuery({
     queryKey: ['admin', 'purchase-orders', statusFilter, paymentFilter, showArchived, fromDate, toDate, vendorFilter],
@@ -424,7 +426,19 @@ export default function PurchaseOrdersAdmin() {
                   {purchaseOrders.map((po) => (
                     <TableRow key={po.id}>
                       <TableCell className="font-mono font-medium">{po.po_number}</TableCell>
-                      <TableCell>{po.vendor?.name || 'Unknown'}</TableCell>
+                      <TableCell>
+                        {po.vendor?.id ? (
+                          <button
+                            type="button"
+                            className="text-blue-600 hover:text-blue-800 hover:underline text-left"
+                            onClick={() => setLedgerVendor({ id: po.vendor.id, name: po.vendor.name })}
+                          >
+                            {po.vendor.name}
+                          </button>
+                        ) : (
+                          'Unknown'
+                        )}
+                      </TableCell>
                       <TableCell>{format(new Date(po.order_date), 'dd MMM yyyy')}</TableCell>
                       <TableCell>
                         {po.expected_delivery_date 
@@ -536,6 +550,13 @@ export default function PurchaseOrdersAdmin() {
       )}
 
       <VendorDailySummaryDialog open={vendorSummaryOpen} onOpenChange={setVendorSummaryOpen} />
+
+      <VendorLedgerSheet
+        open={!!ledgerVendor}
+        onOpenChange={(o) => !o && setLedgerVendor(null)}
+        vendorId={ledgerVendor?.id || null}
+        vendorName={ledgerVendor?.name}
+      />
     </AdminLayout>
   );
 }
