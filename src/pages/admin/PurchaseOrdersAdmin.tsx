@@ -24,7 +24,7 @@ import { ReceiveOrderDialog } from '@/components/admin/ReceiveOrderDialog';
 import { VendorPaymentsDialog } from '@/components/admin/VendorPaymentsDialog';
 import { VendorDailySummaryDialog } from '@/components/admin/VendorDailySummaryDialog';
 import { writeExcelFile } from '@/lib/excel-utils';
-import { PO_STATUS_LABELS, PO_STATUS_STYLES, ACTIVE_PO_STATUSES, ARCHIVED_PO_STATUSES, markPOsPayableOnInvoice } from '@/lib/po-lifecycle';
+import { PO_STATUS_LABELS, PO_STATUS_STYLES, ACTIVE_PO_STATUSES, ARCHIVED_PO_STATUSES, markPOsPayableOnInvoice, markPOPaidIfSettled } from '@/lib/po-lifecycle';
 
 export default function PurchaseOrdersAdmin() {
   const queryClient = useQueryClient();
@@ -122,27 +122,55 @@ export default function PurchaseOrdersAdmin() {
 
   const handleWeeklyPayment = async () => {
     if (!vendorFilter || vendorFilter === 'all') return;
-    if (!weeklyPayAmount || parseFloat(weeklyPayAmount) <= 0) return;
+    const payAmount = parseFloat(weeklyPayAmount);
+    if (!weeklyPayAmount || payAmount <= 0) return;
     setWeeklyPayLoading(true);
     try {
       await supabase.from('vendor_payments').insert({
         vendor_id: vendorFilter,
-        amount: parseFloat(weeklyPayAmount),
+        amount: payAmount,
         payment_date: new Date().toISOString().split('T')[0],
         payment_method: weeklyPayMethod,
         reference_number: weeklyPayRef || null,
         notes: weeklyPayNotes || null,
       });
-      const pendingPOs = (purchaseOrders || []).filter(p => p.payment_status === 'pending');
-      const poIds = pendingPOs.map(po => po.id);
-      for (const po of pendingPOs) {
+
+      // Allocate the entered amount across this vendor's outstanding POs,
+      // oldest first, up to (but never exceeding) what was actually paid.
+      // Previously this blanket-marked every filtered pending PO as fully
+      // paid regardless of the amount entered — fixed so a PO can only be
+      // marked paid/partial up to its real allocated share.
+      const outstandingPOs = (purchaseOrders || [])
+        .filter(p => p.payment_status !== 'paid' && p.status !== 'cancelled')
+        .sort((a, b) => new Date(a.order_date).getTime() - new Date(b.order_date).getTime());
+
+      let remaining = payAmount;
+      let posUpdated = 0;
+      for (const po of outstandingPOs) {
+        if (remaining <= 0.001) break;
+        const alreadyPaid = Number(po.paid_amount) || 0;
+        const outstanding = Number(po.total_amount) - alreadyPaid;
+        if (outstanding <= 0.001) continue;
+        const applied = Math.min(remaining, outstanding);
+        const newPaid = alreadyPaid + applied;
+        const newStatus = newPaid >= Number(po.total_amount) ? 'paid' : 'partial';
         await supabase.from('purchase_orders')
-          .update({ payment_status: 'paid', paid_amount: po.total_amount })
+          .update({ payment_status: newStatus, paid_amount: newPaid })
           .eq('id', po.id);
+        if (newStatus === 'paid') {
+          await markPOPaidIfSettled(po.id);
+        }
+        remaining -= applied;
+        posUpdated++;
       }
+
       queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-orders'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-order-stats'] });
-      toast.success('Payment recorded — ' + (poIds.length) + ' POs marked paid');
+      if (remaining > 0.01) {
+        toast.success(`Payment recorded — ${posUpdated} PO(s) updated. ₹${remaining.toFixed(2)} exceeds outstanding POs in this filter and was not allocated.`);
+      } else {
+        toast.success('Payment recorded — ' + posUpdated + ' PO(s) updated');
+      }
       setWeeklyPaymentOpen(false);
       setWeeklyPayAmount('');
       setWeeklyPayRef('');
