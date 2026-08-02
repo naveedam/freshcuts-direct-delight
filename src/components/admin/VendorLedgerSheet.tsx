@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Loader2, BookOpen } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
+import { format } from 'date-fns';
 
 interface Props {
   open: boolean;
@@ -110,7 +111,7 @@ export function VendorLedgerSheet({ open, onOpenChange, vendorId, vendorName }: 
               <TableBody>
                 {rows.map((r, i) => (
                   <TableRow key={i}>
-                    <TableCell className="text-xs whitespace-nowrap">{new Date(r.date).toLocaleDateString('en-IN')}</TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">{format(new Date(r.date), 'dd MMM yyyy')}</TableCell>
                     <TableCell>
                       {r.type === 'po' ? (
                         <Badge variant="outline" className="text-[10px]">Purchase</Badge>
