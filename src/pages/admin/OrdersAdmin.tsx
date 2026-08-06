@@ -17,6 +17,7 @@ import { EditOrderDialog } from '@/components/admin/EditOrderDialog';
 import { InvoiceEditDialog } from '@/components/admin/InvoiceEditDialog';
 import { OrderPaymentDialog } from '@/components/admin/OrderPaymentDialog';
 import { PartyLedgerSheet, type PartyKey } from '@/components/admin/PartyLedgerSheet';
+import { PartyBulkPaymentDialog } from '@/components/admin/PartyBulkPaymentDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/currency';
 import { markPOsPayableOnInvoice } from '@/lib/po-lifecycle';
@@ -50,6 +51,7 @@ export default function OrdersAdmin() {
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [repeatOrderPrefill, setRepeatOrderPrefill] = useState<any>(null);
   const [ledgerParty, setLedgerParty] = useState<{ key: PartyKey; title: string } | null>(null);
+  const [bulkPaymentParty, setBulkPaymentParty] = useState<{ key: PartyKey; title: string } | null>(null);
   const { data: financialYears } = useFinancialYears();
 
   const { data: orders, isLoading } = useQuery({
@@ -755,10 +757,16 @@ export default function OrdersAdmin() {
               </div>
               {(() => {
                 if (buildingFilter) {
+                  const key: PartyKey = { type: 'building', value: buildingFilter };
                   return (
-                    <Button variant="outline" size="sm" onClick={() => setLedgerParty({ key: { type: 'building', value: buildingFilter }, title: buildingFilter })}>
-                      <BookOpen className="h-4 w-4 mr-1" /> View ledger
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setLedgerParty({ key, title: buildingFilter })}>
+                        <BookOpen className="h-4 w-4 mr-1" /> View ledger
+                      </Button>
+                      <Button variant="default" size="sm" onClick={() => setBulkPaymentParty({ key, title: buildingFilter })}>
+                        Record Payment
+                      </Button>
+                    </div>
                   );
                 }
                 const firstOrder = filteredOrders?.[0];
@@ -767,16 +775,28 @@ export default function OrdersAdmin() {
                     const title = firstOrder.building_name
                       ? `${firstOrder.building_name} · Flat ${firstOrder.flat_number}`
                       : `Flat ${firstOrder.flat_number}`;
+                    const key: PartyKey = { type: 'flat', building: firstOrder.building_name, flat: firstOrder.flat_number };
                     return (
-                      <Button variant="outline" size="sm" onClick={() => setLedgerParty({ key: { type: 'flat', building: firstOrder.building_name, flat: firstOrder.flat_number }, title })}>
-                        <BookOpen className="h-4 w-4 mr-1" /> View ledger
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setLedgerParty({ key, title })}>
+                          <BookOpen className="h-4 w-4 mr-1" /> View ledger
+                        </Button>
+                        <Button variant="default" size="sm" onClick={() => setBulkPaymentParty({ key, title })}>
+                          Record Payment
+                        </Button>
+                      </div>
                     );
                   } else if (firstOrder.building_name) {
+                    const key: PartyKey = { type: 'building', value: firstOrder.building_name };
                     return (
-                      <Button variant="outline" size="sm" onClick={() => setLedgerParty({ key: { type: 'building', value: firstOrder.building_name }, title: firstOrder.building_name })}>
-                        <BookOpen className="h-4 w-4 mr-1" /> View ledger
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setLedgerParty({ key, title: firstOrder.building_name })}>
+                          <BookOpen className="h-4 w-4 mr-1" /> View ledger
+                        </Button>
+                        <Button variant="default" size="sm" onClick={() => setBulkPaymentParty({ key, title: firstOrder.building_name })}>
+                          Record Payment
+                        </Button>
+                      </div>
                     );
                   }
                 }
@@ -1286,6 +1306,13 @@ export default function OrdersAdmin() {
         />
 
         {/* Party Ledger Sheet */}
+        <PartyBulkPaymentDialog
+          open={!!bulkPaymentParty}
+          onOpenChange={(o) => !o && setBulkPaymentParty(null)}
+          party={bulkPaymentParty?.key || null}
+          title={bulkPaymentParty?.title}
+        />
+
         <PartyLedgerSheet
           open={!!ledgerParty}
           onOpenChange={(o) => !o && setLedgerParty(null)}
