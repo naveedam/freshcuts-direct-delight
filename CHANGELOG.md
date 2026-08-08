@@ -21,6 +21,23 @@ All notable changes to FreshCuts Daily are documented here.
 ### Security
 - Full security audit performed — see `docs/security-audit-2026-07-30.md` for the complete findings.
 - Confirmed Lovable is **not** actively connected to the GitHub repo (Lovable's "Connect project" screen shows a "Connect" button, not a connected state) — commit history visible in Lovable is just a read-only display of GitHub activity, not a live two-way sync. No action needed; noting this so it doesn't need re-checking later.
+
+## 2026-07-31
+
 ### Fixed
 - **Vendor payment duplicates (Aqsa Mutton Stall, Feroz Fish Stall)**: found via user report that vendor ledgers looked messy. Cross-checked `vendor_payments` against real weekly payment records (customer-provided spreadsheet). Removed 7 rows — 3 exact duplicates plus 4 real-but-redundant weekly entries that were superseded by monthly consolidated payment totals for April–June. Inserted Aqsa's missing June consolidated payment (₹73,626), then caught and removed an accidental double-insert of that same row. Final verified totals: Aqsa ₹366,875 (6 payments), Feroz ₹527,448 (7 payments).
 - **Weekly vendor payment allocation bug**: `handleWeeklyPayment` (Purchase Orders admin → "Record Payment") recorded one payment amount but then blanket-marked *every* currently-filtered pending PO as fully paid, regardless of whether the amount entered actually covered them. Investigated scope across all vendors — confirmed every vendor's total real payments meet or exceed their total PO-paid amounts, so no PO was left falsely marked paid without money behind it; no further data reconciliation needed. Fixed the function to allocate the entered amount proportionally across outstanding POs (oldest-first, capped at what's actually owed), matching the same lifecycle handling already used by the single-PO payment dialog.
+
+### Added
+- **Vendor Ledger quick-view** (Purchase Orders page): clicking a vendor's name opens a running ledger (purchases as debits, payments as credits, live balance) — same pattern as the customer party ledger.
+
+## 2026-08-06 to 2026-08-08
+
+### Fixed
+- **Credit badge showing raw overpayment instead of net balance**: the Orders page Credit indicator summed only the negative (overpaid) side of a party's orders in isolation, without netting against that same party's unpaid orders — could show a misleadingly large credit figure (e.g. Villa 10, Aristos 1: showed ₹10,345 when the true net was ₹7,039.20). Fixed to derive Credit from the same netted calculation already used for Party Due, so both figures are always consistent with the true balance.
+- **Customer payment overpayment silently discarded**: `PartyBulkPaymentDialog` previously reported any amount exceeding a party's outstanding orders as "not allocated" and took no further action — the excess was never recorded anywhere. Fixed so any leftover is automatically applied as extra payment on the party's most recent order, visibly carried forward as credit (consistent with how existing overpayment cases like Suhail and T4 18B were manually corrected). Live-tested on a real account (Fayaz, Fortune Silverton: ₹10,000 payment against ₹4,033 outstanding, ₹5,967 correctly carried forward, then cleanly reverted).
+- **Data corrections**: fixed misallocated/duplicate payment records for Suhail (Elegant Mabel), T25 401 (L&T Raintree Boulevard), 4108 (Casa Paradiso 2), T4 18B (SNN Clermont), and Villa 10 (Aristos 1). T25 401's fix also resolved a shared placeholder phone/email that had been merging ~50 unrelated flats into one incorrect party.
+- **Duplicate customer records**: merged Suhail, Fayaz, and Mary's orders — each had been split across an inconsistent placeholder building name ("Bangalore") and their correct building name, making them look like separate customers.
+
+### Added
+- **Record Payment for parties** (Orders page, both vendors and customers): a single lump payment now automatically allocates across a party's outstanding orders/invoices oldest-first, instead of requiring separate manual payments per invoice.
