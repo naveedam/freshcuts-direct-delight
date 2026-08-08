@@ -958,7 +958,7 @@ export default function OrdersAdmin() {
                         const pk = partyKeyForOrder(order);
                         const partyDue = pk ? (partyOutstandingMap.get(pk) || 0) : invoiceDue;
                         const otherPartyDue = Math.abs(partyDue - invoiceDue) > 0.01 ? Math.max(0, partyDue) : 0;
-                        const partyCredit = pk ? (partyCreditMap.get(pk) || 0) : 0;
+                        const partyCredit = Math.max(0, -partyDue);
                         const lk = ledgerKeyForOrder(order);
                         return (
                           <TooltipProvider delayDuration={150}>
