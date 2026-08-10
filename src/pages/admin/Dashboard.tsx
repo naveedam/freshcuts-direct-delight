@@ -16,6 +16,8 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ExecutiveSummaryContent } from './ExecutiveDashboard';
 
 const periodOptions = [
   { label: 'Today', value: 'today' },
@@ -314,6 +316,14 @@ export default function AdminDashboard() {
           <p className="font-body text-muted-foreground">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
 
+        <Tabs defaultValue="daily" className="w-full">
+          <TabsList>
+            <TabsTrigger value="daily">Daily Operations</TabsTrigger>
+            <TabsTrigger value="exec">Exec Dashboard</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="daily" className="space-y-6 mt-4">
+
         {/* Row 1: Today's P&L */}
         <div>
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Today's P&L</h2>
@@ -489,6 +499,12 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         )}
+          </TabsContent>
+
+          <TabsContent value="exec">
+            <ExecutiveSummaryContent />
+          </TabsContent>
+        </Tabs>
       </div>
     </AdminLayout>
   );
