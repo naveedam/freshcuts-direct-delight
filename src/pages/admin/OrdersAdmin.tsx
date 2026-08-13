@@ -475,9 +475,44 @@ export default function OrdersAdmin() {
       if (invoiceError) throw invoiceError;
 
       // Update order with invoice number and conversion status
-      const order = await supabase.from('orders').select('total_amount, amount_paid').eq('id', orderId).single();
+      const order = await supabase.from('orders').select('total_amount, amount_paid, building_name, flat_number, phone, customer_email').eq('id', orderId).single();
       const totalAmount = Number(order.data?.total_amount) || 0;
       const amountPaid = Number(order.data?.amount_paid) || 0;
+
+      // Auto-apply any standing credit this party has from past orders,
+      // so a customer who previously overpaid doesn't show as "unpaid"
+      // on their next invoice.
+      let outstanding = Math.max(0, totalAmount - amountPaid);
+      let creditApplied = 0;
+      if (outstanding > 0.01 && order.data) {
+        let creditQuery = supabase
+          .from('orders')
+          .select('id, balance_due')
+          .lt('balance_due', -0.01)
+          .neq('id', orderId)
+          .eq('invoice_cancelled', false)
+          .neq('status', 'cancelled');
+        if (order.data.phone) creditQuery = creditQuery.eq('phone', order.data.phone);
+        else if (order.data.flat_number) {
+          creditQuery = creditQuery.eq('flat_number', order.data.flat_number);
+          if (order.data.building_name) creditQuery = creditQuery.eq('building_name', order.data.building_name);
+        } else if (order.data.customer_email) creditQuery = creditQuery.eq('customer_email', order.data.customer_email);
+        else creditQuery = null;
+
+        if (creditQuery) {
+          const { data: creditOrders } = await creditQuery;
+          let remaining = outstanding;
+          for (const co of creditOrders || []) {
+            if (remaining <= 0.01) break;
+            const available = Math.abs(Number(co.balance_due));
+            const applied = Math.min(available, remaining);
+            await supabase.from('orders').update({ balance_due: Number(co.balance_due) + applied }).eq('id', co.id);
+            remaining -= applied;
+            creditApplied += applied;
+          }
+          outstanding = remaining;
+        }
+      }
 
       const { error: updateError } = await supabase
         .from('orders')
@@ -486,8 +521,8 @@ export default function OrdersAdmin() {
           sale_converted_at: new Date().toISOString(),
           invoice_number: invoiceNumber,
           status: 'processing',
-          balance_due: Math.max(0, totalAmount - amountPaid),
-          payment_status: amountPaid >= totalAmount ? 'paid' : amountPaid > 0 ? 'partial' : 'unpaid',
+          balance_due: outstanding,
+          payment_status: outstanding <= 0.01 ? 'paid' : (amountPaid > 0 || creditApplied > 0) ? 'partial' : 'unpaid',
         })
         .eq('id', orderId);
 
