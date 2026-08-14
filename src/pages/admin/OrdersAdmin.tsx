@@ -521,6 +521,7 @@ export default function OrdersAdmin() {
           sale_converted_at: new Date().toISOString(),
           invoice_number: invoiceNumber,
           status: 'processing',
+          amount_paid: amountPaid + creditApplied,
           balance_due: outstanding,
           payment_status: outstanding <= 0.01 ? 'paid' : (amountPaid > 0 || creditApplied > 0) ? 'partial' : 'unpaid',
         })
