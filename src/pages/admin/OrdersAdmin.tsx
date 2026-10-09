@@ -180,19 +180,28 @@ export default function OrdersAdmin() {
     if (o?.customer_email) return `email:${String(o.customer_email).trim().toLowerCase()}`;
     return null;
   };
+  // Party outstanding uses the Ledger formula: billed (non-cancelled invoices)
+  // minus payments actually received. Same math as PartyLedgerSheet, so the
+  // order-row figure can never disagree with the Ledger. Per-order balance_due
+  // is deliberately not used: for prepaid customers the advance sits on an
+  // arbitrary order and later invoices draw it down without new payment rows.
   const partyOutstandingMap = useMemo(() => {
     const m = new Map<string, number>();
+    if (!allPayments) return m;
+    const paidByOrder = new Map<string, number>();
+    for (const p of allPayments) {
+      paidByOrder.set(p.order_id, (paidByOrder.get(p.order_id) || 0) + (Number(p.amount) || 0));
+    }
     for (const o of orders || []) {
-      if (o.invoice_cancelled) continue;
-      if (o.status === 'cancelled') continue;
-      const out = Number(o.balance_due) || ((Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0));
-      if (Math.abs(out) <= 0.01) continue; // skip only true zero, not credits (negative) or dues (positive)
       const k = partyKeyForOrder(o);
       if (!k) continue;
-      m.set(k, (m.get(k) || 0) + out);
+      let delta = 0;
+      if (!o.invoice_cancelled) delta += Number(o.total_amount) || 0;
+      delta -= paidByOrder.get(o.id) || 0;
+      m.set(k, (m.get(k) || 0) + delta);
     }
     return m;
-  }, [orders]);
+  }, [orders, allPayments]);
   const partyCreditMap = useMemo(() => {
     const m = new Map<string, number>();
     for (const o of orders || []) {
