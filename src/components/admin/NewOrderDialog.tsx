@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/currency';
 import { BuildingAutocomplete } from './BuildingAutocomplete';
 import { FlatAutocomplete } from './FlatAutocomplete';
+import { useTodayLiveRate, getLiveRateRule, liveBuyingPrice } from '@/lib/live-rate';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
 
@@ -224,6 +225,7 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
     }
   });
 
+  const { data: todayLiveRate } = useTodayLiveRate();
   const resetForm = () => {
     setCustomerEmail('');
     setCustomerPhone('');
@@ -256,6 +258,17 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
     setLineItems(updated);
   };
 
+  // Switching a line to a vendor with a live-rate rule re-prices it from today's rate;
+  // any other vendor leaves the buying price exactly as entered.
+  const changeLineVendor = (index: number, vendorId: string | null) => {
+    const updated = [...lineItems];
+    const item = updated[index];
+    let vendorCost = item.vendor_cost;
+    const rule = getLiveRateRule(vendorProducts, vendorId, item.product_id);
+    if (rule && todayLiveRate?.rate) vendorCost = liveBuyingPrice(rule, Number(todayLiveRate.rate));
+    updated[index] = { ...item, vendor_id: vendorId, vendor_cost: vendorCost };
+    setLineItems(updated);
+  };
   const getVendorsForProduct = (productId: string | null) => {
     if (!productId || !vendorProducts || !vendors) return vendors || [];
     const allowedVendorIds = new Set(
@@ -276,13 +289,21 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
       const yieldMul = Number((product as any).yield_multiplier) || 1;
       const isProcessed = !!(product as any).is_processed;
       const finalVendorCost = isProcessed ? Number((vendorCost * yieldMul).toFixed(2)) : vendorCost;
+      // Live-rate pricing: where the vendor-product has a rule (M N Broilers chicken), the buying
+      // price follows today's live rate. It stays editable in the Vendor Cost column.
+      let resolvedVendorCost = finalVendorCost;
+      const liveRule = getLiveRateRule(vendorProducts, autoVendorId, productId);
+      if (liveRule) {
+        if (todayLiveRate?.rate) resolvedVendorCost = liveBuyingPrice(liveRule, Number(todayLiveRate.rate));
+        else toast.warning("Today's live chicken rate isn't set. Enter it under Chicken Rate to auto-fill buying prices.");
+      }
       const updated = [...lineItems];
       updated[index] = {
         product_id: product.id,
         product_name: product.name,
         quantity: lineItems[index].quantity || 1,
         unit_price: product.price,
-        vendor_cost: finalVendorCost,
+        vendor_cost: resolvedVendorCost,
         hsn_code: product.hsn_code || '',
         gst_type: product.gst_type || 'Exempt',
         gst_rate: product.gst_rate || 0,
@@ -675,7 +696,7 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
                         <TableCell>
                           <Select
                             value={item.vendor_id || 'none'}
-                            onValueChange={(value) => updateLineItem(index, 'vendor_id', value === 'none' ? null : value)}
+                            onValueChange={(value) => changeLineVendor(index, value === 'none' ? null : value)}
                           >
                             <SelectTrigger className="text-xs h-8">
                               <SelectValue placeholder="No vendor" />

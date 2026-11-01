@@ -66,12 +66,14 @@ export function FlatAutocomplete({
     const contains: typeof source = [];
     for (const p of source) {
       const lf = p.flat.toLowerCase();
-      if (lf === q) continue;
+      // Once a building is chosen the exact match is redundant. With no building yet it is kept:
+      // the suggestion carries the building, which gets auto-filled on selection.
+      if (lf === q && buildingName.trim()) continue;
       if (lf.startsWith(q)) starts.push(p);
       else if (lf.includes(q)) contains.push(p);
     }
     return [...starts, ...contains].slice(0, 10);
-  }, [value, scoped]);
+  }, [value, scoped, buildingName]);
 
   useEffect(() => {
     setHighlight(0);
@@ -117,6 +119,16 @@ export function FlatAutocomplete({
               setOpen(true);
             }}
             onFocus={() => setOpen(true)}
+            onBlur={() => {
+              // Flat typed in full and left: if exactly one building has this flat, fill it in.
+              if (buildingName.trim() || !onBuildingMatch) return;
+              const q = value.trim().toLowerCase();
+              if (!q) return;
+              const matches = new Set(
+                pairs.filter((p) => p.flat.toLowerCase() === q && p.building).map((p) => p.building)
+              );
+              if (matches.size === 1) onBuildingMatch(Array.from(matches)[0]);
+            }}
             onKeyDown={(e) => {
               if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
                 setOpen(true);
