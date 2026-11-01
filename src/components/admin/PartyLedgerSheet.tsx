@@ -97,11 +97,27 @@ export function PartyLedgerSheet({ open, onOpenChange, party, title }: Props) {
     const buckets = { '0-7': 0, '8-15': 0, '16-30': 0, '30+': 0 } as Record<string, number>;
     if (!data) return buckets;
     const now = Date.now();
-    for (const o of data.orders) {
-      if (o.invoice_cancelled) continue;
-      const out = (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0);
+    const paidByOrder = new Map<string, number>();
+    for (const p of data.payments) {
+      paidByOrder.set(p.order_id, (paidByOrder.get(p.order_id) || 0) + (Number(p.amount) || 0));
+    }
+    // Advances (payment beyond an invoice's own total) are pooled and applied to
+    // the party's shortfalls oldest-first, so ageing reflects what is truly owed.
+    const sorted = [...data.orders].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    let pool = 0;
+    const shortfalls: { created_at: string; amount: number }[] = [];
+    for (const o of sorted) {
+      const total = o.invoice_cancelled ? 0 : (Number(o.total_amount) || 0);
+      const paid = paidByOrder.get(o.id) || 0;
+      if (paid - total > 0.005) pool += paid - total;
+      else if (total - paid > 0.005) shortfalls.push({ created_at: o.created_at, amount: total - paid });
+    }
+    for (const s of shortfalls) {
+      const applied = Math.min(s.amount, pool);
+      pool -= applied;
+      const out = s.amount - applied;
       if (out <= 0.01) continue;
-      const days = Math.floor((now - new Date(o.created_at).getTime()) / 86400000);
+      const days = Math.floor((now - new Date(s.created_at).getTime()) / 86400000);
       if (days <= 7) buckets['0-7'] += out;
       else if (days <= 15) buckets['8-15'] += out;
       else if (days <= 30) buckets['16-30'] += out;

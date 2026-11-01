@@ -202,6 +202,48 @@ export default function OrdersAdmin() {
     }
     return m;
   }, [orders, allPayments]);
+  // Per-invoice due, derived from payments actually received (customer_payments),
+  // not from stored amount_paid/balance_due. Within a party, any payment beyond an
+  // invoice's own total (an advance) is pooled and applied to the party's other
+  // invoices oldest-first. A party's total due always equals the Ledger
+  // (billed minus received).
+  const invoiceDueMap = useMemo(() => {
+    const result = new Map<string, number>();
+    if (!allPayments || !orders) return result;
+    const r2 = (n: number) => Math.round(n * 100) / 100;
+    const paidByOrder = new Map<string, number>();
+    for (const p of allPayments) {
+      paidByOrder.set(p.order_id, (paidByOrder.get(p.order_id) || 0) + (Number(p.amount) || 0));
+    }
+    const groups = new Map<string, any[]>();
+    for (const o of orders) {
+      const k = partyKeyForOrder(o);
+      if (!k) continue;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k)!.push(o);
+    }
+    for (const list of groups.values()) {
+      list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      let pool = 0;
+      const shortfalls: { id: string; amount: number }[] = [];
+      for (const o of list) {
+        const total = o.invoice_cancelled ? 0 : (Number(o.total_amount) || 0);
+        const paid = paidByOrder.get(o.id) || 0;
+        if (paid - total > 0.005) pool += paid - total;
+        else if (total - paid > 0.005) shortfalls.push({ id: o.id, amount: total - paid });
+      }
+      for (const s of shortfalls) {
+        const applied = Math.min(s.amount, pool);
+        pool -= applied;
+        result.set(s.id, r2(s.amount - applied));
+      }
+      for (const o of list) {
+        if (!result.has(o.id)) result.set(o.id, 0);
+      }
+    }
+    return result;
+  }, [orders, allPayments]);
+
   const partyCreditMap = useMemo(() => {
     const m = new Map<string, number>();
     for (const o of orders || []) {
@@ -229,7 +271,7 @@ export default function OrdersAdmin() {
       return;
     }
     const phone = phoneRaw.length === 10 ? `91${phoneRaw}` : phoneRaw;
-    const balance = Number(order.balance_due) || ((Number(order.total_amount) || 0) - (Number(order.amount_paid) || 0));
+    const balance = invoiceDueMap.has(order.id) ? invoiceDueMap.get(order.id)! : (Number(order.balance_due) || ((Number(order.total_amount) || 0) - (Number(order.amount_paid) || 0)));
     const inv = order.invoice_number ? ` for invoice ${order.invoice_number}` : '';
     const msg = `Hi, your pending amount${inv} is ₹${balance.toFixed(0)}. Please clear dues at your earliest convenience. Thank you!`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -999,11 +1041,12 @@ export default function OrdersAdmin() {
                     </TableCell>
                     <TableCell>
                       {(() => {
-                        const invoiceDue = Math.max(0, Number(order.balance_due) || ((Number(order.total_amount) || 0) - (Number(order.amount_paid) || 0)));
+                        const invoiceDue = invoiceDueMap.has(order.id) ? invoiceDueMap.get(order.id)! : Math.max(0, Number(order.balance_due) || ((Number(order.total_amount) || 0) - (Number(order.amount_paid) || 0)));
                         const pk = partyKeyForOrder(order);
                         const partyDue = pk ? (partyOutstandingMap.get(pk) || 0) : invoiceDue;
                         const otherPartyDue = Math.abs(partyDue - invoiceDue) > 0.01 ? Math.max(0, partyDue) : 0;
                         const partyCredit = Math.max(0, -partyDue);
+                        const displayStatus = (!order.invoice_cancelled && invoiceDueMap.has(order.id)) ? (invoiceDue <= 0.01 ? 'paid' : (invoiceDue < (Number(order.total_amount) || 0) - 0.01 ? 'partial' : 'unpaid')) : order.payment_status;
                         const lk = ledgerKeyForOrder(order);
                         return (
                           <TooltipProvider delayDuration={150}>
@@ -1016,9 +1059,9 @@ export default function OrdersAdmin() {
                               title={order.invoice_cancelled ? 'Invoice cancelled — payments disabled' : 'Manage payment'}
                             >
                               <CreditCard className="h-3 w-3" />
-                              {order.payment_status === 'paid' ? (
+                              {displayStatus === 'paid' ? (
                                 <Badge className="bg-green-600 text-xs">Paid</Badge>
-                              ) : order.payment_status === 'partial' ? (
+                              ) : displayStatus === 'partial' ? (
                                 <Badge className="bg-yellow-500 text-xs">Partial</Badge>
                               ) : (
                                 <Badge variant="destructive" className="text-xs">Pending</Badge>
@@ -1072,7 +1115,7 @@ export default function OrdersAdmin() {
                           <Eye className="h-4 w-4" />
                         </Button>
 
-                        {!order.invoice_cancelled && order.phone && Number(order.balance_due || (Number(order.total_amount) - Number(order.amount_paid || 0))) > 0.01 && (
+                        {!order.invoice_cancelled && order.phone && (invoiceDueMap.has(order.id) ? invoiceDueMap.get(order.id)! : Number(order.balance_due || (Number(order.total_amount) - Number(order.amount_paid || 0)))) > 0.01 && (
                           <Button
                             size="sm"
                             variant="ghost"
