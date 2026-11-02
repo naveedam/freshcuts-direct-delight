@@ -76,9 +76,9 @@ export function useChickenMultipliers() {
 //   hasRule true, price null -> it is a live-rate item but today's rate is missing.
 export function useLivePricing() {
   const today = istDateString();
-  const { data: todayRow } = useTodayLiveRate();
-  const { data: cuts } = useChickenCuts();
-  const { data: multipliers } = useChickenMultipliers();
+  const { data: todayRow, isLoading: rateLoading } = useTodayLiveRate();
+  const { data: cuts, isLoading: cutsLoading } = useChickenCuts();
+  const { data: multipliers, isLoading: multLoading } = useChickenMultipliers();
   const rate = todayRow?.rate != null ? Number(todayRow.rate) : null;
 
   const priceFor = (
@@ -93,5 +93,5 @@ export function useLivePricing() {
     return { hasRule: true, price: rate != null ? priceFromRate(rate, m) : null };
   };
 
-  return { rate, priceFor };
+  return { rate, priceFor, ready: !rateLoading && !cutsLoading && !multLoading };
 }

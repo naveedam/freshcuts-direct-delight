@@ -135,9 +135,11 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
     { product_id: null, product_name: '', quantity: 1, unit_price: 0, vendor_cost: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }
   ]);
 
+  const livePricing = useLivePricing();
+
   // Prefill from a "Repeat Order" action — only applies when the dialog opens with data
   useEffect(() => {
-    if (open && prefill) {
+    if (open && prefill && livePricing.ready) {
       setCustomerEmail(prefill.customerEmail || '');
       setCustomerPhone(prefill.customerPhone || '');
       setBuildingName(prefill.buildingName || '');
@@ -147,11 +149,11 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
       setShippingPostalCode(prefill.shippingPostalCode || '');
       setPlaceOfSupply(prefill.placeOfSupply || '29');
       if (prefill.lineItems && prefill.lineItems.length > 0) {
-        setLineItems(prefill.lineItems);
+        setLineItems(repriceRepeatLines(prefill.lineItems));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, prefill]);
+  }, [open, prefill, livePricing.ready]);
 
   // Custom item dialog
   const [customItemOpen, setCustomItemOpen] = useState(false);
@@ -225,7 +227,7 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
     }
   });
 
-  const livePricing = useLivePricing();
+  
   const resetForm = () => {
     setCustomerEmail('');
     setCustomerPhone('');
@@ -256,6 +258,25 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
     const updated = [...lineItems];
     updated[index] = { ...updated[index], [field]: value };
     setLineItems(updated);
+  };
+
+  // Repeat Order keeps item names but re-prices M N Broilers live-rate lines from today's rate.
+  // With no rate set, those lines are cleared to 0 rather than silently carrying an old price.
+  const repriceRepeatLines = (lines: OrderLineItem[]): OrderLineItem[] => {
+    let missingRate = false;
+    const repriced = lines.map((line) => {
+      const quote = livePricing.priceFor(line.vendor_id, line.product_id);
+      if (!quote.hasRule) return line;
+      if (quote.price == null) {
+        missingRate = true;
+        return { ...line, vendor_cost: 0 };
+      }
+      return { ...line, vendor_cost: quote.price };
+    });
+    if (missingRate) {
+      toast.warning("Today's live chicken rate isn't set, so M N Broilers buying prices were cleared. Set it under Chicken Rate, then repeat the order again.");
+    }
+    return repriced;
   };
 
   // Switching a line to a vendor with a live-rate rule re-prices it from today's rate;
