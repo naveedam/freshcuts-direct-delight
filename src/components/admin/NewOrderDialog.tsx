@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/currency';
 import { BuildingAutocomplete } from './BuildingAutocomplete';
 import { FlatAutocomplete } from './FlatAutocomplete';
-import { useTodayLiveRate, getLiveRateRule, liveBuyingPrice } from '@/lib/live-rate';
+import { useLivePricing } from '@/lib/live-rate';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
 
@@ -225,7 +225,7 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
     }
   });
 
-  const { data: todayLiveRate } = useTodayLiveRate();
+  const livePricing = useLivePricing();
   const resetForm = () => {
     setCustomerEmail('');
     setCustomerPhone('');
@@ -264,8 +264,8 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
     const updated = [...lineItems];
     const item = updated[index];
     let vendorCost = item.vendor_cost;
-    const rule = getLiveRateRule(vendorProducts, vendorId, item.product_id);
-    if (rule && todayLiveRate?.rate) vendorCost = liveBuyingPrice(rule, Number(todayLiveRate.rate));
+    const quote = livePricing.priceFor(vendorId, item.product_id);
+    if (quote.price != null) vendorCost = quote.price;
     updated[index] = { ...item, vendor_id: vendorId, vendor_cost: vendorCost };
     setLineItems(updated);
   };
@@ -292,9 +292,9 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
       // Live-rate pricing: where the vendor-product has a rule (M N Broilers chicken), the buying
       // price follows today's live rate. It stays editable in the Vendor Cost column.
       let resolvedVendorCost = finalVendorCost;
-      const liveRule = getLiveRateRule(vendorProducts, autoVendorId, productId);
-      if (liveRule) {
-        if (todayLiveRate?.rate) resolvedVendorCost = liveBuyingPrice(liveRule, Number(todayLiveRate.rate));
+      const liveQuote = livePricing.priceFor(autoVendorId, productId);
+      if (liveQuote.hasRule) {
+        if (liveQuote.price != null) resolvedVendorCost = liveQuote.price;
         else toast.warning("Today's live chicken rate isn't set. Enter it under Chicken Rate to auto-fill buying prices.");
       }
       const updated = [...lineItems];
