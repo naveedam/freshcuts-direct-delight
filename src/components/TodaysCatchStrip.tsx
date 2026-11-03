@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { istDateString } from '@/lib/live-rate';
 import { Fish } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -7,7 +8,7 @@ export function TodaysCatchStrip() {
   const { data: catchItems } = useQuery({
     queryKey: ['todays-catch-home'],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = istDateString();
       const { data, error } = await supabase
         .from('todays_catch')
         .select('id, note, product_id, products(id, name, image_url, price, unit)')

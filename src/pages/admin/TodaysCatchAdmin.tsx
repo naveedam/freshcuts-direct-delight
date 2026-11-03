@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { istDateString } from '@/lib/live-rate';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -55,7 +56,7 @@ export default function TodaysCatchAdmin() {
       const { data, error } = await supabase
         .from('todays_catch')
         .select('*')
-        .eq('catch_date', new Date().toISOString().split('T')[0]);
+        .eq('catch_date', istDateString());
       if (error) throw error;
       return data;
     },
@@ -80,7 +81,7 @@ export default function TodaysCatchAdmin() {
 
   const publishMutation = useMutation({
     mutationFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = istDateString();
       const { error: delError } = await supabase
         .from('todays_catch')
         .delete()
