@@ -2,38 +2,9 @@ import { Star } from 'lucide-react';
 import { usePageContent, type GoogleReviewsContent } from '@/hooks/usePageContent';
 
 const defaultContent: GoogleReviewsContent = {
-  overallRating: 4.8,
-  totalReviews: 156,
-  reviews: [
-    {
-      author: "Priya Sharma",
-      rating: 5,
-      date: "2 weeks ago",
-      text: "Best quality chicken in Bangalore! The freshness is unmatched. I've been ordering from Fresh Cuts Daily for 6 months now and never disappointed.",
-      avatar: "PS"
-    },
-    {
-      author: "Rahul Menon",
-      rating: 5,
-      date: "1 month ago", 
-      text: "Their mutton is incredibly tender and fresh. The delivery is always on time. Highly recommend for anyone looking for quality meat in Bangalore.",
-      avatar: "RM"
-    },
-    {
-      author: "Ananya Reddy",
-      rating: 5,
-      date: "3 weeks ago",
-      text: "Amazing seafood selection! The fish is always fresh and properly cleaned. Their prawns are the best I've had. Great service!",
-      avatar: "AR"
-    },
-    {
-      author: "Mohammed Farhan",
-      rating: 4,
-      date: "1 month ago",
-      text: "Very happy with the quality of products. Fresh chicken and mutton delivered right to my doorstep. The packaging is hygienic too.",
-      avatar: "MF"
-    }
-  ]
+  overallRating: 5.0,
+  totalReviews: 61,
+  reviews: [],
 };
 
 export function GoogleReviews() {
@@ -66,13 +37,13 @@ export function GoogleReviews() {
           
           {/* Overall rating */}
           <div className="flex items-center justify-center gap-4">
-            <span className="text-5xl font-bold text-foreground">{reviewsContent.overallRating}</span>
+            <span className="text-5xl font-bold text-foreground">{Number(reviewsContent.overallRating).toFixed(1)}</span>
             <div className="text-left">
               <div className="flex gap-0.5">
                 {renderStars(Math.round(reviewsContent.overallRating))}
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                Based on {reviewsContent.totalReviews} reviews
+                Based on {reviewsContent.totalReviews} Google reviews
               </p>
             </div>
           </div>
@@ -112,12 +83,12 @@ export function GoogleReviews() {
         {/* View all on Google link */}
         <div className="text-center mt-8">
           <a
-            href="https://g.page/freshcutsdaily/review"
+            href="https://share.google/YgAiKvO7dRTtaVLq9"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-medium transition-colors"
           >
-            View all reviews on Google
+            Read all {reviewsContent.totalReviews} reviews on Google
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
