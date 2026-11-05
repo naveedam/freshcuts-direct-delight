@@ -432,7 +432,7 @@ export function ShipmentTrackingModal({ open, onOpenChange, orderId }: ShipmentT
           </div>
         ) : (
           // View shipment details
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Status and Provider */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">

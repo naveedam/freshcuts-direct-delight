@@ -166,7 +166,7 @@ export default function BulkUploadAdmin() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div>
           <h1 className="text-2xl font-heading font-bold">Bulk Product Import</h1>
           <p className="text-muted-foreground">Upload Excel or CSV files to bulk-add products</p>

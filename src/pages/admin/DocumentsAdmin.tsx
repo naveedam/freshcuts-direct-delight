@@ -263,7 +263,7 @@ export default function DocumentsAdmin() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div>
           <h1 className="font-heading text-3xl font-bold text-foreground">Document Repository</h1>
           <p className="font-body text-muted-foreground">View and manage all documents — organized by flat, invoice, or PO</p>

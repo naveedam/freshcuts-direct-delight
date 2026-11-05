@@ -428,7 +428,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-[min(96vw,1200px)] max-h-[92vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
             Edit Order {order ? `#${order.id.slice(0, 8)}` : ''}

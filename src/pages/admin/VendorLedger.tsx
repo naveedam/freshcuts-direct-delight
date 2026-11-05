@@ -96,7 +96,7 @@ export default function VendorLedger() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-heading text-3xl font-bold">Vendor Ledger</h1>

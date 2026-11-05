@@ -195,7 +195,7 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
         </DialogHeader>
 
         <ScrollArea className="max-h-[70vh] pr-4">
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Header Info */}
             <div className="grid grid-cols-2 gap-6">
               <div>

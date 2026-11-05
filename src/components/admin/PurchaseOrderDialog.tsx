@@ -280,7 +280,7 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
           <DialogTitle>{isEditing ? 'Edit Purchase Order' : 'Create Purchase Order'}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Header Info */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

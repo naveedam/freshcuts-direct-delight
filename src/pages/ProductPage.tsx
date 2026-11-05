@@ -38,15 +38,18 @@ const ProductPage = () => {
     );
   }
 
-  if (!product) {
+  // A daily-priced item whose first price hasn't been entered isn't sold yet.
+  if (!product || product.awaitingPrice) {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-20 text-center">
           <h1 className="font-heading text-4xl font-bold text-foreground mb-4">
-            Product Not Found
+            {product ? 'Not Available Yet' : 'Product Not Found'}
           </h1>
           <p className="font-body text-muted-foreground mb-6">
-            The product you're looking for doesn't exist.
+            {product
+              ? "This item's price hasn't been set yet. Please check back soon."
+              : "The product you're looking for doesn't exist."}
           </p>
           <Link to="/">
             <Button variant="default">

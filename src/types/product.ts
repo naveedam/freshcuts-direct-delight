@@ -17,6 +17,8 @@ export interface Product {
   pricingModel?: PricingModel;
   gstRate?: number;
   gstType?: string;
+  // Daily-priced item (chicken/mutton/seafood) whose first price hasn't been entered yet.
+  awaitingPrice?: boolean;
 }
 
 export interface CartItem {

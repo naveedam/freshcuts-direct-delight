@@ -688,7 +688,7 @@ export default function OrdersAdmin() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-heading text-3xl font-bold text-foreground">Orders</h1>
@@ -898,9 +898,7 @@ export default function OrdersAdmin() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Source</TableHead>
+                <TableHead>Order</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Status</TableHead>
@@ -916,8 +914,6 @@ export default function OrdersAdmin() {
                 [...Array(5)].map((_, i) => (
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-20" /></TableCell>
@@ -931,16 +927,17 @@ export default function OrdersAdmin() {
                 filteredOrders.map((order: any) => (
                   <TableRow key={order.id}>
                     <TableCell>
-                      <div>
+                      {/* Order ID, date and source share one column to keep the table narrow */}
+                      <div className="space-y-0.5">
                         <p className="font-mono text-sm">#{order.id.slice(0, 8)}</p>
                         {order.invoice_number && (
                           <p className="text-xs text-primary font-medium">{order.invoice_number}</p>
                         )}
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(order.created_at).toLocaleDateString()}
+                          {getOrderSourceBadge(order.order_source)}
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      {getOrderSourceBadge(order.order_source)}
                     </TableCell>
                     <TableCell>
                       <div>
@@ -1204,7 +1201,7 @@ export default function OrdersAdmin() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     No orders yet
                   </TableCell>
                 </TableRow>

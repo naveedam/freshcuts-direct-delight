@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Loader2, Fish, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Loader2, Fish, CheckCircle2, AlertTriangle, Search } from 'lucide-react';
 import { istDateString } from '@/lib/live-rate';
 import {
   fetchSeafoodProducts, SEAFOOD_CUTOFF_HOUR, istHour, priceInForce,
@@ -45,12 +45,13 @@ export default function SeafoodRateAdmin() {
   const [buying, setBuying] = useState<Record<string, string>>({});
   const [inCatch, setInCatch] = useState<Record<string, boolean>>({});
   const [month, setMonth] = useState(today.slice(0, 7));
+  const [search, setSearch] = useState('');
   // Inputs load once; background refetches (e.g. on window focus) must not wipe edits in progress.
   const [loaded, setLoaded] = useState(false);
 
   const { data: products } = useQuery({
     queryKey: ['seafood-rate-products'],
-    queryFn: () => fetchSeafoodProducts('id, name, unit, price, is_published'),
+    queryFn: () => fetchSeafoodProducts('id, name, unit, price, is_published, awaiting_daily_price'),
   });
 
   const productIds = useMemo(() => (products || []).map((p) => p.id), [products]);
@@ -154,7 +155,7 @@ export default function SeafoodRateAdmin() {
         if (error) throw error;
         // The catalog price is what the storefront and new orders read.
         for (const r of pending.sell) {
-          const { error: pErr } = await supabase.from('products').update({ price: r.price }).eq('id', r.product_id);
+          const { error: pErr } = await supabase.from('products').update({ price: r.price, awaiting_daily_price: false } as any).eq('id', r.product_id);
           if (pErr) throw pErr;
         }
       }
@@ -239,13 +240,16 @@ export default function SeafoodRateAdmin() {
   }, [sellingRows, buyingRows, suppliers, products, month]);
 
   const loading = !loaded;
+  // Search only filters what's shown; hidden rows keep their edits and still publish.
+  const visibleProducts = (products || []).filter((p) =>
+    !search.trim() || String(p.name).toLowerCase().includes(search.trim().toLowerCase()));
 
   const sinceLabel = (hit: { effective_date: string } | null) =>
     !hit ? 'no price yet' : hit.effective_date === today ? 'set today' : `since ${fmtDate(hit.effective_date)}`;
 
   return (
     <AdminLayout>
-      <div className="p-6 space-y-4">
+      <div className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -279,7 +283,16 @@ export default function SeafoodRateAdmin() {
         )}
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Today's prices · {fmtDate(today)}</CardTitle></CardHeader>
+          <CardHeader className="pb-3 flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
+            <CardTitle className="text-base">Today's prices · {fmtDate(today)}</CardTitle>
+            <div className="relative">
+              <Search className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="h-8 w-56 pl-8" placeholder="Search fish" value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </CardHeader>
           <CardContent>
             {loading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -294,7 +307,10 @@ export default function SeafoodRateAdmin() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products!.map((p) => {
+                  {visibleProducts.length === 0 && (
+                    <TableRow><TableCell colSpan={4} className="text-sm text-muted-foreground">No fish match "{search}".</TableCell></TableRow>
+                  )}
+                  {visibleProducts.map((p) => {
                     const carried = priceInForce(sellingRows, p.id, today);
                     const sellChanged = pending.sell.some((r) => r.product_id === p.id);
                     const links = suppliersFor(p.id);
@@ -302,7 +318,8 @@ export default function SeafoodRateAdmin() {
                       <TableRow key={p.id}>
                         <TableCell className="font-medium align-top">
                           {p.name}
-                          {!p.is_published && <Badge variant="outline" className="ml-2 text-xs">Hidden</Badge>}
+                          {!p.is_published && <Badge variant="outline" className="ml-2 text-xs">Unpublished</Badge>}
+                          {p.awaiting_daily_price && <Badge variant="outline" className="ml-2 text-xs text-amber-700">Hidden until priced</Badge>}
                         </TableCell>
                         <TableCell className="align-top">
                           <div className="flex items-center gap-1">

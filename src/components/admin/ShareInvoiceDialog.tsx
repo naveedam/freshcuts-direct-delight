@@ -71,6 +71,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
       });
 
       toast.success('PDF downloaded successfully');
+      onOpenChange(false);
     } catch (e: any) {
       toast.error('Failed: ' + e.message);
     } finally {
@@ -97,6 +98,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
       });
 
       toast.success('Image downloaded');
+      onOpenChange(false);
     } catch (e: any) {
       toast.error('Failed: ' + e.message);
     } finally {
@@ -139,6 +141,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
         downloadBlob(blob, fileName);
         toast.success('Image downloaded — attach it in WhatsApp');
       }
+      onOpenChange(false);
     } catch (e: any) {
       toast.error('Failed: ' + e.message);
     } finally {
@@ -161,6 +164,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
       window.open(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_self');
 
       toast.success('PDF downloaded — attach it in your email');
+      onOpenChange(false);
     } catch (e: any) {
       toast.error('Failed: ' + e.message);
     } finally {
