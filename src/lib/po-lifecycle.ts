@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { fetchSeafoodPrices } from '@/lib/seafood-rate';
 
 /**
  * PO Lifecycle helpers — additive, idempotent.
@@ -181,6 +182,13 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<{ su
     for (const vp of vendorProducts || []) {
       costMap[`${vp.vendor_id}:${vp.product_id}`] = vp.cost_price;
     }
+
+    // Seafood Rate: supplier/product pairs priced daily. For these the order line's
+    // vendor_cost (set from the day's seafood buying price at finalization) wins over the
+    // standing cost on vendor_products, which would otherwise be a stale price.
+    const dailyPriced = new Set<string>();
+    const seafoodBuying = await fetchSeafoodPrices('seafood_buying_prices', { productIds });
+    for (const r of seafoodBuying) dailyPriced.add(`${r.vendor_id}:${r.product_id}`);
     // Vendor PO tax mirrors the same GST rate charged to the customer for
     // this product (products.gst_rate) — we pay tax on purchase and collect
     // the same on sale; both are reported via the monthly GST reports.
@@ -208,9 +216,12 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<{ su
         // real zero price — treat it the same as unmapped and fall back
         // to the manually-entered vendor_cost on the order item.
         const mappedCost = costMap[`${vendorId}:${item.product_id}`];
-        const unitCost = (mappedCost && mappedCost > 0)
-          ? mappedCost
-          : Number(item.vendor_cost ?? 0);
+        const lineCost = Number(item.vendor_cost ?? 0);
+        const unitCost = (dailyPriced.has(`${vendorId}:${item.product_id}`) && lineCost > 0)
+          ? lineCost
+          : (mappedCost && mappedCost > 0)
+            ? mappedCost
+            : lineCost;
         const totalCost = actualQty * unitCost;
         const gstRate = item.product_id ? (gstMap[item.product_id] ?? 0) : 0;
         const taxAmount = Math.round(totalCost * gstRate) / 100;

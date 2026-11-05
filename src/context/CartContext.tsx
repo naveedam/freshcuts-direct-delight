@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import { Product, CartItem } from '@/types/product';
 import { toast } from 'sonner';
 import { calculatePrice } from '@/lib/weight-utils';
+import { useSeafoodStorefront } from '@/lib/seafood-rate';
 
 interface CartContextType {
   items: CartItem[];
@@ -10,13 +11,19 @@ interface CartContextType {
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
+  // Total of items whose price is shown right now (excludes seafood while its price is hidden).
   totalPrice: number;
+  // Total including hidden seafood at its last known price: stored on the order as an estimate.
+  provisionalTotalPrice: number;
+  // True when some cart items are seafood whose price is confirmed the next morning.
+  hasUnpricedItems: boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const seafood = useSeafoodStorefront();
 
   const addToCart = useCallback((product: Product, quantity: number = 1) => {
     setItems(currentItems => {
@@ -67,13 +74,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = items.reduce((sum, item) => {
+  const lineTotal = (item: CartItem) => {
     const basePrice = calculatePrice(item.product.price, item.quantity, item.product.pricingModel || 'weight_based');
     const gstRate = item.product.gstRate || 0;
     const gstType = item.product.gstType || 'Exempt';
     const gst = (gstType === 'Taxable' && gstRate > 0) ? (basePrice * gstRate) / 100 : 0;
-    return sum + basePrice + gst;
-  }, 0);
+    return basePrice + gst;
+  };
+  const totalPrice = items.reduce(
+    (sum, item) => sum + (seafood.isHidden(item.product.category) ? 0 : lineTotal(item)), 0,
+  );
+  const provisionalTotalPrice = items.reduce((sum, item) => sum + lineTotal(item), 0);
+  const hasUnpricedItems = items.some((item) => seafood.isHidden(item.product.category));
 
   return (
     <CartContext.Provider value={{
@@ -83,7 +95,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       updateQuantity,
       clearCart,
       totalItems,
-      totalPrice
+      totalPrice,
+      provisionalTotalPrice,
+      hasUnpricedItems,
     }}>
       {children}
     </CartContext.Provider>

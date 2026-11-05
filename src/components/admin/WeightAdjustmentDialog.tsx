@@ -12,6 +12,8 @@ import { Loader2, Scale, Check, AlertCircle, Percent, IndianRupee } from 'lucide
 import { formatCurrency } from '@/lib/currency';
 import { Badge } from '@/components/ui/badge';
 import { syncPOsFromWeightAdjustment } from '@/lib/po-lifecycle';
+import { istDateString } from '@/lib/live-rate';
+import { fetchSeafoodPrices, priceInForce, fmtSeafoodDate } from '@/lib/seafood-rate';
 
 interface OrderItem {
   id: string;
@@ -23,6 +25,8 @@ interface OrderItem {
   actual_weight: number | null;
   weight_adjusted_at: string | null;
   vendor_supplied_weight?: number | null;
+  vendor_id?: string | null;
+  vendor_cost?: number | null;
   gst_rate: number;
   gst_type: string;
   hsn_code: string | null;
@@ -83,6 +87,46 @@ export function WeightAdjustmentDialog({
     return map;
   }, [products]);
 
+  // Seafood Rate: on first finalization, seafood lines take the prices in force today
+  // (carried forward from the last day they were set). Correction mode never re-prices.
+  const today = istDateString();
+  const repriceEnabled = open && !!order && !order.weight_finalized && productIds.length > 0;
+  const seafoodQuery = useQuery({
+    queryKey: ['finalize-seafood-prices', productIds, today],
+    queryFn: async () => {
+      const [selling, buying, pub] = await Promise.all([
+        fetchSeafoodPrices('seafood_selling_prices', { productIds, onOrBefore: today }),
+        fetchSeafoodPrices('seafood_buying_prices', { productIds, onOrBefore: today }),
+        (supabase as any).from('seafood_price_publications').select('publish_date').eq('publish_date', today).maybeSingle(),
+      ]);
+      return { selling, buying, publishedToday: !!pub?.data };
+    },
+    enabled: repriceEnabled,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
+  // Don't fill the inputs until seafood prices are known (or failed: then the order's own prices stay).
+  const seafoodReady = !repriceEnabled || seafoodQuery.isSuccess || seafoodQuery.isError;
+
+  type SeafoodQuote = { from: number; to: number; date: string; vendorCost: number | null };
+  const seafoodQuotes = useMemo<Record<string, SeafoodQuote>>(() => {
+    const quotes: Record<string, SeafoodQuote> = {};
+    const data = repriceEnabled ? seafoodQuery.data : undefined;
+    if (!data) return quotes;
+    orderItems.forEach((item) => {
+      if (!item.product_id) return;
+      const sell = priceInForce(data.selling, item.product_id, today);
+      if (!sell) return;
+      const buy = item.vendor_id ? priceInForce(data.buying, item.product_id, today, item.vendor_id) : null;
+      quotes[item.id] = { from: Number(item.unit_price), to: sell.price, date: sell.effective_date, vendorCost: buy ? buy.price : null };
+    });
+    return quotes;
+  }, [repriceEnabled, seafoodQuery.data, orderItems, today]);
+
+  const seafoodNotPublished = repriceEnabled && !!seafoodQuery.data && !seafoodQuery.data.publishedToday
+    && Object.keys(seafoodQuotes).length > 0;
+  const latestSeafoodDate = Object.values(seafoodQuotes).reduce((d: string, q: SeafoodQuote) => (q.date > d ? q.date : d), '');
+
   const getItemPricingModel = (item: OrderItem): 'weight_based' | 'unit_based' => {
     if (item.product_id && productMap[item.product_id]) {
       return productMap[item.product_id].pricing_model === 'unit_based' ? 'unit_based' : 'weight_based';
@@ -92,13 +136,13 @@ export function WeightAdjustmentDialog({
 
   // Initialize with current values when dialog opens
   useEffect(() => {
-    if (open && orderItems) {
+    if (open && orderItems && seafoodReady) {
       const initial: Record<string, { weight: string; price: string }> = {};
       const initialVendor: Record<string, string> = {};
       orderItems.forEach(item => {
         initial[item.id] = {
           weight: item.actual_weight?.toString() || item.quantity.toString(),
-          price: item.unit_price.toString()
+          price: (seafoodQuotes[item.id]?.to ?? item.unit_price).toString()
         };
         initialVendor[item.id] = (item.vendor_supplied_weight ?? item.actual_weight)?.toString() || item.quantity.toString();
       });
@@ -108,7 +152,7 @@ export function WeightAdjustmentDialog({
       setDiscountValue(order?.discount_value?.toString() || '0');
       setCorrectionMode(false);
     }
-  }, [open, orderItems, order]);
+  }, [open, orderItems, order, seafoodReady, seafoodQuotes]);
 
   const calculateItemTotal = (itemId: string, item: OrderItem) => {
     const adjusted = adjustedItems[itemId];
@@ -172,9 +216,13 @@ export function WeightAdjustmentDialog({
           }
         }
 
+        // Seafood lines also take today's buying price from their supplier.
+        const seafoodVendorCost = !order.weight_finalized ? seafoodQuotes[item.id]?.vendorCost ?? null : null;
+
         const { error } = await supabase
           .from('order_items')
           .update({
+            ...(seafoodVendorCost != null ? { vendor_cost: seafoodVendorCost } : {}),
             actual_weight: actualWeight,
             vendor_supplied_weight: vendorSuppliedWeight,
             unit_price: unitPrice,
@@ -261,6 +309,16 @@ export function WeightAdjustmentDialog({
           <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 text-green-800">
             <Check className="h-4 w-4" />
             <span className="text-sm">{correctionMode ? 'Correction mode — edit and save to resync PO' : 'Weights have been finalized for this order'}</span>
+          </div>
+        )}
+
+        {seafoodNotPublished && (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
+            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <p className="text-sm">
+              Today's seafood prices aren't published yet, so seafood lines use the latest prices (set {latestSeafoodDate ? fmtSeafoodDate(latestSeafoodDate) : 'earlier'}).
+              Publish them under Seafood Rate first if they've changed.
+            </p>
           </div>
         )}
 
@@ -351,6 +409,14 @@ export function WeightAdjustmentDialog({
                             disabled={order.weight_finalized && !correctionMode}
                           />
                         </div>
+                        {seafoodQuotes[item.id] && (
+                          <p className="text-[11px] text-center text-muted-foreground mt-1 leading-tight">
+                            Seafood rate {seafoodQuotes[item.id].date === today ? 'today' : `from ${fmtSeafoodDate(seafoodQuotes[item.id].date)}`}
+                            {seafoodQuotes[item.id].from !== seafoodQuotes[item.id].to && (
+                              <> · was ₹{seafoodQuotes[item.id].from}</>
+                            )}
+                          </p>
+                        )}
                       </TableCell>
                       <TableCell className="px-2 py-2 text-right font-medium text-sm">
                         {formatCurrency(calculateItemTotal(item.id, item))}

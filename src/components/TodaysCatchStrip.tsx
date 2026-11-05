@@ -1,10 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { istDateString } from '@/lib/live-rate';
+import { useSeafoodStorefront } from '@/lib/seafood-rate';
+import { SeafoodPriceNote } from '@/components/products/SeafoodPriceNote';
 import { Fish } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export function TodaysCatchStrip() {
+  const seafood = useSeafoodStorefront();
   const { data: catchItems } = useQuery({
     queryKey: ['todays-catch-home'],
     queryFn: async () => {
@@ -43,9 +46,13 @@ export function TodaysCatchStrip() {
                 {item.note && (
                   <p className="text-xs text-muted-foreground truncate">{item.note}</p>
                 )}
-                <p className="text-sm font-semibold text-primary mt-1">
-                  ₹{product.price}/{product.unit}
-                </p>
+                {seafood.visible ? (
+                  <p className="text-sm font-semibold text-primary mt-1">
+                    ₹{product.price}/{product.unit}
+                  </p>
+                ) : (
+                  <SeafoodPriceNote message={seafood.message} className="mt-1" />
+                )}
               </Link>
             );
           })}

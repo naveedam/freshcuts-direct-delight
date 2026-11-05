@@ -4,12 +4,16 @@ import { useCart } from '@/context/CartContext';
 import { ShoppingCart, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getPriceUnitLabel } from '@/lib/weight-utils';
+import { useSeafoodStorefront } from '@/lib/seafood-rate';
+import { SeafoodPriceNote } from '@/components/products/SeafoodPriceNote';
 interface ProductCardProps {
   product: Product;
 }
 
 export function ProductCard({ product }: ProductCardProps) {
   const { addToCart } = useCart();
+  const seafood = useSeafoodStorefront();
+  const priceHidden = seafood.isHidden(product.category);
 
   return (
     <div className="group bg-card rounded-xl border border-border shadow-card overflow-hidden card-hover">
@@ -85,12 +89,18 @@ export function ProductCard({ product }: ProductCardProps) {
         {/* Price and Action */}
         <div className="flex items-center justify-between">
           <div>
-            <span className="font-heading text-xl font-bold text-primary">
-              ₹{product.price.toFixed(0)}
-            </span>
-            <span className="font-body text-sm text-muted-foreground ml-1">
-              {getPriceUnitLabel(product.pricingModel || 'weight_based')}
-            </span>
+            {priceHidden ? (
+              <SeafoodPriceNote message={seafood.message} className="text-sm" />
+            ) : (
+              <>
+                <span className="font-heading text-xl font-bold text-primary">
+                  ₹{product.price.toFixed(0)}
+                </span>
+                <span className="font-body text-sm text-muted-foreground ml-1">
+                  {getPriceUnitLabel(product.pricingModel || 'weight_based')}
+                </span>
+              </>
+            )}
             {(product.pricingModel || 'weight_based') === 'weight_based' && (
               <p className="font-body text-xs text-muted-foreground mt-1">
                 Order in 500g steps

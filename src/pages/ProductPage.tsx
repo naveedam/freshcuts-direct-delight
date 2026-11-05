@@ -8,6 +8,8 @@ import { useState } from 'react';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatWeight, formatQuantityDisplay, getPriceUnitLabel, calculatePrice, isWeightBased } from '@/lib/weight-utils';
+import { useSeafoodStorefront, isSeafoodCategory } from '@/lib/seafood-rate';
+import { SeafoodPriceNote } from '@/components/products/SeafoodPriceNote';
 
 const ProductPage = () => {
   const { productId } = useParams<{ productId: string }>();
@@ -15,6 +17,7 @@ const ProductPage = () => {
   const { data: relatedProductsData } = useProductsByCategory(product?.category || '');
   const [quantity, setQuantity] = useState(1);
   const { addToCart } = useCart();
+  const seafood = useSeafoodStorefront();
 
   if (isLoading) {
     return (
@@ -118,14 +121,30 @@ const ProductPage = () => {
             </h1>
 
             {/* Price */}
-            <div className="flex items-baseline gap-2 mb-6">
-              <span className="font-heading text-3xl font-bold text-primary">
-                ₹{product.price.toFixed(0)}
-              </span>
-              <span className="font-body text-muted-foreground">
-                {getPriceUnitLabel(product.pricingModel || 'weight_based')}
-              </span>
-            </div>
+            {seafood.isHidden(product.category) ? (
+              <div className="mb-6">
+                <SeafoodPriceNote message={seafood.message} className="text-base" />
+                <p className="font-body text-sm text-muted-foreground mt-1">
+                  You can still order now. Your order is billed at the morning's rate.
+                </p>
+              </div>
+            ) : (
+              <div className="mb-6">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-heading text-3xl font-bold text-primary">
+                    ₹{product.price.toFixed(0)}
+                  </span>
+                  <span className="font-body text-muted-foreground">
+                    {getPriceUnitLabel(product.pricingModel || 'weight_based')}
+                  </span>
+                </div>
+                {isSeafoodCategory(product.category) && (
+                  <p className="font-body text-sm text-muted-foreground mt-1">
+                    Today's price, valid until 6 PM. Seafood is billed at the rate on the day your order is weighed.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Description */}
             <p className="font-body text-muted-foreground text-lg leading-relaxed mb-8">
@@ -188,7 +207,9 @@ const ProductPage = () => {
               disabled={!product.inStock}
             >
               <ShoppingCart className="h-5 w-5" />
-              Add to Cart - ₹{calculatePrice(product.price, quantity, product.pricingModel || 'weight_based').toFixed(0)}
+              {seafood.isHidden(product.category)
+                ? 'Add to Cart'
+                : `Add to Cart - ₹${calculatePrice(product.price, quantity, product.pricingModel || 'weight_based').toFixed(0)}`}
             </Button>
 
             {/* Features */}

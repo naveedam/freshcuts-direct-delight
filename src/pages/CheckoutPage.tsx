@@ -13,6 +13,8 @@ import { z } from 'zod';
 import { formatCurrency } from '@/lib/currency';
 import { formatQuantityDisplay, calculatePrice, isWeightBased } from '@/lib/weight-utils';
 import { buildOrderItems } from '@/lib/order-utils';
+import { useSeafoodStorefront } from '@/lib/seafood-rate';
+import { SeafoodPriceNote } from '@/components/products/SeafoodPriceNote';
 
 // Validation schema for shipping
 const shippingSchema = z.object({
@@ -39,7 +41,8 @@ const sanitizeInput = (input: string): string => {
 };
 
 const CheckoutPage = () => {
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, totalPrice, provisionalTotalPrice, hasUnpricedItems, clearCart } = useCart();
+  const seafood = useSeafoodStorefront();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -117,7 +120,9 @@ const CheckoutPage = () => {
         .from('orders')
         .insert({
           user_id: user?.id || null,
-          total_amount: orderTotal,
+          // Seafood ordered while its price is hidden is stored at its last price as an estimate;
+          // Finalize Weights re-prices it at the morning's rate.
+          total_amount: provisionalTotalPrice + shippingCost,
           status: 'pending',
           building_name: sanitizedData.buildingName || null,
           flat_number: sanitizedData.flatNumber || null,
@@ -403,9 +408,13 @@ const CheckoutPage = () => {
                       <p className="font-body text-xs text-muted-foreground">
                         {isWeightBased(product.pricingModel || 'weight_based') ? 'Weight' : 'Qty'}: {formatQuantityDisplay(quantity, product.pricingModel || 'weight_based')}
                       </p>
-                      <p className="font-body text-sm font-medium text-primary">
-                        {formatCurrency(calculatePrice(product.price, quantity, product.pricingModel || 'weight_based'))}
-                      </p>
+                      {seafood.isHidden(product.category) ? (
+                        <SeafoodPriceNote message="Price confirmed tomorrow morning" />
+                      ) : (
+                        <p className="font-body text-sm font-medium text-primary">
+                          {formatCurrency(calculatePrice(product.price, quantity, product.pricingModel || 'weight_based'))}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -429,6 +438,11 @@ const CheckoutPage = () => {
                 <p className="text-xs text-muted-foreground mt-2">
                   * Final amount may vary based on actual weight
                 </p>
+                {hasUnpricedItems && (
+                  <p className="text-xs text-muted-foreground">
+                    * Seafood isn't included in this total. {seafood.message}, and your seafood is billed at that rate.
+                  </p>
+                )}
               </div>
             </div>
           </div>
