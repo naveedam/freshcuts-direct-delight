@@ -1,22 +1,18 @@
 import { Layout } from '@/components/layout/Layout';
+import { CompactHero } from '@/components/home/CompactHero';
 import { TodaysCatchStrip } from '@/components/TodaysCatchStrip';
-import { HeroSection } from '@/components/home/HeroSection';
-import { CategorySection } from '@/components/home/CategorySection';
-import { FeaturedProducts } from '@/components/home/FeaturedProducts';
-import { WhyChooseUs } from '@/components/home/WhyChooseUs';
-import { GoogleReviews } from '@/components/home/GoogleReviews';
-import { CTASection } from '@/components/home/CTASection';
+import { ProductBrowser } from '@/components/home/ProductBrowser';
+import { TrustRow } from '@/components/home/TrustRow';
+import { CommunitiesServed } from '@/components/home/CommunitiesServed';
 
 const Index = () => {
   return (
     <Layout>
-      <HeroSection />
+      <CompactHero />
       <TodaysCatchStrip />
-      <CategorySection />
-      <FeaturedProducts />
-      <WhyChooseUs />
-      <GoogleReviews />
-      <CTASection />
+      <ProductBrowser />
+      <TrustRow />
+      <CommunitiesServed />
     </Layout>
   );
 };

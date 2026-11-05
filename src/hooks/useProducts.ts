@@ -96,3 +96,22 @@ export function useFeaturedProducts() {
     }
   });
 }
+
+export type StorefrontProduct = Product & { categoryId: string | null };
+
+// Every published product with its category id, for the home page menu.
+export function useStorefrontProducts() {
+  return useQuery({
+    queryKey: ['products', 'storefront'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_published', true)
+        .order('name');
+      if (error) throw error;
+      return data.map((p: any): StorefrontProduct => ({ ...mapDbProduct(p), categoryId: p.category_id ?? null }));
+    },
+    staleTime: 60 * 1000,
+  });
+}
