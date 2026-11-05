@@ -1,4 +1,5 @@
 import { Layout } from '@/components/layout/Layout';
+import { TodaysCatchStrip } from '@/components/TodaysCatchStrip';
 import { HeroSection } from '@/components/home/HeroSection';
 import { CategorySection } from '@/components/home/CategorySection';
 import { FeaturedProducts } from '@/components/home/FeaturedProducts';
@@ -10,6 +11,7 @@ const Index = () => {
   return (
     <Layout>
       <HeroSection />
+      <TodaysCatchStrip />
       <CategorySection />
       <FeaturedProducts />
       <WhyChooseUs />
