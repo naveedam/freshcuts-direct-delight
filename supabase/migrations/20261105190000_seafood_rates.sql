@@ -21,10 +21,12 @@ CREATE INDEX IF NOT EXISTS seafood_selling_prices_date_idx
 
 ALTER TABLE public.seafood_selling_prices ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can read seafood selling prices" ON public.seafood_selling_prices;
 CREATE POLICY "Anyone can read seafood selling prices"
 ON public.seafood_selling_prices FOR SELECT
 USING (true);
 
+DROP POLICY IF EXISTS "Admins can manage seafood selling prices" ON public.seafood_selling_prices;
 CREATE POLICY "Admins can manage seafood selling prices"
 ON public.seafood_selling_prices FOR ALL
 TO authenticated
@@ -48,6 +50,7 @@ CREATE INDEX IF NOT EXISTS seafood_buying_prices_date_idx
 
 ALTER TABLE public.seafood_buying_prices ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins can manage seafood buying prices" ON public.seafood_buying_prices;
 CREATE POLICY "Admins can manage seafood buying prices"
 ON public.seafood_buying_prices FOR ALL
 TO authenticated
@@ -64,10 +67,12 @@ CREATE TABLE IF NOT EXISTS public.seafood_price_publications (
 
 ALTER TABLE public.seafood_price_publications ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can read seafood price publications" ON public.seafood_price_publications;
 CREATE POLICY "Anyone can read seafood price publications"
 ON public.seafood_price_publications FOR SELECT
 USING (true);
 
+DROP POLICY IF EXISTS "Admins can manage seafood price publications" ON public.seafood_price_publications;
 CREATE POLICY "Admins can manage seafood price publications"
 ON public.seafood_price_publications FOR ALL
 TO authenticated

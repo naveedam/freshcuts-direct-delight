@@ -4,6 +4,12 @@ All notable changes to FreshCuts Daily are documented here.
 
 ## 2026-11-05
 
+### Fixed
+- **Order on WhatsApp never worked**: the form inserted into `orders` directly, which the RLS policy rejects for every customer (logged out: no insert permission; logged in: the order wasn't tied to their login). Orders now go through a `create_whatsapp_order` database function (migration `20261105200000_create_whatsapp_order.sql`) that validates input, prices items from the product list, and limits each phone number to 5 WhatsApp orders an hour.
+- WhatsApp now opens directly on phones and in the app, and a new tab on desktop, with an **Open WhatsApp** button as a fallback when the browser blocks it.
+- The WhatsApp product list now includes products stored under the category name (bulk uploads) and excludes unpublished products.
+- The WhatsApp delivery date picker no longer blocks tomorrow.
+
 ### Added
 - **Seafood Rate** (Admin → Seafood Rate): daily selling price per fish and buying price per fish per supplier, entered around 8:30 AM. Prices carry forward until changed; **Publish** (or "Publish: no change today") makes the day's prices live. Publishing also updates the catalog price and the supplier's standing cost, and can tick fish into Today's Catch. Monthly list of price changes.
 - **Storefront seafood price window**: seafood prices show only after the day's prices are published and until 6 PM IST. Otherwise product cards, product pages, Today's Catch, cart, checkout and the WhatsApp order form show "Prices will be updated tomorrow morning at around 8:30 AM" (or "this morning" after midnight). Customers can still order; seafood is left out of the displayed total.
