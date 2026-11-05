@@ -8,6 +8,8 @@ import { useCategories } from '@/hooks/useCategories';
 import { useStorefrontProducts, type StorefrontProduct } from '@/hooks/useProducts';
 import { useCart } from '@/context/CartContext';
 import { getPriceUnitLabel } from '@/lib/weight-utils';
+import { useSeafoodStorefront } from '@/lib/seafood-rate';
+import { SeafoodPriceNote } from '@/components/products/SeafoodPriceNote';
 
 const EMOJI: Record<string, string> = { lamb: '🐑', poultry: '🐔', seafood: '🦐' };
 
@@ -37,6 +39,7 @@ function ProductRow({
   product, emoji, inCart, onAdd,
 }: { product: StorefrontProduct; emoji: string; inCart: boolean; onAdd: () => void }) {
   const hasImage = !!product.image && product.image !== '/placeholder.svg';
+  const seafood = useSeafoodStorefront();
   return (
     <div className="flex items-center gap-3 bg-card border border-border rounded-xl p-3">
       <Link
@@ -53,10 +56,14 @@ function ProductRow({
         <p className="font-heading text-base font-semibold text-foreground leading-snug line-clamp-2">
           {product.name}
         </p>
-        <p className="font-body text-sm text-muted-foreground">
-          <span className="font-semibold text-primary">₹{product.price.toFixed(0)}</span>{' '}
-          {getPriceUnitLabel(product.pricingModel || 'weight_based')}
-        </p>
+        {seafood.isHidden(product.category) ? (
+          <SeafoodPriceNote message={seafood.message} />
+        ) : (
+          <p className="font-body text-sm text-muted-foreground">
+            <span className="font-semibold text-primary">₹{product.price.toFixed(0)}</span>{' '}
+            {getPriceUnitLabel(product.pricingModel || 'weight_based')}
+          </p>
+        )}
         {inCart && <p className="text-xs font-medium text-green-600">In cart</p>}
       </Link>
       {product.inStock ? (

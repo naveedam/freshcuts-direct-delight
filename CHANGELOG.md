@@ -2,6 +2,15 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-05
+
+### Added
+- **Seafood Rate** (Admin → Seafood Rate): daily selling price per fish and buying price per fish per supplier, entered around 8:30 AM. Prices carry forward until changed; **Publish** (or "Publish: no change today") makes the day's prices live. Publishing also updates the catalog price and the supplier's standing cost, and can tick fish into Today's Catch. Monthly list of price changes.
+- **Storefront seafood price window**: seafood prices show only after the day's prices are published and until 6 PM IST. Otherwise product cards, product pages, Today's Catch, cart, checkout and the WhatsApp order form show "Prices will be updated tomorrow morning at around 8:30 AM" (or "this morning" after midnight). Customers can still order; seafood is left out of the displayed total.
+- **Finalize Weights re-pricing**: on first finalization, seafood lines take the selling and buying prices in force that day, with the old price shown. Warns if today's prices aren't published. Correction mode never re-prices.
+- New Order buying prices and vendor PO sync use the day's seafood buying price.
+- Migration `20261105190000_seafood_rates.sql` (seeds starting prices from current catalog prices and supplier costs).
+
 ## 2026-07-28 to 2026-07-30
 
 ### Migration

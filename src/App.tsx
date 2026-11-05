@@ -16,6 +16,7 @@ import AdminDashboard from "./pages/admin/Dashboard";
 import ProductsAdmin from "./pages/admin/ProductsAdmin";
 import TodaysCatchAdmin from "./pages/admin/TodaysCatchAdmin";
 import ChickenRateAdmin from "./pages/admin/ChickenRateAdmin";
+import SeafoodRateAdmin from "./pages/admin/SeafoodRateAdmin";
 import OrdersAdmin from "./pages/admin/OrdersAdmin";
 import ContentAdmin from "./pages/admin/ContentAdmin";
 import BusinessSettings from "./pages/admin/BusinessSettings";
@@ -68,6 +69,7 @@ const App = () => (
               <Route path="/admin/products" element={<RequireAdmin><ProductsAdmin /></RequireAdmin>} />
               <Route path="/admin/todays-catch" element={<RequireAdmin><TodaysCatchAdmin /></RequireAdmin>} />
               <Route path="/admin/chicken-rate" element={<RequireAdmin><ChickenRateAdmin /></RequireAdmin>} />
+              <Route path="/admin/seafood-rate" element={<RequireAdmin><SeafoodRateAdmin /></RequireAdmin>} />
               <Route path="/admin/products/bulk-upload" element={<RequireAdmin><BulkUploadAdmin /></RequireAdmin>} />
               <Route path="/admin/categories" element={<RequireAdmin><CategoriesAdmin /></RequireAdmin>} />
               <Route path="/admin/orders" element={<RequireAdmin><OrdersAdmin /></RequireAdmin>} />

@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/currency';
 import { BuildingAutocomplete } from './BuildingAutocomplete';
 import { FlatAutocomplete } from './FlatAutocomplete';
-import { useLivePricing } from '@/lib/live-rate';
+import { useOrderPricing } from '@/lib/seafood-rate';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
 
@@ -135,7 +135,7 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
     { product_id: null, product_name: '', quantity: 1, unit_price: 0, vendor_cost: 0, hsn_code: '', gst_type: 'Exempt', gst_rate: 0, vendor_id: null }
   ]);
 
-  const livePricing = useLivePricing();
+  const livePricing = useOrderPricing();
 
   // Prefill from a "Repeat Order" action — only applies when the dialog opens with data
   useEffect(() => {

@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useProducts } from '@/hooks/useProducts';
 import { toast } from 'sonner';
 import { useCategories } from '@/hooks/useCategories';
+import { useSeafoodStorefront } from '@/lib/seafood-rate';
 
 const WHATSAPP_NUMBER = '918971365236';
 
@@ -59,6 +60,7 @@ interface OrderItem {
   quantity: number;
   unit: string;
   price: number;
+  category: string;
 }
 
 interface WhatsAppOrderDialogProps {
@@ -73,6 +75,7 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
   const [quantity, setQuantity] = useState('0.5');
   const { data: allProducts, isLoading: productsLoading } = useProducts();
   const { data: visibleCategories } = useCategories();
+  const seafood = useSeafoodStorefront();
 
   // Only show products from visible (active) categories
   const products = useMemo(() => {
@@ -121,6 +124,7 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
         quantity: qty,
         unit: product.unit,
         price: product.price,
+        category: product.category,
       }]);
     }
     setSelectedProduct('');
@@ -131,9 +135,17 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
     setOrderItems(orderItems.filter((_, i) => i !== index));
   };
 
+  // Full total, with hidden seafood at its last price: stored on the order as an estimate.
   const calculateTotal = () => {
     return orderItems.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
+  // What the customer is shown: seafood whose price is hidden is left out.
+  const calculateShownTotal = () => {
+    return orderItems.reduce(
+      (total, item) => total + (seafood.isHidden(item.category) ? 0 : item.price * item.quantity), 0,
+    );
+  };
+  const hasHiddenItems = orderItems.some((item) => seafood.isHidden(item.category));
 
   const onSubmit = async (values: FormValues) => {
     if (orderItems.length === 0) {
@@ -385,7 +397,9 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
                     <SelectContent>
                       {products?.filter(p => p.inStock).map(product => (
                         <SelectItem key={product.id} value={product.id}>
-                          {product.name} - ₹{product.price}/{product.unit}
+                          {seafood.isHidden(product.category)
+                            ? `${product.name} - price from tomorrow morning`
+                            : `${product.name} - ₹${product.price}/${product.unit}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -412,7 +426,9 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
                           <div>
                             <p className="font-medium">{item.productName}</p>
                             <p className="text-sm text-muted-foreground">
-                              {item.quantity} {item.unit} × ₹{item.price} = ₹{(item.quantity * item.price).toFixed(2)}
+                              {seafood.isHidden(item.category)
+                                ? `${item.quantity} ${item.unit} · ${seafood.message}`
+                                : `${item.quantity} ${item.unit} × ₹${item.price} = ₹${(item.quantity * item.price).toFixed(2)}`}
                             </p>
                           </div>
                           <Button
@@ -428,7 +444,7 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
                       ))}
                       <div className="flex justify-between bg-muted/50 p-3 font-medium">
                         <span>Total</span>
-                        <span>₹{calculateTotal().toFixed(2)}</span>
+                        <span>₹{calculateShownTotal().toFixed(2)}{hasHiddenItems ? ' + seafood' : ''}</span>
                       </div>
                     </div>
                   </div>

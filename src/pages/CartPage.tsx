@@ -4,9 +4,12 @@ import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
 import { formatQuantityDisplay, getPriceUnitLabel, calculatePrice, isWeightBased } from '@/lib/weight-utils';
+import { useSeafoodStorefront } from '@/lib/seafood-rate';
+import { SeafoodPriceNote } from '@/components/products/SeafoodPriceNote';
 
 const CartPage = () => {
-  const { items, updateQuantity, removeFromCart, totalPrice, clearCart } = useCart();
+  const { items, updateQuantity, removeFromCart, totalPrice, clearCart, hasUnpricedItems } = useCart();
+  const seafood = useSeafoodStorefront();
   const shippingThreshold = 2000;
   const remainingForFreeShipping = Math.max(0, shippingThreshold - totalPrice);
   const hasFreeShipping = totalPrice >= shippingThreshold;
@@ -94,12 +97,23 @@ const CartPage = () => {
                   <p className="font-body text-sm text-muted-foreground capitalize">
                     {product.subCategory || product.category}
                   </p>
-                  <p className="font-body text-sm text-muted-foreground mt-1">
-                    ₹{product.price.toFixed(0)} {getPriceUnitLabel(product.pricingModel || 'weight_based')}
-                  </p>
-                  <p className="font-heading text-lg font-bold text-primary mt-1">
-                    {formatQuantityDisplay(quantity, product.pricingModel || 'weight_based')}: ₹{calculatePrice(product.price, quantity, product.pricingModel || 'weight_based').toFixed(0)}
-                  </p>
+                  {seafood.isHidden(product.category) ? (
+                    <>
+                      <p className="font-heading text-lg font-bold text-foreground mt-1">
+                        {formatQuantityDisplay(quantity, product.pricingModel || 'weight_based')}
+                      </p>
+                      <SeafoodPriceNote message={seafood.message} />
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-body text-sm text-muted-foreground mt-1">
+                        ₹{product.price.toFixed(0)} {getPriceUnitLabel(product.pricingModel || 'weight_based')}
+                      </p>
+                      <p className="font-heading text-lg font-bold text-primary mt-1">
+                        {formatQuantityDisplay(quantity, product.pricingModel || 'weight_based')}: ₹{calculatePrice(product.price, quantity, product.pricingModel || 'weight_based').toFixed(0)}
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 {/* Quantity & Actions */}
@@ -171,6 +185,11 @@ const CartPage = () => {
                   <span className="font-heading font-bold text-foreground">Total</span>
                   <span className="font-heading text-xl font-bold text-primary">₹{orderTotal.toFixed(0)}</span>
                 </div>
+                {hasUnpricedItems && (
+                  <p className="font-body text-xs text-muted-foreground">
+                    Seafood isn't included in this total. Its price is confirmed tomorrow morning and added when your order is weighed.
+                  </p>
+                )}
               </div>
 
               <Link to="/checkout">
