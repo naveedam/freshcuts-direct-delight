@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
-import { CalendarIcon, Loader2, Plus, Trash2 } from 'lucide-react';
+import { CalendarIcon, CheckCircle2, Loader2, MessageCircle, Plus, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
-import { useProducts } from '@/hooks/useProducts';
+import { useStorefrontProducts } from '@/hooks/useProducts';
+import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
 import { useCategories } from '@/hooks/useCategories';
 import { useSeafoodStorefront } from '@/lib/seafood-rate';
@@ -41,6 +42,15 @@ const LOCATIONS = [
 ];
 
 const phoneRegex = /^[6-9]\d{9}$/;
+
+// Phones, tablets and the Android/iOS app: hand the link straight to WhatsApp in the same tab.
+// Desktop: open a new tab. Neither is reliable after an await, so a tap-to-open button is
+// always shown as well.
+function isMobileDevice(): boolean {
+  if (Capacitor.isNativePlatform()) return true;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+}
 
 const formSchema = z.object({
   customerName: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name too long'),
@@ -73,15 +83,20 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState('');
   const [quantity, setQuantity] = useState('0.5');
-  const { data: allProducts, isLoading: productsLoading } = useProducts();
+  // Set once the order is saved: the dialog then shows the "Open WhatsApp" step.
+  const [placed, setPlaced] = useState<{ reference: string; url: string } | null>(null);
+  const { data: allProducts, isLoading: productsLoading } = useStorefrontProducts();
   const { data: visibleCategories } = useCategories();
   const seafood = useSeafoodStorefront();
 
-  // Only show products from visible (active) categories
+  // Only published products from visible (active) categories. A product's category may be
+  // stored as the category id, slug or name depending on how it was added, so match any.
   const products = useMemo(() => {
     if (!allProducts || !visibleCategories) return allProducts;
-    const visibleSlugs = new Set(visibleCategories.map(c => c.slug));
-    return allProducts.filter(p => visibleSlugs.has(p.category));
+    const ids = new Set(visibleCategories.map(c => c.id));
+    const keys = new Set(visibleCategories.flatMap(c => [c.slug.toLowerCase(), c.name.toLowerCase()]));
+    return allProducts.filter(p =>
+      (p.categoryId && ids.has(p.categoryId)) || keys.has((p.category || '').toLowerCase()));
   }, [allProducts, visibleCategories]);
 
   const form = useForm<FormValues>({
@@ -135,10 +150,6 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
     setOrderItems(orderItems.filter((_, i) => i !== index));
   };
 
-  // Full total, with hidden seafood at its last price: stored on the order as an estimate.
-  const calculateTotal = () => {
-    return orderItems.reduce((total, item) => total + (item.price * item.quantity), 0);
-  };
   // What the customer is shown: seafood whose price is hidden is left out.
   const calculateShownTotal = () => {
     return orderItems.reduce(
@@ -156,42 +167,22 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
     setIsSubmitting(true);
 
     try {
-      const location = values.location === 'Other' ? values.customLocation : values.location;
-      const totalAmount = calculateTotal();
+      const location = (values.location === 'Other' ? values.customLocation : values.location) || '';
 
-      // Create order in backend with pending status
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          status: 'pending',
-          order_source: 'whatsapp-website',
-          total_amount: totalAmount,
-          shipping_address: location,
-          phone: values.mobileNumber,
-          notes: `WhatsApp Order - ${values.customerName}\nDelivery: ${format(values.deliveryDate, 'dd MMM yyyy')} - ${values.deliverySlot}\n${values.notes || ''}`,
-        })
-        .select()
-        .single();
+      // Saved through a database function: customers can't write to orders directly, and
+      // prices are taken from the product list rather than from the browser.
+      const { data, error } = await (supabase as any).rpc('create_whatsapp_order', {
+        p_customer_name: values.customerName,
+        p_phone: values.mobileNumber,
+        p_location: location,
+        p_delivery_date: format(values.deliveryDate, 'yyyy-MM-dd'),
+        p_delivery_slot: values.deliverySlot,
+        p_notes: values.notes || '',
+        p_items: orderItems.map(item => ({ product_id: item.productId, quantity: item.quantity })),
+      });
+      if (error) throw error;
+      const reference: string = data?.reference || '';
 
-      if (orderError) throw orderError;
-
-      // Create order items
-      const orderItemsData = orderItems.map(item => ({
-        order_id: order.id,
-        product_id: item.productId,
-        product_name: item.productName,
-        quantity: item.quantity,
-        unit_price: item.price,
-        total_price: item.price * item.quantity,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItemsData);
-
-      if (itemsError) throw itemsError;
-
-      // Build WhatsApp message
       const orderItemsList = orderItems
         .map(item => `• ${item.productName}: ${item.quantity} ${item.unit}`)
         .join('\n');
@@ -200,37 +191,46 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
         `Hi FreshCutsDaily 👋\n\n` +
         `This is ${values.customerName} from ${location}.\n\n` +
         `I have placed an order on your website.\n\n` +
-        `📋 Order Reference: ${order.id.slice(0, 8).toUpperCase()}\n\n` +
+        `📋 Order Reference: ${reference}\n\n` +
         `🛒 Items:\n${orderItemsList}\n\n` +
         `📅 Delivery Preference: ${format(values.deliveryDate, 'dd MMM yyyy')} – ${values.deliverySlot}\n\n` +
         `${values.notes ? `📝 Notes: ${values.notes}\n\n` : ''}` +
         `Please confirm my order. Thank you!`
       );
-
-      // Open WhatsApp
       const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
-      window.open(whatsappUrl, '_blank');
 
-      toast.success('Order created! Complete your order on WhatsApp.');
-      
-      // Reset form
       form.reset();
       setOrderItems([]);
-      onOpenChange(false);
+      setPlaced({ reference, url: whatsappUrl });
 
-    } catch (error) {
+      if (isMobileDevice()) {
+        window.location.href = whatsappUrl;
+      } else {
+        window.open(whatsappUrl, '_blank', 'noopener');
+      }
+    } catch (error: any) {
       console.error('Error creating order:', error);
-      toast.error('Failed to create order. Please try again.');
+      // Validation messages from the database function are written for customers.
+      const msg = error?.code === '22023' && error?.message ? error.message : 'Failed to create order. Please try again.';
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next) setPlaced(null);
+    onOpenChange(next);
+  };
+
+  // Midnight tomorrow: calendar dates are at 00:00, so comparing against "now + 1 day"
+  // (which keeps the current time) wrongly blocked tomorrow itself.
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-lg overflow-hidden p-0">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle className="text-xl font-semibold">Order on WhatsApp</DialogTitle>
@@ -240,6 +240,27 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
         </DialogHeader>
 
         <ScrollArea className="max-h-[calc(90vh-120px)] px-6 pb-6">
+          {placed ? (
+            <div className="space-y-4 py-4 text-center">
+              <CheckCircle2 className="mx-auto h-12 w-12 text-[#25D366]" />
+              <div>
+                <p className="text-lg font-semibold">Order saved</p>
+                <p className="text-sm text-muted-foreground">Reference {placed.reference}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Send us the order on WhatsApp so we can confirm it. If WhatsApp didn't open, tap the button.
+              </p>
+              <Button asChild className="w-full bg-[#25D366] hover:bg-[#20BA5A]">
+                <a href={placed.url} target="_blank" rel="noopener noreferrer">
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Open WhatsApp
+                </a>
+              </Button>
+              <Button variant="ghost" className="w-full" onClick={() => handleOpenChange(false)}>
+                Close
+              </Button>
+            </div>
+          ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               {/* Customer Details */}
@@ -493,6 +514,7 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
               </Button>
             </form>
           </Form>
+          )}
         </ScrollArea>
       </DialogContent>
     </Dialog>
