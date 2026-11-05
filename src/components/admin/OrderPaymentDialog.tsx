@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
@@ -56,6 +56,18 @@ export function OrderPaymentDialog({ open, onOpenChange, order }: OrderPaymentDi
   const orderTotal = Number(order?.total_amount) || 0;
   const balanceDue = orderTotal - totalPaid;
 
+  // Open straight into the payment form with the balance filled in, so a full payment is one click.
+  useEffect(() => {
+    if (!open || isLoading || !payments) return;
+    if (balanceDue > 0.01) {
+      setAmount(balanceDue.toFixed(2));
+      setShowForm(true);
+    } else {
+      setShowForm(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isLoading, order?.id]);
+
   const addPaymentMutation = useMutation({
     mutationFn: async () => {
       const payAmount = parseFloat(amount);
@@ -82,8 +94,9 @@ export function OrderPaymentDialog({ open, onOpenChange, order }: OrderPaymentDi
         payment_status: newStatus,
       }).eq('id', order.id);
       if (orderErr) throw orderErr;
+      return newStatus;
     },
-    onSuccess: () => {
+    onSuccess: (newStatus) => {
       queryClient.invalidateQueries({ queryKey: ['customer_payments', order?.id] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
       toast.success('Payment recorded');
@@ -91,6 +104,8 @@ export function OrderPaymentDialog({ open, onOpenChange, order }: OrderPaymentDi
       setAmount('');
       setReference('');
       setNotes('');
+      // Fully paid: nothing left to do here.
+      if (newStatus === 'paid') onOpenChange(false);
     },
     onError: (e) => toast.error(e.message),
   });

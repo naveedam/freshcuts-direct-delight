@@ -274,7 +274,7 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
       return { ...line, vendor_cost: quote.price };
     });
     if (missingRate) {
-      toast.warning("Today's live chicken rate isn't set, so M N Broilers buying prices were cleared. Set it under Chicken Rate, then repeat the order again.");
+      toast.warning("Today's live rate isn't set, so live-rate buying prices were cleared. Set it under Chicken Rate or Mutton Rate, then repeat the order again.");
     }
     return repriced;
   };
@@ -316,7 +316,7 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
       const liveQuote = livePricing.priceFor(autoVendorId, productId);
       if (liveQuote.hasRule) {
         if (liveQuote.price != null) resolvedVendorCost = liveQuote.price;
-        else toast.warning("Today's live chicken rate isn't set. Enter it under Chicken Rate to auto-fill buying prices.");
+        else toast.warning("Today's live rate isn't set. Enter it under Chicken Rate or Mutton Rate to auto-fill buying prices.");
       }
       const updated = [...lineItems];
       updated[index] = {
@@ -555,109 +555,67 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
       if (!isOpen) resetForm();
       onOpenChange(isOpen);
     }}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[min(96vw,1200px)] max-h-[92vh] overflow-y-auto gap-3 p-4 sm:p-5">
         <DialogHeader>
           <DialogTitle>Create New Order</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Customer Details */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Customer Email</Label>
-              <Input
-                type="email"
-                value={customerEmail}
-                onChange={(e) => setCustomerEmail(e.target.value)}
-                placeholder="customer@example.com"
-              />
+        <div className="space-y-4">
+          {/* Customer & address: two compact rows instead of five stacked sections */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Customer Email</Label>
+              <Input className="h-9" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="customer@example.com" />
             </div>
-            <div className="space-y-2">
-              <Label>Phone Number</Label>
-              <Input
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="+91 9876543210"
-              />
+            <div className="space-y-1">
+              <Label className="text-xs">Phone Number</Label>
+              <Input className="h-9" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="+91 9876543210" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Building / Apartment</Label>
+              <BuildingAutocomplete value={buildingName} onChange={setBuildingName} flatNumber={flatNumber} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Flat / House No.</Label>
+              <FlatAutocomplete value={flatNumber} onChange={setFlatNumber} buildingName={buildingName} onBuildingMatch={setBuildingName} />
+            </div>
+            <div className="space-y-1 col-span-2 lg:col-span-1">
+              <Label className="text-xs">Street / Area</Label>
+              <Input className="h-9" value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder="Street address, area" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">City</Label>
+              <Input className="h-9" value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} placeholder="City" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Postal Code</Label>
+              <Input className="h-9" value={shippingPostalCode} onChange={(e) => setShippingPostalCode(e.target.value)} placeholder="560001" />
+            </div>
+            <div className="space-y-1 col-span-2 lg:col-span-1">
+              <Label className="text-xs">Place of Supply (State)</Label>
+              <Select value={placeOfSupply} onValueChange={setPlaceOfSupply}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {INDIAN_STATES.map((state) => (
+                    <SelectItem key={state.code} value={state.code}>
+                      {state.code} - {state.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-
-          {/* Shipping Address */}
-          <div className="space-y-4">
-            <h3 className="font-medium">Shipping Address</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Building / Apartment Name</Label>
-                <BuildingAutocomplete
-                  value={buildingName}
-                  onChange={setBuildingName}
-                  flatNumber={flatNumber}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Flat / House Number</Label>
-                <FlatAutocomplete
-                  value={flatNumber}
-                  onChange={setFlatNumber}
-                  buildingName={buildingName}
-                  onBuildingMatch={setBuildingName}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Street / Area</Label>
-              <Textarea
-                value={shippingAddress}
-                onChange={(e) => setShippingAddress(e.target.value)}
-                placeholder="Street address, area"
-                rows={2}
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>City</Label>
-                <Input
-                  value={shippingCity}
-                  onChange={(e) => setShippingCity(e.target.value)}
-                  placeholder="City"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Postal Code</Label>
-                <Input
-                  value={shippingPostalCode}
-                  onChange={(e) => setShippingPostalCode(e.target.value)}
-                  placeholder="560001"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Place of Supply (State)</Label>
-                <Select value={placeOfSupply} onValueChange={setPlaceOfSupply}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {INDIAN_STATES.map((state) => (
-                      <SelectItem key={state.code} value={state.code}>
-                        {state.code} - {state.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {businessSettings && (
-              <p className="text-sm text-muted-foreground">
-                Business State: {businessSettings.state_code} - {businessSettings.state_name} | 
-                {isIGST ? ' IGST applicable (Inter-state)' : ' CGST/SGST applicable (Intra-state)'}
-              </p>
-            )}
-          </div>
+          {businessSettings && (
+            <p className="text-xs text-muted-foreground -mt-2">
+              Business State: {businessSettings.state_code} - {businessSettings.state_name} |
+              {isIGST ? ' IGST applicable (Inter-state)' : ' CGST/SGST applicable (Intra-state)'}
+            </p>
+          )}
 
           {/* Line Items */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-medium">Order Items</h3>
+              <h3 className="font-medium text-sm">Order Items</h3>
               <div className="flex gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={openCustomItemDialog}>
                   <PackagePlus className="h-4 w-4 mr-1" /> Add Custom Item
@@ -672,16 +630,14 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[200px]">Product</TableHead>
+                    <TableHead className="min-w-[180px]">Product</TableHead>
                     <TableHead className="w-[140px]">Vendor</TableHead>
-                    <TableHead className="w-[80px]">Qty</TableHead>
-                    <TableHead className="w-[90px]">Sell Price</TableHead>
-                    <TableHead className="w-[90px]">Vendor Cost</TableHead>
-                    <TableHead className="w-[80px]">HSN</TableHead>
-                    <TableHead className="w-[110px]">GST Type</TableHead>
-                    <TableHead className="w-[70px]">GST %</TableHead>
+                    <TableHead className="w-[84px]">Qty</TableHead>
+                    <TableHead className="w-[84px]">Sell ₹</TableHead>
+                    <TableHead className="w-[84px]">Cost ₹</TableHead>
+                    <TableHead className="w-[150px]">GST / HSN</TableHead>
                     <TableHead className="w-[90px] text-right">Total</TableHead>
-                    <TableHead className="w-[40px]"></TableHead>
+                    <TableHead className="w-[36px] px-1"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -808,47 +764,47 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
                           })()}
                         </TableCell>
                         <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Select
+                              value={item.gst_type}
+                              onValueChange={(value) => updateLineItem(index, 'gst_type', value)}
+                            >
+                              <SelectTrigger className="w-[88px] h-8 text-xs px-2">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Exempt">Exempt</SelectItem>
+                                <SelectItem value="Nil-rated">Nil-rated</SelectItem>
+                                <SelectItem value="Taxable">Taxable</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="28"
+                              value={item.gst_rate}
+                              onChange={(e) => updateLineItem(index, 'gst_rate', parseFloat(e.target.value) || 0)}
+                              className="w-12 h-8 text-xs px-1.5"
+                              disabled={item.gst_type !== 'Taxable'}
+                              title="GST %"
+                            />
+                          </div>
                           <Input
                             value={item.hsn_code}
                             onChange={(e) => updateLineItem(index, 'hsn_code', e.target.value)}
-                            className="w-20 h-8 text-xs"
+                            className="mt-1 h-7 w-[140px] text-[11px] px-2"
                             placeholder="HSN"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={item.gst_type}
-                            onValueChange={(value) => updateLineItem(index, 'gst_type', value)}
-                          >
-                            <SelectTrigger className="w-24 h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Exempt">Exempt</SelectItem>
-                              <SelectItem value="Nil-rated">Nil-rated</SelectItem>
-                              <SelectItem value="Taxable">Taxable</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            min="0"
-                            max="28"
-                            value={item.gst_rate}
-                            onChange={(e) => updateLineItem(index, 'gst_rate', parseFloat(e.target.value) || 0)}
-                            className="w-16 h-8 text-xs"
-                            disabled={item.gst_type !== 'Taxable'}
                           />
                         </TableCell>
                         <TableCell className="text-right font-medium text-sm">
                           ₹{lineTotal.toFixed(2)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-1">
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
+                            className="h-8 w-8 p-0"
                             onClick={() => removeLineItem(index)}
                             disabled={lineItems.length === 1}
                           >
@@ -862,61 +818,63 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
               </Table>
             </div>
 
-            {/* Discount & Shipping Cost */}
-            <div className="p-4 bg-muted/30 rounded-lg space-y-3">
-              <Label className="font-medium">Order Discount</Label>
-              <div className="flex items-center gap-3">
-                <Select value={discountType} onValueChange={(v: any) => setDiscountType(v)}>
-                  <SelectTrigger className="w-[160px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Discount</SelectItem>
-                    <SelectItem value="percentage">Percentage (%)</SelectItem>
-                    <SelectItem value="flat">Flat Amount (₹)</SelectItem>
-                  </SelectContent>
-                </Select>
-                {discountType !== 'none' && (
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      max={discountType === 'percentage' ? '100' : undefined}
-                      value={discountValue}
-                      onChange={(e) => setDiscountValue(e.target.value)}
-                      className="w-24"
-                    />
-                    {discountType === 'percentage' ? <Percent className="h-4 w-4 text-muted-foreground" /> : <IndianRupee className="h-4 w-4 text-muted-foreground" />}
-                  </div>
-                )}
-                {discountAmount > 0 && (
-                  <span className="text-sm text-destructive font-medium">
-                    −{formatCurrency(discountAmount)}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3 pt-2">
-                <Label className="font-medium whitespace-nowrap">Shipping Cost (₹)</Label>
-                <div className="flex items-center gap-1">
+            <div className="grid gap-3 md:grid-cols-[1fr_18rem]">
+              <div className="p-3 bg-muted/30 rounded-lg space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Label className="text-xs font-medium w-24">Discount</Label>
+                  <Select value={discountType} onValueChange={(v: any) => setDiscountType(v)}>
+                    <SelectTrigger className="w-[150px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Discount</SelectItem>
+                      <SelectItem value="percentage">Percentage (%)</SelectItem>
+                      <SelectItem value="flat">Flat Amount (₹)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {discountType !== 'none' && (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        max={discountType === 'percentage' ? '100' : undefined}
+                        value={discountValue}
+                        onChange={(e) => setDiscountValue(e.target.value)}
+                        className="w-24 h-8"
+                      />
+                      {discountType === 'percentage' ? <Percent className="h-4 w-4 text-muted-foreground" /> : <IndianRupee className="h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  )}
+                  {discountAmount > 0 && (
+                    <span className="text-sm text-destructive font-medium">
+                      −{formatCurrency(discountAmount)}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Label className="text-xs font-medium w-24">Shipping cost ₹</Label>
                   <Input
                     type="number"
                     min="0"
                     step="0.01"
                     value={shippingCost}
                     onChange={(e) => setShippingCost(e.target.value)}
-                    className="w-28"
+                    className="w-28 h-8"
                     placeholder="0"
                   />
                   <Truck className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Internal only — not shown on invoice</span>
                 </div>
-                <span className="text-xs text-muted-foreground">Internal only — not shown on invoice</span>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Notes (optional): special instructions..."
+                  rows={2}
+                  className="text-sm"
+                />
               </div>
-            </div>
-
-            {/* Totals */}
-            <div className="flex justify-end">
-              <div className="w-72 space-y-2 text-sm">
+              <div className="space-y-1.5 text-sm self-start">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Taxable Value:</span>
                   <span>₹{orderTotals.taxableValue.toFixed(2)}</span>
@@ -956,23 +914,13 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
             </div>
           </div>
 
-          {/* Notes */}
-          <div className="space-y-2">
-            <Label>Notes (Optional)</Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any special instructions or notes..."
-              rows={2}
-            />
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4 border-t">
+          {/* Actions stay in view at the bottom of the dialog */}
+          <div className="sticky -bottom-4 sm:-bottom-5 -mx-4 sm:-mx-5 px-4 sm:px-5 py-3 bg-background border-t flex items-center justify-end gap-2">
+            <span className="mr-auto text-sm font-semibold">Total ₹{finalTotal.toFixed(2)}</span>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleSubmit}
               disabled={createOrderMutation.isPending}
             >

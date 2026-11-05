@@ -2,6 +2,21 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-05 (evening)
+
+### Added
+- **Mutton Rate** (Admin → Mutton Rate): works like Chicken Rate. Daily live rate, cuts with buying and selling multipliers, supplier chosen on the page, cuts added on the page.
+- **Selling multipliers for chicken and mutton**: website price = latest live rate × the cut's selling multiplier, rounded to the rupee. It updates when a rate, multiplier set or link is saved. A blank selling multiplier leaves the Products price alone.
+- **Price History** (Admin → Price History): the price in force each day for chicken, mutton and seafood (up to 92 days), with type filter, search and Excel export.
+- **Seafood Rate search** on the fish column.
+- New seafood and mutton products stay off the storefront until their first price is entered (`products.awaiting_daily_price`). WhatsApp orders refuse them too.
+- Migration `20261105210000_mutton_rate_and_daily_price_visibility.sql` (safe to re-run).
+
+### Changed
+- Chicken Rate and Mutton Rate show cuts as rows (no sideways scrolling); the monthly list shows rates only, with per-cut prices on Price History.
+- Share Invoice closes after a download or share. The payment dialog opens with the balance filled in and closes once the order is fully paid.
+- Less scrolling across admin: tighter table rows and card padding, every dialog fits the screen and scrolls inside, single page padding, New Order fits customer and address on two rows, merges GST/HSN into one column and keeps Create Order in view, Orders list merges order ID, date and source into one column.
+
 ## 2026-11-05
 
 ### Fixed

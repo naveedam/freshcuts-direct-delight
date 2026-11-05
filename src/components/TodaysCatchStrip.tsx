@@ -14,7 +14,7 @@ export function TodaysCatchStrip() {
       const today = istDateString();
       const { data, error } = await supabase
         .from('todays_catch')
-        .select('id, note, product_id, products(id, name, image_url, price, unit)')
+        .select('id, note, product_id, products(id, name, image_url, price, unit, awaiting_daily_price)')
         .eq('catch_date', today)
         .order('display_order');
       if (error) throw error;
@@ -35,7 +35,7 @@ export function TodaysCatchStrip() {
         <div className="flex gap-3 overflow-x-auto pb-1">
           {catchItems.map((item: any) => {
             const product = item.products;
-            if (!product) return null;
+            if (!product || product.awaiting_daily_price) return null;
             return (
               <Link
                 key={item.id}

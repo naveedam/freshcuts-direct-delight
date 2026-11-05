@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, FileText, LogOut, Home, Building2, Truck, Receipt, BarChart3, Users, ClipboardList, FolderOpen, Layers, Upload, CalendarDays, Route, Wallet, TrendingUp, Fish } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, FileText, LogOut, Home, Building2, Truck, Receipt, BarChart3, Users, ClipboardList, FolderOpen, Layers, Upload, CalendarDays, Route, Wallet, TrendingUp, Fish, Beef, History } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -21,7 +21,9 @@ const menuItems = [
   { title: 'Products', url: '/admin/products', icon: Package },
   { title: "Today's Catch", url: '/admin/todays-catch', icon: Building2 },
   { title: "Chicken Rate", url: '/admin/chicken-rate', icon: TrendingUp },
+  { title: "Mutton Rate", url: '/admin/mutton-rate', icon: Beef },
   { title: "Seafood Rate", url: '/admin/seafood-rate', icon: Fish },
+  { title: "Price History", url: '/admin/price-history', icon: History },
   { title: 'Bulk Upload', url: '/admin/products/bulk-upload', icon: Upload },
   { title: 'Categories', url: '/admin/categories', icon: Layers },
   { title: 'Orders', url: '/admin/orders', icon: ShoppingCart },

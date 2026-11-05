@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabase-paginate';
 import { istDateString, useLivePricing } from '@/lib/live-rate';
+import { COMMODITIES, useCommodityBuyingPricing } from '@/lib/daily-rate';
 
 // The new tables are not in the generated Supabase types yet; regenerate types after
 // running the migration and these casts can go.
@@ -138,10 +139,11 @@ export function useSeafoodBuyingPrices() {
   });
 }
 
-// Buying-price rules for admin order entry: chicken live rate first, then the day's
-// seafood buying price for that supplier. Same shape as useLivePricing().priceFor.
+// Buying-price rules for admin order entry: chicken live rate, then mutton live rate, then the
+// day's seafood buying price for that supplier. Same shape as useLivePricing().priceFor.
 export function useOrderPricing() {
   const live = useLivePricing();
+  const mutton = useCommodityBuyingPricing(COMMODITIES.mutton);
   const today = istDateString();
   const { data: buying, isLoading } = useSeafoodBuyingPrices();
 
@@ -151,12 +153,14 @@ export function useOrderPricing() {
   ): { hasRule: boolean; price: number | null } => {
     const chicken = live.priceFor(vendorId, productId);
     if (chicken.hasRule) return chicken;
+    const muttonQuote = mutton.priceFor(vendorId, productId);
+    if (muttonQuote.hasRule) return muttonQuote;
     if (!vendorId || !productId) return { hasRule: false, price: null };
     const hit = priceInForce(buying, productId, today, vendorId);
     return hit ? { hasRule: true, price: hit.price } : { hasRule: false, price: null };
   };
 
-  return { rate: live.rate, priceFor, ready: live.ready && !isLoading };
+  return { rate: live.rate, priceFor, ready: live.ready && mutton.ready && !isLoading };
 }
 
 // All seafood products, matched by category text (name or slug) or by the Seafood category id.

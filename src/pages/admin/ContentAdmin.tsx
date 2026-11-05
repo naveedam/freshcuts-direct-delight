@@ -549,7 +549,7 @@ function GoogleReviewsEditor() {
 export default function ContentAdmin() {
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div>
           <h1 className="font-heading text-2xl font-bold">Page Content</h1>
           <p className="text-muted-foreground">Manage your website content</p>
