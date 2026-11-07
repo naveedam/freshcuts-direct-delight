@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { fetchSeafoodPrices } from '@/lib/seafood-rate';
+import { fetchAllRows } from '@/lib/supabase-paginate';
 
 /**
  * PO Lifecycle helpers — additive, idempotent.
@@ -183,12 +183,16 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<{ su
       costMap[`${vp.vendor_id}:${vp.product_id}`] = vp.cost_price;
     }
 
-    // Seafood Rate: supplier/product pairs priced daily. For these the order line's
-    // vendor_cost (set from the day's seafood buying price at finalization) wins over the
-    // standing cost on vendor_products, which would otherwise be a stale price.
+    // Supplier/product pairs priced in Rate Management: the order line's vendor_cost (filled
+    // from the supplier's active price when the order was made) wins over the standing cost on
+    // vendor_products, which would otherwise be stale.
     const dailyPriced = new Set<string>();
-    const seafoodBuying = await fetchSeafoodPrices('seafood_buying_prices', { productIds });
-    for (const r of seafoodBuying) dailyPriced.add(`${r.vendor_id}:${r.product_id}`);
+    if (productIds.length > 0) {
+      const priced = await fetchAllRows<{ product_id: string; vendor_id: string }>(() =>
+        (supabase as any).from('product_prices').select('product_id, vendor_id')
+          .in('product_id', productIds).not('vendor_id', 'is', null));
+      for (const r of priced) dailyPriced.add(`${r.vendor_id}:${r.product_id}`);
+    }
     // Vendor PO tax mirrors the same GST rate charged to the customer for
     // this product (products.gst_rate) — we pay tax on purchase and collect
     // the same on sale; both are reported via the monthly GST reports.

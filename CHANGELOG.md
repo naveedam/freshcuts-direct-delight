@@ -2,6 +2,25 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-07 (Rate Management)
+
+### Added
+- **Rate Management** (Admin → Rate Management) with four tabs, each with per-product history:
+  - **Chicken:** M N Broilers uses the Chicken Rate screen as it was before 5 November (live rate × multiplier) plus a Sell × row per set; every saved rate, set or link records that day's purchase and selling price. Bismillah Chicken uses fixed, dated prices per product.
+  - **Mutton:** the nine mutton products with purchase and selling price, Edit (new dated record), Delete (a wrong record) and History; no live rate.
+  - **Seafood:** a daily sheet with Repeat Previous Day and Copy From Date. Saving creates independent records for that date, ticks Today's Catch, and for today marks listed fish In Stock and other seafood Out of Stock.
+  - **Other Products:** every other category, with category filter and search.
+- Unusual prices (below cost, or beyond the category limit vs the last price) open a prompt: fix them, or an admin gives a reason that is logged.
+- Migration `20261107130000_current_product_prices.sql`: `current_product_prices` view, `seafood_sheet` price source.
+
+### Changed
+- New Order buying prices come from Rate Management (M N Broilers chicken still from the live rate).
+- Finalize Weights no longer re-prices seafood: customers are billed the price shown when they ordered.
+- Purchase orders and Bulk Upload use the dated price records.
+
+### Removed
+- Chicken Rate, Mutton Rate, Seafood Rate, Price History and Today's Catch screens; their links open the matching tab.
+
 ## 2026-11-07
 
 ### Fixed

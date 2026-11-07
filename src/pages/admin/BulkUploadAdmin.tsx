@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { Upload, ArrowRight, ArrowLeft, Check, AlertTriangle, FileSpreadsheet, Download } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { istDateString } from '@/lib/live-rate';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -110,12 +111,20 @@ export default function BulkUploadAdmin() {
         };
       });
 
-      const { error } = await supabase.from('products').insert(products as any);
+      const { data: inserted, error } = await supabase.from('products').insert(products as any).select('id, price');
       if (error) {
         failedCount += batch.length;
         batch.forEach((_, idx) => errors.push({ row: i + idx + 1, error: error.message }));
       } else {
         successCount += batch.length;
+        // The selling price also becomes the product's first dated price in Rate Management.
+        const priced = (inserted || []).filter((p: any) => Number(p.price) > 0);
+        if (priced.length) {
+          await (supabase as any).from('product_prices').insert(priced.map((p: any) => ({
+            product_id: p.id, vendor_id: null, effective_date: istDateString(),
+            selling_price: Number(p.price), source: 'bulk_upload',
+          })));
+        }
       }
 
       setImportState(prev => ({

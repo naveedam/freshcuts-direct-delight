@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
 import Index from "./pages/Index";
@@ -14,11 +14,7 @@ import CheckoutPage from "./pages/CheckoutPage";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/admin/Dashboard";
 import ProductsAdmin from "./pages/admin/ProductsAdmin";
-import TodaysCatchAdmin from "./pages/admin/TodaysCatchAdmin";
-import ChickenRateAdmin from "./pages/admin/ChickenRateAdmin";
-import SeafoodRateAdmin from "./pages/admin/SeafoodRateAdmin";
-import MuttonRateAdmin from "./pages/admin/MuttonRateAdmin";
-import PriceHistoryAdmin from "./pages/admin/PriceHistoryAdmin";
+import RateManagementAdmin from "./pages/admin/RateManagementAdmin";
 import OrdersAdmin from "./pages/admin/OrdersAdmin";
 import ContentAdmin from "./pages/admin/ContentAdmin";
 import BusinessSettings from "./pages/admin/BusinessSettings";
@@ -69,11 +65,13 @@ const App = () => (
               {/* Admin Routes */}
               <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
               <Route path="/admin/products" element={<RequireAdmin><ProductsAdmin /></RequireAdmin>} />
-              <Route path="/admin/todays-catch" element={<RequireAdmin><TodaysCatchAdmin /></RequireAdmin>} />
-              <Route path="/admin/chicken-rate" element={<RequireAdmin><ChickenRateAdmin /></RequireAdmin>} />
-              <Route path="/admin/seafood-rate" element={<RequireAdmin><SeafoodRateAdmin /></RequireAdmin>} />
-              <Route path="/admin/mutton-rate" element={<RequireAdmin><MuttonRateAdmin /></RequireAdmin>} />
-              <Route path="/admin/price-history" element={<RequireAdmin><PriceHistoryAdmin /></RequireAdmin>} />
+              <Route path="/admin/rates" element={<RequireAdmin><RateManagementAdmin /></RequireAdmin>} />
+              {/* Retired screens: old links open the matching Rate Management tab */}
+              <Route path="/admin/chicken-rate" element={<Navigate to="/admin/rates?tab=chicken" replace />} />
+              <Route path="/admin/mutton-rate" element={<Navigate to="/admin/rates?tab=mutton" replace />} />
+              <Route path="/admin/seafood-rate" element={<Navigate to="/admin/rates?tab=seafood" replace />} />
+              <Route path="/admin/todays-catch" element={<Navigate to="/admin/rates?tab=seafood" replace />} />
+              <Route path="/admin/price-history" element={<Navigate to="/admin/rates" replace />} />
               <Route path="/admin/products/bulk-upload" element={<RequireAdmin><BulkUploadAdmin /></RequireAdmin>} />
               <Route path="/admin/categories" element={<RequireAdmin><CategoriesAdmin /></RequireAdmin>} />
               <Route path="/admin/orders" element={<RequireAdmin><OrdersAdmin /></RequireAdmin>} />
