@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { gstTypeToUi } from '@/lib/gst-ui';
+import { QuantityInput } from '@/components/admin/QuantityInput';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -86,15 +88,6 @@ const INDIAN_STATES = [
   { code: '37', name: 'Andhra Pradesh' },
 ];
 
-const parseQuantity = (value: string, isUnitBased: boolean): number => {
-  if (isUnitBased) {
-    const parsed = parseInt(value, 10);
-    return isNaN(parsed) || parsed < 1 ? 1 : parsed;
-  }
-  const parsed = parseFloat(value);
-  if (isNaN(parsed) || parsed < 0.0001) return 0.0001;
-  return Math.round(parsed * 10000) / 10000;
-};
 
 const defaultCustomItem: Omit<OrderLineItem, 'product_id'> & { product_id: null } = {
   product_id: null,
@@ -326,7 +319,7 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
         unit_price: product.price,
         vendor_cost: resolvedVendorCost,
         hsn_code: product.hsn_code || '',
-        gst_type: product.gst_type || 'Exempt',
+        gst_type: gstTypeToUi(product.gst_type),
         gst_rate: product.gst_rate || 0,
         vendor_id: autoVendorId,
       };
@@ -694,12 +687,10 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
                               ? item.unit_type === 'unit_based'
                               : products?.find(p => p.id === item.product_id)?.pricing_model === 'unit_based';
                             return (
-                              <Input
-                                type="number"
-                                min={isUnitBased ? "1" : "0.0001"}
-                                step={isUnitBased ? "1" : "0.0001"}
+                              <QuantityInput
+                                unitBased={!!isUnitBased}
                                 value={item.quantity}
-                                onChange={(e) => updateLineItem(index, 'quantity', parseQuantity(e.target.value, !!isUnitBased))}
+                                onChange={(q) => updateLineItem(index, 'quantity', q)}
                                 className="w-20 h-8 text-xs"
                               />
                             );
@@ -979,12 +970,10 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Quantity</Label>
-              <Input
-                type="number"
-                min={customItemData.unit_type === 'unit_based' ? '1' : '0.0001'}
-                step={customItemData.unit_type === 'unit_based' ? '1' : '0.0001'}
+              <QuantityInput
+                unitBased={customItemData.unit_type === 'unit_based'}
                 value={customItemData.quantity}
-                onChange={(e) => setCustomItemData({ ...customItemData, quantity: parseQuantity(e.target.value, customItemData.unit_type === 'unit_based') })}
+                onChange={(q) => setCustomItemData({ ...customItemData, quantity: q })}
               />
             </div>
             <div className="space-y-2">

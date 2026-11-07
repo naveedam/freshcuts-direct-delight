@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { gstTypeToUi } from '@/lib/gst-ui';
+import { QuantityInput } from '@/components/admin/QuantityInput';
 import { useAuth } from '@/context/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -253,7 +255,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
             unit_price: Number(product.price),
             vendor_cost: finalVendorCost,
             hsn_code: product.hsn_code || '',
-            gst_type: product.gst_type || 'Exempt',
+            gst_type: gstTypeToUi(product.gst_type),
             gst_rate: Number(product.gst_rate) || 0,
             vendor_id: autoVendorId,
           };
@@ -514,13 +516,10 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
                               </Select>
                             </TableCell>
                             <TableCell>
-                              <Input
-                                type="number"
+                              <QuantityInput
                                 className="h-8 w-20 text-xs"
                                 value={item.quantity}
-                                min={0.0001}
-                                step="any"
-                                onChange={(e) => updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)}
+                                onChange={(q) => updateItem(idx, 'quantity', q)}
                               />
                             </TableCell>
                             <TableCell>

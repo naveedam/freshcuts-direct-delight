@@ -42,12 +42,21 @@ export function BuildingAutocomplete({
     },
     staleTime: 5 * 60 * 1000,
   });
+  // Every known building is offered. Buildings that already have an order for the typed flat
+  // come first, but a new flat never hides the rest (it used to hide e.g. Zenith Residences).
   const buildings = useMemo(() => {
     const fn = flatNumber.trim().toLowerCase();
-    const source = fn ? pairs.filter((p) => p.flat.toLowerCase() === fn) : pairs;
-    const set = new Set<string>();
-    source.forEach((p) => { if (p.building) set.add(p.building); });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
+    const forFlat = new Set<string>();
+    const all = new Set<string>();
+    pairs.forEach((p) => {
+      if (!p.building) return;
+      all.add(p.building);
+      if (fn && p.flat.toLowerCase() === fn) forFlat.add(p.building);
+    });
+    const byName = (a: string, b: string) => a.localeCompare(b);
+    const first = Array.from(forFlat).sort(byName);
+    const rest = Array.from(all).filter((b) => !forFlat.has(b)).sort(byName);
+    return [...first, ...rest];
   }, [pairs, flatNumber]);
 
   const suggestions = useMemo(() => {
