@@ -18,6 +18,8 @@ interface BusinessSettings {
   email: string | null;
   gstin: string | null;
   logo_url: string | null;
+  opening_time: string | null;
+  closing_time: string | null;
 }
 
 export default function BusinessSettings() {
@@ -30,7 +32,9 @@ export default function BusinessSettings() {
     phone: '',
     email: '',
     gstin: '',
-    logo_url: ''
+    logo_url: '',
+    opening_time: '07:00',
+    closing_time: '18:00'
   });
 
   const { data: settings, isLoading } = useQuery({
@@ -56,13 +60,18 @@ export default function BusinessSettings() {
         phone: settings.phone || '',
         email: settings.email || '',
         gstin: settings.gstin || '',
-        logo_url: settings.logo_url || ''
+        logo_url: settings.logo_url || '',
+        opening_time: (settings.opening_time || '07:00').slice(0, 5),
+        closing_time: (settings.closing_time || '18:00').slice(0, 5)
       });
     }
   }, [settings]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: Partial<BusinessSettings>) => {
+      if (data.opening_time && data.closing_time && data.closing_time <= data.opening_time) {
+        throw new Error('Closing time must be after opening time');
+      }
       if (settings?.id) {
         // Update existing
         const { error } = await supabase
@@ -80,6 +89,7 @@ export default function BusinessSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['business-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['business-hours'] });
       toast.success('Business settings saved successfully');
     },
     onError: (error) => {
@@ -196,6 +206,33 @@ export default function BusinessSettings() {
                 value={formData.logo_url || ''}
                 onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
                 placeholder="https://example.com/logo.png"
+              />
+            </div>
+
+            <div className="md:col-span-2 border-t border-border pt-4">
+              <p className="font-medium text-foreground">Business hours (IST)</p>
+              <p className="text-sm text-muted-foreground">
+                Orders placed outside these hours are taken as pre-orders for the next delivery day.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="opening_time">Opens at</Label>
+              <Input
+                id="opening_time"
+                type="time"
+                value={formData.opening_time || ''}
+                onChange={(e) => setFormData({ ...formData, opening_time: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="closing_time">Closes at</Label>
+              <Input
+                id="closing_time"
+                type="time"
+                value={formData.closing_time || ''}
+                onChange={(e) => setFormData({ ...formData, closing_time: e.target.value })}
               />
             </div>
           </div>

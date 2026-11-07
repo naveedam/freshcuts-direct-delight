@@ -2,6 +2,19 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-07 (Expenses and delivery partners)
+
+### Added
+- **Delivery Partners** page (Admin → Delivery Partners): each partner's advance held, amount still owed and the date they're settled up to. **Advance** records cash given in advance (not an expense). **Settle** pays for a run of days: amount for the days, how much comes out of the advance, and what's paid now. It saves everything in one step, adds the cost to Expenses spread over those days, and gives a ready-to-send WhatsApp message (opening advance, amount for N days, deducted, paid, advance left). History shows every entry.
+- Partners are started from the delivery names already used in Expenses (Aslam, Rapido, …).
+- **Business hours** (opening and closing time, IST) in Business Settings.
+
+### Changed
+- **Expense types:** Daily running cost (counted on the day), Packaging stock and Fixed overhead (spread over the period they cover), Capital purchase (left out of daily profit). Packaging and Utilities default to a month-long spread. Electricity, Water and Rent added under Utilities.
+- Dashboard **Operating Expenses** and **Net Profit Today** use what's counted for today, so a month's electricity bill or a box order no longer makes one day look like a loss.
+- Expenses shows "Paid this month" and "Counted in profit", and the month list always covers the last 12 months. Dates use IST.
+- Migration `20261107160000_expenses_partners.sql`: expense type and spread columns, `expense_cost_between()`, `delivery_partners`, `partner_ledger`, `partner_balances`, `settle_delivery_partner()`, and a check that a deduction can't exceed the advance held.
+
 ## 2026-11-07 (Storefront)
 
 ### Changed

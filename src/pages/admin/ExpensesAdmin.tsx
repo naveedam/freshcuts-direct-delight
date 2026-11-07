@@ -13,14 +13,31 @@ import { formatCurrency } from '@/lib/currency';
 import { format } from 'date-fns';
 import { Plus, Trash2, Loader2, IndianRupee, Download } from 'lucide-react';
 import { writeExcelFile } from '@/lib/excel-utils';
+import { istDateString } from '@/lib/live-rate';
 
 const CATEGORIES = [
   { value: 'Delivery', label: 'Delivery', subCategories: ['Aslam', 'Rapido', 'Porter', 'Uber Courier', 'Uncle Delivery', 'Other'] },
   { value: 'Packaging', label: 'Packaging', subCategories: ['Bags', 'Boxes', 'Labels', 'Other'] },
   { value: 'Marketing', label: 'Marketing', subCategories: ['WhatsApp', 'Printing', 'Other'] },
-  { value: 'Utilities', label: 'Utilities', subCategories: ['Phone', 'Internet', 'Other'] },
+  { value: 'Utilities', label: 'Utilities', subCategories: ['Electricity', 'Water', 'Rent', 'Phone', 'Internet', 'Other'] },
   { value: 'Miscellaneous', label: 'Miscellaneous', subCategories: ['Other'] },
 ];
+
+// How an expense counts towards profit. Spread types are shared out over a period, so a bulk
+// purchase or a monthly bill doesn't make the day it's paid look like a loss.
+const EXPENSE_TYPES = [
+  { value: 'daily', label: 'Daily running cost', hint: 'Counted on the day (delivery, ice, fuel)' },
+  { value: 'packaging', label: 'Packaging stock', hint: 'Boxes, covers, labels: spread over the period they last' },
+  { value: 'overhead', label: 'Fixed overhead', hint: 'Electricity, water, rent, internet: spread over the period covered' },
+  { value: 'capital', label: 'Capital purchase', hint: 'Freezer, scale: left out of daily profit' },
+];
+const TYPE_LABEL: Record<string, string> = Object.fromEntries(EXPENSE_TYPES.map((t) => [t.value, t.label]));
+
+function monthBounds(date: string): { from: string; to: string } {
+  const [y, m] = date.split('-').map(Number);
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return { from: `${date.slice(0, 7)}-01`, to: `${date.slice(0, 7)}-${String(last).padStart(2, '0')}` };
+}
 
 const PAID_BY = [
   { value: 'bank', label: 'FreshCuts Bank Account' },
@@ -29,7 +46,7 @@ const PAID_BY = [
 
 export default function ExpensesAdmin() {
   const queryClient = useQueryClient();
-  const today = new Date().toISOString().split('T')[0];
+  const today = istDateString();
 
   const [date, setDate] = useState(today);
   const [category, setCategory] = useState('');
@@ -38,8 +55,18 @@ export default function ExpensesAdmin() {
   const [paidBy, setPaidBy] = useState('bank');
   const [payee, setPayee] = useState('');
   const [notes, setNotes] = useState('');
+  const [expenseType, setExpenseType] = useState('daily');
+  const [spreadFrom, setSpreadFrom] = useState('');
+  const [spreadTo, setSpreadTo] = useState('');
   const [filterMonth, setFilterMonth] = useState(today.slice(0, 7));
   const [filterCategory, setFilterCategory] = useState('all');
+
+  // The last 12 months, newest first.
+  const recentMonths = useMemo(() => Array.from({ length: 12 }, (_, i) => {
+    const [y, m] = today.split('-').map(Number);
+    const d = new Date(Date.UTC(y, m - 1 - i, 1));
+    return { value: d.toISOString().slice(0, 7), label: d.toLocaleString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' }) };
+  }), [today]);
 
   const subCategories = CATEGORIES.find(c => c.value === category)?.subCategories || [];
 
@@ -62,7 +89,13 @@ export default function ExpensesAdmin() {
   const addMutation = useMutation({
     mutationFn: async () => {
       if (!category || !amount || parseFloat(amount) <= 0) throw new Error('Category and amount are required');
+      const spread = expenseType === 'packaging' || expenseType === 'overhead' || (spreadFrom && spreadTo);
+      if (spread && (!spreadFrom || !spreadTo)) throw new Error('Pick the period this expense covers');
+      if (spread && spreadTo < spreadFrom) throw new Error('The period ends before it starts');
       const { error } = await supabase.from('expenses').insert({
+        expense_type: expenseType,
+        spread_from: spread && expenseType !== 'capital' ? spreadFrom : null,
+        spread_to: spread && expenseType !== 'capital' ? spreadTo : null,
         expense_date: date,
         category,
         sub_category: subCategory || null,
@@ -80,6 +113,10 @@ export default function ExpensesAdmin() {
       setPayee('');
       setNotes('');
       setSubCategory('');
+      setSpreadFrom('');
+      setSpreadTo('');
+      queryClient.invalidateQueries({ queryKey: ['expense-counted'] });
+      queryClient.invalidateQueries({ queryKey: ['admin'] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -92,6 +129,17 @@ export default function ExpensesAdmin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       toast.success('Expense deleted');
+    },
+  });
+
+  // What the month's expenses count for in profit (spread costs shared out by day; capital excluded).
+  const { data: countedThisMonth } = useQuery({
+    queryKey: ['expense-counted', filterMonth],
+    queryFn: async () => {
+      const { from, to } = monthBounds(`${filterMonth}-01`);
+      const { data, error } = await (supabase as any).rpc('expense_cost_between', { p_from: from, p_to: to });
+      if (error) throw error;
+      return Number(data) || 0;
     },
   });
 
@@ -120,6 +168,8 @@ export default function ExpensesAdmin() {
         Category: e.category,
         'Sub Category': e.sub_category || '',
         Amount: Number(e.amount),
+        Type: TYPE_LABEL[e.expense_type] || 'Daily running cost',
+        'Spread over': e.spread_from ? `${e.spread_from} to ${e.spread_to}` : '',
         'Paid By': e.paid_by === 'bank' ? 'FreshCuts Bank' : 'Out of Pocket',
         Payee: e.payee || '',
         Notes: e.notes || '',
@@ -154,7 +204,14 @@ export default function ExpensesAdmin() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Category *</p>
-                <Select value={category} onValueChange={v => { setCategory(v); setSubCategory(''); }}>
+                <Select value={category} onValueChange={v => {
+                  setCategory(v); setSubCategory('');
+                  // Sensible default type for the category; can still be changed.
+                  const t = v === 'Packaging' ? 'packaging' : v === 'Utilities' ? 'overhead' : 'daily';
+                  setExpenseType(t);
+                  if (t !== 'daily') { const b = monthBounds(date || today); setSpreadFrom(b.from); setSpreadTo(b.to); }
+                  else { setSpreadFrom(''); setSpreadTo(''); }
+                }}>
                   <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
                     {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
@@ -175,6 +232,33 @@ export default function ExpensesAdmin() {
                 <Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" min="0" step="0.01" />
               </div>
               <div>
+                <p className="text-xs text-muted-foreground mb-1">Type</p>
+                <Select value={expenseType} onValueChange={(v) => {
+                  setExpenseType(v);
+                  if ((v === 'packaging' || v === 'overhead') && !spreadFrom) {
+                    const { from, to } = monthBounds(date || today);
+                    setSpreadFrom(from); setSpreadTo(to);
+                  }
+                }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {EXPENSE_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              {expenseType !== 'capital' && (
+                <div className="md:col-span-2">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Spread over {expenseType === 'daily' ? '(optional, e.g. two days paid together)' : '*'}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Input type="date" value={spreadFrom} onChange={(e) => setSpreadFrom(e.target.value)} />
+                    <span className="text-xs text-muted-foreground">to</span>
+                    <Input type="date" value={spreadTo} onChange={(e) => setSpreadTo(e.target.value)} />
+                  </div>
+                </div>
+              )}
+              <div>
                 <p className="text-xs text-muted-foreground mb-1">Paid By</p>
                 <Select value={paidBy} onValueChange={setPaidBy}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -192,8 +276,9 @@ export default function ExpensesAdmin() {
                 <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional description" />
               </div>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">{EXPENSE_TYPES.find((t) => t.value === expenseType)?.hint}</p>
             <Button
-              className="mt-4"
+              className="mt-3"
               onClick={() => addMutation.mutate()}
               disabled={addMutation.isPending || !category || !amount}
             >
@@ -207,8 +292,11 @@ export default function ExpensesAdmin() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="pt-4">
-                <p className="text-xs text-muted-foreground">Total Expenses</p>
+                <p className="text-xs text-muted-foreground">Paid this month</p>
                 <p className="text-2xl font-bold text-destructive">{formatCurrency(stats.total)}</p>
+                <p className="text-xs text-muted-foreground">
+                  Counted in profit: {formatCurrency(countedThisMonth ?? 0)}
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -266,15 +354,7 @@ export default function ExpensesAdmin() {
                 <Select value={filterMonth} onValueChange={setFilterMonth}>
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="2026-04">April 2026</SelectItem>
-                    <SelectItem value="2026-05">May 2026</SelectItem>
-                    <SelectItem value="2026-06">June 2026</SelectItem>
-                    <SelectItem value="2026-07">July 2026</SelectItem>
-                    <SelectItem value="2026-08">August 2026</SelectItem>
-                    <SelectItem value="2026-09">September 2026</SelectItem>
-                    <SelectItem value="2026-10">October 2026</SelectItem>
-                    <SelectItem value="2026-11">November 2026</SelectItem>
-                    <SelectItem value="2026-12">December 2026</SelectItem>
+                    {recentMonths.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Select value={filterCategory} onValueChange={setFilterCategory}>
@@ -313,6 +393,14 @@ export default function ExpensesAdmin() {
                         <div>
                           <p className="text-sm font-medium">{e.category}</p>
                           {e.sub_category && <p className="text-xs text-muted-foreground">{e.sub_category}</p>}
+                          {e.expense_type && e.expense_type !== 'daily' && (
+                            <p className="text-xs text-muted-foreground">{TYPE_LABEL[e.expense_type]}</p>
+                          )}
+                          {e.spread_from && (
+                            <p className="text-xs text-muted-foreground">
+                              Spread {format(new Date(e.spread_from), 'dd MMM')} – {format(new Date(e.spread_to), 'dd MMM')}
+                            </p>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">{e.payee || '-'}</TableCell>

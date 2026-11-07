@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, FileText, LogOut, Home, Building2, Truck, Receipt, BarChart3, Users, ClipboardList, FolderOpen, Layers, Upload, CalendarDays, Route, Wallet, TrendingUp, Tags } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, FileText, LogOut, Home, Building2, Truck, Receipt, BarChart3, Users, ClipboardList, FolderOpen, Layers, Upload, CalendarDays, Route, Wallet, TrendingUp, Tags, Bike } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -32,6 +32,7 @@ const menuItems = [
   { title: 'GST Config', url: '/admin/gst', icon: Receipt },
   { title: 'GST Reports', url: '/admin/gst-reports', icon: BarChart3 },
   { title: 'Expenses', url: '/admin/expenses', icon: Receipt },
+  { title: 'Delivery Partners', url: '/admin/delivery-partners', icon: Bike },
   { title: 'Page Content', url: '/admin/content', icon: FileText },
   { title: 'Business Settings', url: '/admin/settings', icon: Building2 },
   { title: 'Financial Years', url: '/admin/financial-years', icon: CalendarDays },

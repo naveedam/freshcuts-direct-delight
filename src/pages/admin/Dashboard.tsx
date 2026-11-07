@@ -103,27 +103,17 @@ export default function AdminDashboard() {
     }
   });
 
-  const { data: todayExpenses } = useQuery({
+  // Expenses as they count towards today's profit: daily costs on their date, packaging and
+  // overheads shared out over the period they cover, capital purchases left out.
+  const { data: expensesCounted } = useQuery({
     queryKey: ['admin', 'dashboard-expenses-today', istDay],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('expenses')
-        .select('amount')
-        .eq('expense_date', istDay);
-      if (error) throw error;
-      return data || [];
-    }
-  });
-
-  const { data: monthExpenses } = useQuery({
-    queryKey: ['admin', 'dashboard-expenses-month', istMonthStart],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('expenses')
-        .select('amount')
-        .gte('expense_date', istMonthStart);
-      if (error) throw error;
-      return data || [];
+      const { data, error } = await (supabase as any).rpc('expense_cost_between', { p_from: istDay, p_to: istDay });
+      if (!error) return Number(data) || 0;
+      // Older database without the function: fall back to what was paid today.
+      const { data: rows, error: e2 } = await supabase.from('expenses').select('amount').eq('expense_date', istDay);
+      if (e2) throw e2;
+      return (rows || []).reduce((s, r) => s + Number(r.amount), 0);
     }
   });
 
@@ -172,7 +162,7 @@ export default function AdminDashboard() {
     const vendorCostToday = (purchaseOrders || [])
       .filter(p => new Date(p.order_date) >= today)
       .reduce((s, p) => s + Number(p.total_amount), 0);
-    const expensesToday = (todayExpenses || []).reduce((s, e) => s + Number(e.amount), 0);
+    const expensesToday = expensesCounted || 0;
     const profitToday = salesToday - vendorCostToday - expensesToday;
     const todayStr = istDay;
     const collectionsToday = (customerPayments || [])
@@ -198,7 +188,7 @@ export default function AdminDashboard() {
       salesToday, vendorCostToday, profitToday, collectionsToday, expensesToday,
       ordersToday, pendingFinalization, totalOutstanding, overdueAmount,
     };
-  }, [orders, purchaseOrders, customerPayments, todayExpenses, monthExpenses, today, istDay]);
+  }, [orders, purchaseOrders, customerPayments, expensesCounted, today, istDay]);
 
   // Vendor payments due this week
   const vendorPaymentsDue = useMemo(() => {
@@ -340,7 +330,7 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <StatCard title="Sales Today" value={formatCurrency(stats?.salesToday || 0)} icon={IndianRupee} subtitle={`${stats?.ordersToday || 0} invoiced orders`} />
             <StatCard title="Vendor Cost" value={formatCurrency(stats?.vendorCostToday || 0)} icon={Package} subtitle="Today's procurement" />
-            <StatCard title="Operating Expenses" value={formatCurrency(stats?.expensesToday || 0)} icon={Receipt} subtitle="Delivery, packaging etc" />
+            <StatCard title="Operating Expenses" value={formatCurrency(stats?.expensesToday || 0)} icon={Receipt} subtitle="Counted today, incl. shared overheads" />
             <StatCard title="Net Profit Today" value={formatCurrency(stats?.profitToday || 0)} icon={TrendingUp} tone={stats?.profitToday && stats.profitToday > 0 ? 'green' : 'red'} subtitle="Sales − Vendor − Expenses" />
             <StatCard title="Collections Today" value={formatCurrency(stats?.collectionsToday || 0)} icon={CreditCard} tone="green" subtitle="Payments received" />
           </div>
