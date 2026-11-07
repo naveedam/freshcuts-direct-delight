@@ -187,13 +187,15 @@ export default function ProductsAdmin() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('products').delete().eq('id', id);
+      // Products are deactivated, never deleted: orders and price history point to them.
+      const { error } = await supabase.from('products')
+        .update({ is_active: false, is_published: false, show_in_order_form: false } as any).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast.success('Product deleted successfully');
+      toast.success('Product deactivated. Its orders and price history are kept.');
     },
     onError: (error) => {
       toast.error('Failed to delete product: ' + error.message);
@@ -535,7 +537,7 @@ export default function ProductsAdmin() {
                           variant="ghost" 
                           className="text-destructive hover:text-destructive"
                           onClick={() => {
-                            if (confirm('Are you sure you want to delete this product?')) {
+                            if (confirm('Deactivate this product? It disappears from the storefront and order form; its orders and price history are kept.')) {
                               deleteMutation.mutate(product.id);
                             }
                           }}
