@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { istDateString, istDateOf } from '@/lib/live-rate';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { gstTypeToUi } from '@/lib/gst-ui';
@@ -73,7 +74,7 @@ export default function OrdersAdmin() {
     staleTime: 30 * 1000,
     queryFn: async () => {
       return await fetchAllRows<any>(() =>
-        supabase.from('customer_payments').select('order_id, amount, payment_date')
+        supabase.from('customer_payments').select('order_id, amount, payment_date, is_adjustment')
       );
     },
     refetchInterval: 60000,
@@ -84,9 +85,10 @@ export default function OrdersAdmin() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayMs = today.getTime();
-    const todayStr = new Date().toISOString().split('T')[0];
+    // Payments are dated by when they were received, in IST; settlements aren't money received.
+    const todayStr = istDateString();
     const todaysCollection = (allPayments || [])
-      .filter((p) => p.payment_date && p.payment_date.slice(0, 10) === todayStr)
+      .filter((p) => !p.is_adjustment && istDateOf(p.payment_date) === todayStr)
       .reduce((s, p) => s + Number(p.amount || 0), 0);
 
     let outstanding = 0;

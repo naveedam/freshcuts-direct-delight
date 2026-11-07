@@ -2,6 +2,11 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-08 (Collections fix)
+
+### Fixed
+- **Collections Today missed payments received after midnight.** Payment times are stored in UTC, and the Dashboard and Orders cards compared the UTC date with today's IST date, so a payment at 12:01 AM IST counted towards the previous day. Both cards now take each payment's IST date. The Orders card also leaves out settlement adjustments, matching the Dashboard. No stored data changes.
+
 ## 2026-11-07 (Expenses and delivery partners)
 
 ### Added

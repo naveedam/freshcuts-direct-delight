@@ -11,6 +11,23 @@ export function istDateString(d: Date = new Date()): string {
   }).format(d);
 }
 
+// The IST calendar day a stored timestamp falls on. Timestamps are stored in UTC, so a payment
+// at 12:01 AM IST reads as the previous day if you just take the first 10 characters.
+export function istDateOf(timestamp: string | null | undefined): string | null {
+  if (!timestamp) return null;
+  // A plain date ("2026-11-08") is already a calendar day.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(timestamp)) return timestamp;
+  // Accept Postgres styles too: "2026-11-07 18:31:00.123456+00".
+  const iso = timestamp.replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00');
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : istDateString(d);
+}
+
+// Start of an IST day as an exact instant, for querying timestamp columns.
+export function istDayStartISO(day: string): string {
+  return new Date(`${day}T00:00:00+05:30`).toISOString();
+}
+
 // Rounds half up like the spreadsheet, without float surprises such as 214.49999999999997.
 export function priceFromRate(rate: number, multiplier: number): number {
   return Math.round(Number((rate * multiplier).toFixed(6)));

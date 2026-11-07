@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { istDateString } from '@/lib/live-rate';
+import { istDateString, istDateOf, istDayStartISO } from '@/lib/live-rate';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabase-paginate';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -97,7 +97,7 @@ export default function AdminDashboard() {
         .from('customer_payments')
         .select('amount, payment_date, order_id')
         .eq('is_adjustment' as any, false) // settlements aren't money received
-        .gte('payment_date', today.toISOString());
+        .gte('payment_date', istDayStartISO(istDay));
       if (error) throw error;
       return data || [];
     }
@@ -166,7 +166,7 @@ export default function AdminDashboard() {
     const profitToday = salesToday - vendorCostToday - expensesToday;
     const todayStr = istDay;
     const collectionsToday = (customerPayments || [])
-      .filter(p => p.payment_date && p.payment_date.slice(0, 10) === todayStr)
+      .filter(p => istDateOf(p.payment_date) === todayStr)
       .reduce((s, p) => s + Number(p.amount), 0);
     const ordersToday = todayOrders.length;
     const pendingFinalization = todayOrders.filter(o =>
