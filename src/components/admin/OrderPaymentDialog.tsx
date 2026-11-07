@@ -99,6 +99,9 @@ export function OrderPaymentDialog({ open, onOpenChange, order }: OrderPaymentDi
     onSuccess: (newStatus) => {
       queryClient.invalidateQueries({ queryKey: ['customer_payments', order?.id] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
+      // Paid badges, invoice dues and Party Due are worked out from all payments: refresh them too.
+      queryClient.invalidateQueries({ queryKey: ['admin', 'all-customer-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['party-ledger'] });
       toast.success('Payment recorded');
       setShowForm(false);
       setAmount('');

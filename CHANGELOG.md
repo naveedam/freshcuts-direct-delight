@@ -2,6 +2,18 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-07
+
+### Fixed
+- Invoice Preview now closes after a successful download or share, returning to Orders.
+- Typing 0.5 in an order quantity no longer turns into 0.0001 (New Order, custom item, Edit Order).
+- Picking a product on New or Edit Order no longer leaves the GST field blank (stored lowercase vs displayed labels).
+- Recording a payment refreshes Paid badges, invoice dues and Party Due immediately; status changes show at once.
+- Apartment autocomplete shows every matching building again; a typed flat number only sorts matches first.
+- Dashboard KPI cards all roll over at 12:00 AM IST (Expenses and Payments Today used the UTC date; the expenses card didn't recompute).
+- Add Product dialog scrolls inside, with Save/Cancel fixed at the bottom.
+- Footer wordmark reads "Fresh Cuts Daily" without the stray comma; apartment-count claim removed from the home page.
+
 ## 2026-11-05 (evening)
 
 ### Added

@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Pencil, Trash2, Loader2, Upload, Image as ImageIcon, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -270,12 +269,13 @@ export default function ProductsAdmin() {
                 Add Product
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
-              <DialogHeader>
+            {/* Header and footer stay put; only the fields scroll, so Save is always in reach */}
+            <DialogContent className="max-w-xl max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+              <DialogHeader className="px-5 pt-5 pb-3 border-b">
                 <DialogTitle>{editingId ? 'Edit Product' : 'Add New Product'}</DialogTitle>
               </DialogHeader>
-              <ScrollArea className="flex-1 pr-4">
-                <form onSubmit={handleSubmit} className="space-y-4 pb-4">
+              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+                <form id="product-form" onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Name *</Label>
                     <Input
@@ -470,17 +470,17 @@ export default function ProductsAdmin() {
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2 pt-4">
-                    <Button type="button" variant="outline" onClick={resetForm} className="flex-1">
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={isSubmitting} className="flex-1">
-                      {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      {editingId ? 'Update' : 'Create'}
-                    </Button>
-                  </div>
                 </form>
-              </ScrollArea>
+              </div>
+              <div className="flex gap-2 px-5 py-3 border-t bg-background">
+                <Button type="button" variant="outline" onClick={resetForm} className="flex-1">
+                  Cancel
+                </Button>
+                <Button type="submit" form="product-form" disabled={isSubmitting} className="flex-1">
+                  {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {editingId ? 'Update' : 'Create'}
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </div>

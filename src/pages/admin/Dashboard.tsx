@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { istDateString } from '@/lib/live-rate';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabase-paginate';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -43,6 +44,17 @@ export default function AdminDashboard() {
   const today = startOfDay(now);
   const monthStart = startOfMonth(now);
   const weekStart = startOfWeek(now);
+  // One business day for every card: the IST date. It is part of each date-bound query's key,
+  // so all cards reload together within a minute of 12:00 AM IST.
+  const istDay = istDateString(now);
+  const istMonthStart = `${istDay.slice(0, 7)}-01`;
+  const queryClient = useQueryClient();
+  const firstDay = useRef(istDay);
+  useEffect(() => {
+    if (firstDay.current === istDay) return;
+    firstDay.current = istDay;
+    queryClient.invalidateQueries({ queryKey: ['admin'] });
+  }, [istDay, queryClient]);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['admin', 'dashboard-orders'],
@@ -66,7 +78,7 @@ export default function AdminDashboard() {
   });
 
   const { data: purchaseOrders } = useQuery({
-    queryKey: ['admin', 'dashboard-purchases'],
+    queryKey: ['admin', 'dashboard-purchases', istMonthStart],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_orders')
@@ -79,7 +91,7 @@ export default function AdminDashboard() {
   });
 
   const { data: customerPayments } = useQuery({
-    queryKey: ['admin', 'dashboard-customer-payments'],
+    queryKey: ['admin', 'dashboard-customer-payments', istDay],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('customer_payments')
@@ -91,27 +103,24 @@ export default function AdminDashboard() {
   });
 
   const { data: todayExpenses } = useQuery({
-    queryKey: ['admin', 'dashboard-expenses-today'],
+    queryKey: ['admin', 'dashboard-expenses-today', istDay],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
       const { data, error } = await supabase
         .from('expenses')
         .select('amount')
-        .eq('expense_date', today);
+        .eq('expense_date', istDay);
       if (error) throw error;
       return data || [];
     }
   });
 
   const { data: monthExpenses } = useQuery({
-    queryKey: ['admin', 'dashboard-expenses-month'],
+    queryKey: ['admin', 'dashboard-expenses-month', istMonthStart],
     queryFn: async () => {
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
       const { data, error } = await supabase
         .from('expenses')
         .select('amount')
-        .gte('expense_date', monthStart);
+        .gte('expense_date', istMonthStart);
       if (error) throw error;
       return data || [];
     }
@@ -164,7 +173,7 @@ export default function AdminDashboard() {
       .reduce((s, p) => s + Number(p.total_amount), 0);
     const expensesToday = (todayExpenses || []).reduce((s, e) => s + Number(e.amount), 0);
     const profitToday = salesToday - vendorCostToday - expensesToday;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = istDay;
     const collectionsToday = (customerPayments || [])
       .filter(p => p.payment_date && p.payment_date.slice(0, 10) === todayStr)
       .reduce((s, p) => s + Number(p.amount), 0);
@@ -188,7 +197,7 @@ export default function AdminDashboard() {
       salesToday, vendorCostToday, profitToday, collectionsToday, expensesToday,
       ordersToday, pendingFinalization, totalOutstanding, overdueAmount,
     };
-  }, [orders, purchaseOrders, customerPayments, today]);
+  }, [orders, purchaseOrders, customerPayments, todayExpenses, monthExpenses, today, istDay]);
 
   // Vendor payments due this week
   const vendorPaymentsDue = useMemo(() => {
