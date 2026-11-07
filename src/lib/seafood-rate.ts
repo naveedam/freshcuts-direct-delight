@@ -94,14 +94,12 @@ export function useSeafoodPublication(date: string) {
 }
 
 // Storefront: whether seafood prices can be shown right now, and what to say when they can't.
+// Prices now show at all hours (7 November): orders outside business hours become pre-orders
+// instead. Kept as a hook so the places that used to hide seafood prices need no change.
 export function useSeafoodStorefront() {
-  const now = useMinuteTick();
-  const today = istDateString(now);
-  const { data: publication, isLoading } = useSeafoodPublication(today);
-  // While loading, keep prices hidden rather than flash a stale one.
-  const visible = !isLoading && seafoodPricesVisible(!!publication, now);
-  const message = seafoodHiddenMessage(now);
-  const isHidden = (category: string | null | undefined) => isSeafoodCategory(category) && !visible;
+  const visible = true;
+  const message = '';
+  const isHidden = (_category: string | null | undefined) => false;
   return { visible, message, isHidden };
 }
 

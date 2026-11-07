@@ -8,6 +8,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useStorefrontProducts, type StorefrontProduct } from '@/hooks/useProducts';
 import { useCart } from '@/context/CartContext';
 import { getPriceUnitLabel } from '@/lib/weight-utils';
+import { availabilityOf, canAddToCart, AVAILABILITY_LABEL } from '@/lib/availability';
 import { useSeafoodStorefront } from '@/lib/seafood-rate';
 import { SeafoodPriceNote } from '@/components/products/SeafoodPriceNote';
 
@@ -16,7 +17,8 @@ const EMOJI: Record<string, string> = { lamb: '🐑', poultry: '🐔', seafood: 
 type Section = { id: string; title: string | null; list: StorefrontProduct[] };
 
 function sortProducts(list: StorefrontProduct[]) {
-  return [...list].sort((a, b) => Number(b.inStock) - Number(a.inStock) || a.name.localeCompare(b.name));
+  return [...list].sort((a, b) =>
+    Number(canAddToCart(availabilityOf(b))) - Number(canAddToCart(availabilityOf(a))) || a.name.localeCompare(b.name));
 }
 
 function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
@@ -66,13 +68,13 @@ function ProductRow({
         )}
         {inCart && <p className="text-xs font-medium text-green-600">In cart</p>}
       </Link>
-      {product.inStock ? (
+      {canAddToCart(availabilityOf(product)) ? (
         <Button size="sm" onClick={onAdd} className="shrink-0 gap-1">
           <Plus className="h-4 w-4" />
-          Add
+          {availabilityOf(product) === 'preorder' ? 'Pre-order' : 'Add'}
         </Button>
       ) : (
-        <span className="shrink-0 text-xs font-medium text-muted-foreground">Out of stock</span>
+        <span className="shrink-0 text-xs font-medium text-muted-foreground">{AVAILABILITY_LABEL[availabilityOf(product)]}</span>
       )}
     </div>
   );

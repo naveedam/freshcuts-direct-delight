@@ -19,6 +19,10 @@ export interface Product {
   gstType?: string;
   // Daily-priced item (chicken/mutton/seafood) whose first price hasn't been entered yet.
   awaitingPrice?: boolean;
+  // Product Master switches (default: orderable, no pre-orders).
+  isOrderable?: boolean;
+  preorderEnabled?: boolean;
+  isActive?: boolean;
 }
 
 export interface CartItem {

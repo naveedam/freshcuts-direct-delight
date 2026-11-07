@@ -2,6 +2,15 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-07 (Storefront)
+
+### Changed
+- **Prices show at all hours.** The 6 PM cut-off and the morning publish gate for seafood are gone.
+- **Four independent switches decide what customers see and can do:** hidden or inactive products don't appear; in stock + orderable → Add to cart; out of stock + pre-order → "Pre-order" for the next delivery date; out of stock without pre-order → Out of Stock label, no ordering; not orderable → shown with price, "Not available to order".
+- **Business hours (default 06:00–18:00 IST) and delivery dates.** Orders before closing are delivered today, after closing the next day; outside hours they are marked pre-orders. Checkout shows the delivery date and stores it on the order (`delivery_date`, `is_preorder`), as does the WhatsApp form.
+- Checkout re-checks each item's availability before placing the order.
+- Migration `20261107150000_storefront.sql`: `get_business_hours()`, a database check that refuses unavailable items in customer orders (admins and server-side code are not restricted), and the WhatsApp order function updated for pre-orders and delivery date.
+
 ## 2026-11-07 (Orders and payments)
 
 ### Added

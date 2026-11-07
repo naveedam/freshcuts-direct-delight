@@ -18,6 +18,9 @@ const mapDbProduct = (dbProduct: any): Product => ({
   gstRate: dbProduct.gst_rate || 0,
   gstType: dbProduct.gst_type || 'Exempt',
   awaitingPrice: !!dbProduct.awaiting_daily_price,
+  isOrderable: dbProduct.is_orderable ?? true,
+  preorderEnabled: !!dbProduct.preorder_enabled,
+  isActive: dbProduct.is_active ?? true,
 });
 
 export function useProducts() {
@@ -54,6 +57,7 @@ export function useProductsByCategory(categorySlug: string) {
         .eq('category_id', category.id)
         .eq('is_published', true)
         .eq('awaiting_daily_price', false)
+        .eq('is_active' as any, true)
         .order('name');
       
       if (error) throw error;
@@ -91,6 +95,7 @@ export function useFeaturedProducts() {
         .eq('in_stock', true)
         .eq('is_published', true)
         .eq('awaiting_daily_price', false)
+        .eq('is_active' as any, true)
         .limit(8)
         .order('created_at', { ascending: false });
       
@@ -112,6 +117,7 @@ export function useStorefrontProducts() {
         .select('*')
         .eq('is_published', true)
         .eq('awaiting_daily_price', false)
+        .eq('is_active' as any, true)
         .order('name');
       if (error) throw error;
       return data.map((p: any): StorefrontProduct => ({ ...mapDbProduct(p), categoryId: p.category_id ?? null }));

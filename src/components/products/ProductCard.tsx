@@ -4,6 +4,7 @@ import { useCart } from '@/context/CartContext';
 import { ShoppingCart, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getPriceUnitLabel } from '@/lib/weight-utils';
+import { availabilityOf, canAddToCart, AVAILABILITY_LABEL } from '@/lib/availability';
 import { useSeafoodStorefront } from '@/lib/seafood-rate';
 import { SeafoodPriceNote } from '@/components/products/SeafoodPriceNote';
 interface ProductCardProps {
@@ -12,6 +13,7 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const { addToCart } = useCart();
+  const availability = availabilityOf(product);
   const seafood = useSeafoodStorefront();
   const priceHidden = seafood.isHidden(product.category);
 
@@ -40,13 +42,18 @@ export function ProductCard({ product }: ProductCardProps) {
           </span>
         )}
 
-        {/* Out of Stock Overlay */}
-        {!product.inStock && (
+        {/* Out of stock / not orderable label (pre-order items stay clear, with a tag) */}
+        {(availability === 'out' || availability === 'unavailable') && (
           <div className="absolute inset-0 bg-foreground/50 flex items-center justify-center">
             <span className="bg-card text-foreground font-body font-semibold px-4 py-2 rounded-lg">
-              Out of Stock
+              {AVAILABILITY_LABEL[availability]}
             </span>
           </div>
+        )}
+        {availability === 'preorder' && (
+          <span className="absolute top-3 right-3 rounded-full bg-gold px-2 py-0.5 text-xs font-semibold text-foreground">
+            Pre-order
+          </span>
         )}
 
         {/* Quick Add Button - Shows on Hover */}
@@ -59,10 +66,10 @@ export function ProductCard({ product }: ProductCardProps) {
               e.preventDefault();
               addToCart(product);
             }}
-            disabled={!product.inStock}
+            disabled={!canAddToCart(availability)}
           >
             <Plus className="h-4 w-4" />
-            Quick Add
+            {availability === 'preorder' ? 'Pre-order' : 'Quick Add'}
           </Button>
         </div>
       </Link>
@@ -112,7 +119,7 @@ export function ProductCard({ product }: ProductCardProps) {
             variant="default" 
             size="icon"
             onClick={() => addToCart(product)}
-            disabled={!product.inStock}
+            disabled={!canAddToCart(availability)}
           >
             <ShoppingCart className="h-4 w-4" />
           </Button>

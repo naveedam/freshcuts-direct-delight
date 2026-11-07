@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { formatCurrency } from '@/lib/currency';
 import { formatQuantityDisplay, calculatePrice, isWeightBased } from '@/lib/weight-utils';
 import { buildOrderItems } from '@/lib/order-utils';
+import { availabilityOf, canAddToCart, deliveryPlan, fmtDeliveryDate, useBusinessHours } from '@/lib/availability';
 import { useSeafoodStorefront } from '@/lib/seafood-rate';
 import { SeafoodPriceNote } from '@/components/products/SeafoodPriceNote';
 
@@ -43,6 +44,9 @@ const sanitizeInput = (input: string): string => {
 const CheckoutPage = () => {
   const { items, totalPrice, provisionalTotalPrice, hasUnpricedItems, clearCart } = useCart();
   const seafood = useSeafoodStorefront();
+  const { data: hours } = useBusinessHours();
+  // Delivery date shown before ordering; recomputed with fresh stock when the order is placed.
+  const previewPlan = deliveryPlan(hours, items.some((i) => availabilityOf(i.product) === 'preorder'));
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -115,14 +119,37 @@ const CheckoutPage = () => {
         zipCode: sanitizeInput(formData.zipCode),
       };
 
+      // Check every item is still orderable before creating anything (the database checks
+      // again), and whether any is an out-of-stock pre-order, which moves the delivery date.
+      const ids = Array.from(new Set(items.map((i) => i.product.id)));
+      const { data: fresh, error: freshError } = await supabase
+        .from('products')
+        .select('id, name, is_active, is_published, is_orderable, in_stock, preorder_enabled, awaiting_daily_price' as any)
+        .in('id', ids);
+      if (freshError) throw freshError;
+      const blocked: string[] = [];
+      let hasPreorder = false;
+      for (const id of ids) {
+        const p: any = (fresh || []).find((x: any) => x.id === id);
+        const a = p && p.is_active !== false && p.is_published && !p.awaiting_daily_price
+          ? availabilityOf({ inStock: p.in_stock ?? true, isOrderable: p.is_orderable ?? true, preorderEnabled: !!p.preorder_enabled })
+          : 'unavailable';
+        if (!canAddToCart(a)) blocked.push(p?.name || items.find((i) => i.product.id === id)?.product.name || 'An item');
+        if (a === 'preorder') hasPreorder = true;
+      }
+      if (blocked.length) {
+        throw new Error(`${blocked.join(', ')} ${blocked.length === 1 ? 'is' : 'are'} no longer available. Remove ${blocked.length === 1 ? 'it' : 'them'} from your cart to continue.`);
+      }
+      const plan = deliveryPlan(hours, hasPreorder);
+
       // Create order in database with sanitized data - payment pending after weighing
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           user_id: user?.id || null,
-          // Seafood ordered while its price is hidden is stored at its last price as an estimate;
-          // Finalize Weights re-prices it at the morning's rate.
           total_amount: provisionalTotalPrice + shippingCost,
+          delivery_date: plan.date,
+          is_preorder: plan.isPreorder,
           status: 'pending',
           building_name: sanitizedData.buildingName || null,
           flat_number: sanitizedData.flatNumber || null,
@@ -131,8 +158,8 @@ const CheckoutPage = () => {
           shipping_postal_code: sanitizedData.zipCode,
           phone: sanitizedData.phone,
           customer_email: sanitizedData.email,
-          notes: `${sanitizedData.firstName} ${sanitizedData.lastName} | Pay After Weighing`
-        })
+          notes: `${sanitizedData.firstName} ${sanitizedData.lastName} | Pay After Weighing${plan.isPreorder ? ` | Pre-order for ${fmtDeliveryDate(plan.date)}` : ''}`
+        } as any)
         .select()
         .single();
 
@@ -152,7 +179,9 @@ const CheckoutPage = () => {
       clearCart();
       toast.success('Order placed successfully!');
     } catch (error: any) {
-      toast.error('Failed to place order: ' + error.message);
+      toast.error(String(error.message || '').includes('PRODUCT_UNAVAILABLE')
+        ? String(error.message).replace('PRODUCT_UNAVAILABLE:', '').trim()
+        : 'Failed to place order: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -435,6 +464,10 @@ const CheckoutPage = () => {
                   <span>Estimated Total</span>
                   <span className="text-primary">{formatCurrency(orderTotal)}</span>
                 </div>
+                <p className="text-sm font-medium text-foreground mt-3">
+                  Delivery: {fmtDeliveryDate(previewPlan.date)}
+                  {previewPlan.isPreorder && <span className="ml-1 text-xs font-normal text-amber-700">(pre-order)</span>}
+                </p>
                 <p className="text-xs text-muted-foreground mt-2">
                   * Final amount may vary based on actual weight
                 </p>

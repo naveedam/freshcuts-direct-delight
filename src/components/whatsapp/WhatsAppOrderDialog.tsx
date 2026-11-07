@@ -16,6 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useStorefrontProducts } from '@/hooks/useProducts';
+import { availabilityOf, canAddToCart } from '@/lib/availability';
 import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
 import { useCategories } from '@/hooks/useCategories';
@@ -96,7 +97,8 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
     const ids = new Set(visibleCategories.map(c => c.id));
     const keys = new Set(visibleCategories.flatMap(c => [c.slug.toLowerCase(), c.name.toLowerCase()]));
     return allProducts.filter(p =>
-      (p.categoryId && ids.has(p.categoryId)) || keys.has((p.category || '').toLowerCase()));
+      ((p.categoryId && ids.has(p.categoryId)) || keys.has((p.category || '').toLowerCase()))
+      && canAddToCart(availabilityOf(p)));
   }, [allProducts, visibleCategories]);
 
   const form = useForm<FormValues>({
@@ -420,7 +422,7 @@ export function WhatsAppOrderDialog({ open, onOpenChange }: WhatsAppOrderDialogP
                         <SelectItem key={product.id} value={product.id}>
                           {seafood.isHidden(product.category)
                             ? `${product.name} - price from tomorrow morning`
-                            : `${product.name} - ₹${product.price}/${product.unit}`}
+                            : `${product.name} - ₹${product.price}/${product.unit}${availabilityOf(product) === 'preorder' ? ' (pre-order)' : ''}`}
                         </SelectItem>
                       ))}
                     </SelectContent>

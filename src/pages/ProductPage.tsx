@@ -8,7 +8,8 @@ import { useState } from 'react';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatWeight, formatQuantityDisplay, getPriceUnitLabel, calculatePrice, isWeightBased } from '@/lib/weight-utils';
-import { useSeafoodStorefront, isSeafoodCategory } from '@/lib/seafood-rate';
+import { useSeafoodStorefront } from '@/lib/seafood-rate';
+import { availabilityOf, canAddToCart, AVAILABILITY_LABEL, deliveryPlan, fmtDeliveryDate, useBusinessHours } from '@/lib/availability';
 import { SeafoodPriceNote } from '@/components/products/SeafoodPriceNote';
 
 const ProductPage = () => {
@@ -18,6 +19,7 @@ const ProductPage = () => {
   const [quantity, setQuantity] = useState(1);
   const { addToCart } = useCart();
   const seafood = useSeafoodStorefront();
+  const { data: hours } = useBusinessHours();
 
   if (isLoading) {
     return (
@@ -39,7 +41,7 @@ const ProductPage = () => {
   }
 
   // A daily-priced item whose first price hasn't been entered isn't sold yet.
-  if (!product || product.awaitingPrice) {
+  if (!product || product.awaitingPrice || product.isActive === false) {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-20 text-center">
@@ -61,6 +63,9 @@ const ProductPage = () => {
       </Layout>
     );
   }
+
+  const availability = availabilityOf(product);
+  const plan = deliveryPlan(hours, availability === 'preorder');
 
   const relatedProducts = relatedProductsData
     ?.filter(p => p.id !== product.id)
@@ -141,11 +146,6 @@ const ProductPage = () => {
                     {getPriceUnitLabel(product.pricingModel || 'weight_based')}
                   </span>
                 </div>
-                {isSeafoodCategory(product.category) && (
-                  <p className="font-body text-sm text-muted-foreground mt-1">
-                    Today's price, valid until 6 PM. Seafood is billed at the rate on the day your order is weighed.
-                  </p>
-                )}
               </div>
             )}
 
@@ -156,16 +156,26 @@ const ProductPage = () => {
 
             {/* Stock Status */}
             <div className="mb-6">
-              {product.inStock ? (
+              {availability === 'order' ? (
                 <span className="inline-flex items-center gap-2 font-body text-sm text-green-600">
                   <span className="w-2 h-2 bg-green-600 rounded-full" />
                   In Stock
                 </span>
+              ) : availability === 'preorder' ? (
+                <span className="inline-flex items-center gap-2 font-body text-sm text-amber-700">
+                  <span className="w-2 h-2 bg-amber-600 rounded-full" />
+                  Out of stock today · pre-order for delivery on {fmtDeliveryDate(plan.date)}
+                </span>
               ) : (
                 <span className="inline-flex items-center gap-2 font-body text-sm text-destructive">
                   <span className="w-2 h-2 bg-destructive rounded-full" />
-                  Out of Stock
+                  {AVAILABILITY_LABEL[availability]}
                 </span>
+              )}
+              {availability === 'order' && plan.afterHours && (
+                <p className="font-body text-xs text-muted-foreground mt-1">
+                  Orders placed now are delivered on {fmtDeliveryDate(plan.date)}.
+                </p>
               )}
             </div>
 
@@ -207,12 +217,10 @@ const ProductPage = () => {
               size="xl" 
               className="w-full md:w-auto mb-8"
               onClick={handleAddToCart}
-              disabled={!product.inStock}
+              disabled={!canAddToCart(availability)}
             >
               <ShoppingCart className="h-5 w-5" />
-              {seafood.isHidden(product.category)
-                ? 'Add to Cart'
-                : `Add to Cart - ₹${calculatePrice(product.price, quantity, product.pricingModel || 'weight_based').toFixed(0)}`}
+              {`${availability === 'preorder' ? 'Pre-order' : 'Add to Cart'} - ₹${calculatePrice(product.price, quantity, product.pricingModel || 'weight_based').toFixed(0)}`}
             </Button>
 
             {/* Features */}
