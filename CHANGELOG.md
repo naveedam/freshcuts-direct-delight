@@ -2,6 +2,15 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-07 (Product Master)
+
+### Changed
+- **Products is now the Product Master.** Each product has independent switches, editable in the list and in the Add/Edit dialog: Active, Show on storefront, In stock, Orderable, Pre-order, Show in New Order dropdown.
+- Filters by category and status (hidden, out of stock, not orderable, pre-orders on, not in order form, HSN to check, inactive) plus search.
+- Price is read-only on Products, with a link to its Rate Management tab. A new product's starting selling (and optional purchase) price becomes its first dated price record.
+- Deactivated products can be reactivated; badges flag products with no price yet and automatically filled HSN codes.
+- Saving a product also sets its category id, so name/slug mismatches stop.
+
 ## 2026-11-07 (Rate Management)
 
 ### Added

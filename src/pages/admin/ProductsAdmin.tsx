@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -10,7 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Loader2, Upload, Image as ImageIcon, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Upload, Image as ImageIcon, X, Search, RotateCcw, ExternalLink } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { istDateString } from '@/lib/live-rate';
+import { savePriceRows, isPriceCheckError } from '@/lib/product-prices';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Category } from '@/types/category';
@@ -26,7 +30,39 @@ interface ProductForm {
   hsn_code: string;
   is_processed: boolean;
   yield_multiplier: string;
+  purchase_price: string;
+  // Product Master switches: each independent of the others.
+  is_active: boolean;
+  is_published: boolean;
+  is_orderable: boolean;
+  preorder_enabled: boolean;
+  show_in_order_form: boolean;
 }
+
+// Which Rate Management tab prices a category.
+const rateTabFor = (slug: string | null | undefined) =>
+  slug === 'poultry' ? 'chicken' : slug === 'lamb' ? 'mutton' : slug === 'seafood' ? 'seafood' : 'other';
+
+type SwitchField = 'is_published' | 'in_stock' | 'is_orderable' | 'preorder_enabled' | 'show_in_order_form';
+const SWITCHES: { field: SwitchField; label: string; short: string }[] = [
+  { field: 'is_published', label: 'Show on storefront', short: 'Storefront' },
+  { field: 'in_stock', label: 'In stock', short: 'In stock' },
+  { field: 'is_orderable', label: 'Available for ordering', short: 'Orderable' },
+  { field: 'preorder_enabled', label: 'Accept pre-orders', short: 'Pre-order' },
+  { field: 'show_in_order_form', label: 'Show in New Order dropdown', short: 'Order form' },
+];
+
+const FILTERS: Record<string, { label: string; test: (p: any) => boolean }> = {
+  active: { label: 'Active products', test: (p) => p.is_active !== false },
+  hidden: { label: 'Hidden from storefront', test: (p) => p.is_active !== false && !p.is_published },
+  out: { label: 'Out of stock', test: (p) => p.is_active !== false && p.in_stock === false },
+  notorderable: { label: 'Not orderable', test: (p) => p.is_active !== false && p.is_orderable === false },
+  preorder: { label: 'Pre-orders on', test: (p) => p.is_active !== false && p.preorder_enabled },
+  notinform: { label: 'Not in order form', test: (p) => p.is_active !== false && p.show_in_order_form === false },
+  hsn: { label: 'HSN to check', test: (p) => p.is_active !== false && p.hsn_auto_filled },
+  inactive: { label: 'Inactive', test: (p) => p.is_active === false },
+  all: { label: 'All products', test: () => true },
+};
 
 const defaultForm: ProductForm = {
   name: '',
@@ -39,7 +75,13 @@ const defaultForm: ProductForm = {
   image_url: '',
   hsn_code: '',
   is_processed: false,
-  yield_multiplier: '1.0'
+  yield_multiplier: '1.0',
+  purchase_price: '',
+  is_active: true,
+  is_published: false,
+  is_orderable: true,
+  preorder_enabled: false,
+  show_in_order_form: true,
 };
 
 export default function ProductsAdmin() {
@@ -48,6 +90,9 @@ export default function ProductsAdmin() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ProductForm>(defaultForm);
   const [isUploading, setIsUploading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('active');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get the Supabase URL for constructing public URLs
@@ -129,13 +174,26 @@ export default function ProductsAdmin() {
     }
   });
 
+  const categoryIdFor = (slug: string) => categories?.find((c) => c.slug === slug)?.id ?? null;
+
   const createMutation = useMutation({
     mutationFn: async (data: ProductForm) => {
-      const { error } = await supabase.from('products').insert({
+      const selling = parseFloat(data.price);
+      const purchase = data.purchase_price.trim() === '' ? null : parseFloat(data.purchase_price);
+      if (purchase != null && purchase > selling) {
+        throw new Error(`Selling price ₹${selling} is below purchase price ₹${purchase}`);
+      }
+      const { data: created, error } = await supabase.from('products').insert({
         name: data.name,
         description: data.description || null,
-        price: parseFloat(data.price),
+        price: selling,
         category: data.category,
+        category_id: categoryIdFor(data.category),
+        is_active: data.is_active,
+        is_published: data.is_published,
+        is_orderable: data.is_orderable,
+        preorder_enabled: data.preorder_enabled,
+        show_in_order_form: data.show_in_order_form,
         unit: data.unit,
         in_stock: data.in_stock,
         stock_quantity: parseInt(data.stock_quantity) || 0,
@@ -143,8 +201,18 @@ export default function ProductsAdmin() {
         hsn_code: data.hsn_code || null,
         is_processed: data.is_processed,
         yield_multiplier: parseFloat(data.yield_multiplier) || 1.0
-      });
+      } as any).select('id').single();
       if (error) throw error;
+      // The starting price becomes the product's first dated record in Rate Management.
+      try {
+        await savePriceRows([{
+          product_id: created.id, vendor_id: null, effective_date: istDateString(),
+          purchase_price: purchase, selling_price: selling, source: 'manual',
+        }]);
+        await supabase.from('products').update({ awaiting_daily_price: false } as any).eq('id', created.id);
+      } catch (e: any) {
+        if (!isPriceCheckError(e)) throw e;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
@@ -159,11 +227,17 @@ export default function ProductsAdmin() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: ProductForm }) => {
+      // Price is not edited here: it comes from Rate Management.
       const { error } = await supabase.from('products').update({
         name: data.name,
         description: data.description || null,
-        price: parseFloat(data.price),
         category: data.category,
+        category_id: categoryIdFor(data.category),
+        is_active: data.is_active,
+        is_published: data.is_published,
+        is_orderable: data.is_orderable,
+        preorder_enabled: data.preorder_enabled,
+        show_in_order_form: data.show_in_order_form,
         unit: data.unit,
         in_stock: data.in_stock,
         stock_quantity: parseInt(data.stock_quantity) || 0,
@@ -171,7 +245,7 @@ export default function ProductsAdmin() {
         hsn_code: data.hsn_code || null,
         is_processed: data.is_processed,
         yield_multiplier: parseFloat(data.yield_multiplier) || 1.0
-      }).eq('id', id);
+      } as any).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -202,16 +276,35 @@ export default function ProductsAdmin() {
     }
   });
 
-  const toggleStockMutation = useMutation({
-    mutationFn: async ({ id, inStock }: { id: string; inStock: boolean }) => {
-      const { error } = await supabase.from('products').update({ in_stock: inStock }).eq('id', id);
+  // One switch on one product; the row updates at once and is checked against the database after.
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, field, value }: { id: string; field: SwitchField | 'is_active'; value: boolean }) => {
+      const { error } = await supabase.from('products').update({ [field]: value } as any).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onMutate: ({ id, field, value }) => {
+      queryClient.setQueryData(['admin', 'products'], (old: any[] | undefined) =>
+        old?.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
+    },
+    onError: (e: Error) => toast.error('Not saved: ' + e.message),
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-    }
+    },
   });
+
+  const slugOf = (p: any) => {
+    const text = String(p.category || '').toLowerCase();
+    return categories?.find((c) => c.id === p.category_id)?.slug
+      ?? categories?.find((c) => c.slug.toLowerCase() === text || c.name.toLowerCase() === text)?.slug
+      ?? null;
+  };
+  const visibleProducts = useMemo(() => (products || []).filter((p: any) =>
+    FILTERS[statusFilter].test(p)
+    && (categoryFilter === 'all' || slugOf(p) === categoryFilter)
+    && (!search.trim() || p.name.toLowerCase().includes(search.trim().toLowerCase()))),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [products, categories, statusFilter, categoryFilter, search]);
 
   const resetForm = () => {
     setForm(defaultForm);
@@ -224,14 +317,20 @@ export default function ProductsAdmin() {
       name: product.name,
       description: product.description || '',
       price: product.price.toString(),
-      category: product.category,
+      category: slugOf(product) || product.category,
       unit: product.unit,
       in_stock: product.in_stock,
       stock_quantity: (product.stock_quantity || 0).toString(),
       image_url: product.image_url || '',
       hsn_code: product.hsn_code || '',
       is_processed: product.is_processed ?? false,
-      yield_multiplier: (product.yield_multiplier ?? 1.0).toString()
+      yield_multiplier: (product.yield_multiplier ?? 1.0).toString(),
+      purchase_price: '',
+      is_active: product.is_active ?? true,
+      is_published: !!product.is_published,
+      is_orderable: product.is_orderable ?? true,
+      preorder_enabled: !!product.preorder_enabled,
+      show_in_order_form: product.show_in_order_form ?? true,
     });
     setEditingId(product.id);
     setIsOpen(true);
@@ -239,8 +338,8 @@ export default function ProductsAdmin() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.price) {
-      toast.error('Name and price are required');
+    if (!form.name || (!editingId && !form.price)) {
+      toast.error(editingId ? 'Name is required' : 'Name and selling price are required');
       return;
     }
 
@@ -259,7 +358,7 @@ export default function ProductsAdmin() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-heading text-3xl font-bold text-foreground">Products</h1>
-            <p className="font-body text-muted-foreground">Manage your product inventory</p>
+            <p className="font-body text-muted-foreground">Product details and availability. Prices are set in Rate Management.</p>
           </div>
           <Dialog open={isOpen} onOpenChange={(open) => {
             setIsOpen(open);
@@ -297,18 +396,30 @@ export default function ProductsAdmin() {
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="price">Price *</Label>
-                    <Input
-                      id="price"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={form.price}
-                      onChange={(e) => setForm({ ...form, price: e.target.value })}
-                      required
-                    />
-                  </div>
+                  {editingId ? (
+                    <div className="space-y-2">
+                      <Label>Selling price</Label>
+                      <div className="flex h-10 items-center gap-2 text-sm">
+                        <span className="font-medium">₹{Number(form.price || 0).toFixed(0)}</span>
+                        <Link to={`/admin/rates?tab=${rateTabFor(form.category)}`} className="text-xs text-primary inline-flex items-center gap-1 hover:underline">
+                          Change in Rate Management <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="price">Selling ₹ *</Label>
+                        <Input id="price" type="number" step="0.01" min="0" value={form.price}
+                          onChange={(e) => setForm({ ...form, price: e.target.value })} required />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="purchase_price">Purchase ₹</Label>
+                        <Input id="purchase_price" type="number" step="0.01" min="0" value={form.purchase_price}
+                          onChange={(e) => setForm({ ...form, purchase_price: e.target.value })} />
+                      </div>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="unit">Unit</Label>
                     <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
@@ -439,12 +550,22 @@ export default function ProductsAdmin() {
                       Upload an image or paste a direct image URL (not Google Drive links)
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={form.in_stock}
-                      onCheckedChange={(checked) => setForm({ ...form, in_stock: checked })}
-                    />
-                    <Label>In Stock</Label>
+                  <div className="rounded-md border border-border p-3 space-y-2">
+                    <p className="text-sm font-medium">Availability</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                      {[{ field: 'is_active', label: 'Active' } as const, ...SWITCHES].map(({ field, label }) => (
+                        <label key={field} className="flex items-center gap-2 text-sm">
+                          <Switch
+                            checked={!!form[field]}
+                            onCheckedChange={(checked) => setForm({ ...form, [field]: checked })}
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Each switch is independent. Out of stock with pre-orders on still lets customers pre-order; hiding from the storefront doesn't remove it from the order form.
+                    </p>
                   </div>
                   <div className="space-y-3 rounded-md border border-border p-3">
                     <div className="flex items-center gap-2">
@@ -487,6 +608,28 @@ export default function ProductsAdmin() {
           </Dialog>
         </div>
 
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input className="h-9 w-56 pl-8" placeholder="Search products" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="h-9 w-56"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All categories</SelectItem>
+              {categories?.map((c) => <SelectItem key={c.id} value={c.slug}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 w-52"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(FILTERS).map(([k, f]) => <SelectItem key={k} value={k}>{f.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-muted-foreground">{visibleProducts.length} shown</span>
+        </div>
+
         {/* Products Table */}
         <div className="bg-card border border-border rounded-lg overflow-hidden">
           <Table>
@@ -494,9 +637,10 @@ export default function ProductsAdmin() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>In Stock</TableHead>
+                <TableHead className="text-right">Price</TableHead>
+                {SWITCHES.map((sw) => (
+                  <TableHead key={sw.field} className="text-center text-xs whitespace-nowrap px-2">{sw.short}</TableHead>
+                ))}
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -507,51 +651,69 @@ export default function ProductsAdmin() {
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-10" /></TableCell>
+                    <TableCell colSpan={SWITCHES.length}><Skeleton className="h-6 w-full" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
                   </TableRow>
                 ))
-              ) : products && products.length > 0 ? (
-                products.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell className="capitalize">{product.category}</TableCell>
-                    <TableCell>₹{Number(product.price).toFixed(0)}</TableCell>
-                    <TableCell>{product.stock_quantity || 0}</TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={product.in_stock}
-                        onCheckedChange={(checked) => 
-                          toggleStockMutation.mutate({ id: product.id, inStock: checked })
-                        }
-                      />
+              ) : visibleProducts.length > 0 ? (
+                visibleProducts.map((product: any) => {
+                  const slug = slugOf(product);
+                  const inactive = product.is_active === false;
+                  return (
+                  <TableRow key={product.id} className={inactive ? 'opacity-60' : ''}>
+                    <TableCell className="font-medium">
+                      {product.name}
+                      {inactive && <Badge variant="outline" className="ml-2 text-[10px]">Inactive</Badge>}
+                      {product.awaiting_daily_price && <Badge variant="outline" className="ml-2 text-[10px] text-amber-700">No price yet</Badge>}
+                      {product.hsn_auto_filled && <Badge variant="outline" className="ml-2 text-[10px] text-amber-700" title="HSN filled automatically; please check">HSN {product.hsn_code}?</Badge>}
                     </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {categories?.find((c) => c.slug === slug)?.name || product.category}
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      <Link to={`/admin/rates?tab=${rateTabFor(slug)}`} className="hover:underline" title="Set in Rate Management">
+                        ₹{Number(product.price).toFixed(0)}
+                      </Link>
+                    </TableCell>
+                    {SWITCHES.map((sw) => (
+                      <TableCell key={sw.field} className="text-center px-2">
+                        <Switch
+                          checked={!!product[sw.field]}
+                          disabled={inactive}
+                          aria-label={`${sw.label}: ${product.name}`}
+                          onCheckedChange={(checked) => toggleMutation.mutate({ id: product.id, field: sw.field, value: checked })}
+                        />
+                      </TableCell>
+                    ))}
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button size="icon" variant="ghost" onClick={() => handleEdit(product)}>
+                      <div className="flex justify-end gap-1">
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleEdit(product)} title="Edit">
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          size="icon" 
-                          variant="ghost" 
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => {
-                            if (confirm('Deactivate this product? It disappears from the storefront and order form; its orders and price history are kept.')) {
-                              deleteMutation.mutate(product.id);
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {inactive ? (
+                          <Button size="icon" variant="ghost" className="h-8 w-8" title="Reactivate"
+                            onClick={() => toggleMutation.mutate({ id: product.id, field: 'is_active', value: true })}>
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" title="Deactivate"
+                            onClick={() => {
+                              if (confirm('Deactivate this product? It disappears from the storefront and order form; its orders and price history are kept.')) {
+                                deleteMutation.mutate(product.id);
+                              }
+                            }}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    No products found. Add your first product to get started.
+                  <TableCell colSpan={4 + SWITCHES.length} className="text-center py-8 text-muted-foreground">
+                    No products match these filters.
                   </TableCell>
                 </TableRow>
               )}
