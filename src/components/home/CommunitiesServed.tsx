@@ -25,7 +25,7 @@ export function CommunitiesServed() {
       <div className="container mx-auto px-4">
         <h2 className="font-heading text-2xl font-bold text-foreground">Communities we serve</h2>
         <p className="font-body text-sm text-muted-foreground mb-4">
-          {list.length} apartment communities across Bangalore
+          Find your apartment to check we deliver there.
         </p>
         <div className="relative max-w-md mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

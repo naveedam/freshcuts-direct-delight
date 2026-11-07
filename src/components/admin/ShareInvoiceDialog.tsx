@@ -20,9 +20,11 @@ interface ShareInvoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   order: any;
+  // Called after a successful download or share, so the screen that opened this one can close too.
+  onDone?: () => void;
 }
 
-export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDialogProps) {
+export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareInvoiceDialogProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [business, setBusiness] = useState<any>(null);
@@ -72,6 +74,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
 
       toast.success('PDF downloaded successfully');
       onOpenChange(false);
+      onDone?.();
     } catch (e: any) {
       toast.error('Failed: ' + e.message);
     } finally {
@@ -99,6 +102,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
 
       toast.success('Image downloaded');
       onOpenChange(false);
+      onDone?.();
     } catch (e: any) {
       toast.error('Failed: ' + e.message);
     } finally {
@@ -142,6 +146,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
         toast.success('Image downloaded — attach it in WhatsApp');
       }
       onOpenChange(false);
+      onDone?.();
     } catch (e: any) {
       toast.error('Failed: ' + e.message);
     } finally {
@@ -165,6 +170,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order }: ShareInvoiceDi
 
       toast.success('PDF downloaded — attach it in your email');
       onOpenChange(false);
+      onDone?.();
     } catch (e: any) {
       toast.error('Failed: ' + e.message);
     } finally {

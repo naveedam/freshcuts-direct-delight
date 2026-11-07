@@ -421,6 +421,7 @@ export function InvoiceEditDialog({ open, onOpenChange, order, orderItems }: Inv
           open={shareOpen}
           onOpenChange={setShareOpen}
           order={order}
+          onDone={() => onOpenChange(false)}
         />
       </DialogContent>
     </Dialog>

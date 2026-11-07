@@ -14,6 +14,8 @@ const defaultContent: FooterContent = {
 export function Footer() {
   const { data: content } = usePageContent<FooterContent>('footer');
   const c = content || defaultContent;
+  // The CMS name may or may not already end in "Daily"; strip it so it is never doubled.
+  const brandName = (c.companyName || 'Fresh Cuts').replace(/[,\s]*daily\s*$/i, '').trim() || 'Fresh Cuts';
 
   return (
     <footer className="bg-foreground text-primary-foreground">
@@ -21,12 +23,11 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12">
           {/* Brand */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <span className="font-heading text-2xl font-bold text-primary-foreground">
-                {c.companyName}
-              </span>
-              <span className="font-heading text-xl text-gold">, Daily</span>
-            </div>
+            {/* One wordmark: "Fresh Cuts" with "Daily" in gold, no comma */}
+            <p className="font-heading text-2xl font-bold leading-none tracking-tight">
+              <span className="text-primary-foreground">{brandName}</span>{' '}
+              <span className="text-gold">Daily</span>
+            </p>
             <p className="font-body text-sm text-primary-foreground/70 leading-relaxed">
               {c.tagline}
             </p>
@@ -100,7 +101,7 @@ export function Footer() {
         <div className="border-t border-primary-foreground/10 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="font-body text-sm text-primary-foreground/50">
-              © 2024 {c.companyName}, Daily. All rights reserved.
+              © {new Date().getFullYear()} {brandName} Daily. All rights reserved.
             </p>
             <div className="flex gap-6">
               <Link to="#" className="font-body text-xs text-primary-foreground/50 hover:text-gold transition-colors">

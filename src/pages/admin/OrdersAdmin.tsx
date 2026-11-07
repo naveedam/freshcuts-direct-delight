@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { gstTypeToUi } from '@/lib/gst-ui';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -286,7 +287,7 @@ export default function OrdersAdmin() {
       toast.error('Failed to load items for repeat order: ' + error.message);
       return;
     }
-    const dbGstTypeToUi = (t: string) => t === 'nil' ? 'Nil-rated' : t === 'taxable' ? 'Taxable' : 'Exempt';
+    const dbGstTypeToUi = gstTypeToUi;
     const lineItems = (items || [])
       .filter((it: any) => Number(it.quantity) > 0)
       .map((it: any) => ({
@@ -455,8 +456,16 @@ export default function OrdersAdmin() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    // Show the new status at once instead of waiting for the full order list to reload.
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ['admin', 'orders'] });
+      queryClient.setQueryData(['admin', 'orders'], (old: any[] | undefined) =>
+        old?.map((o) => (o.id === id ? { ...o, status } : o)));
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'creditNotes'] });
       toast.success('Order status updated');
       setCancelTarget(null);
