@@ -2,6 +2,18 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-08 (Screens combined)
+
+### Changed
+- **Vendor Management** replaces four menu items: tabs for Vendors, Purchase Orders, Vendor Ledger and Vendor Profitability. Each tab is the existing screen unchanged; old links open the matching tab.
+- **Product Management** replaces Products and Categories: one screen with two tabs.
+- **Expenses** has a second tab, **Delivery Partner Advances**, in place of the separate Delivery Partners screen.
+- Delivery partner advances are now kept apart from Expenses: settling a partner records ledger entries only and no longer adds an expense. Delivery payments are entered in Expenses as before. Delivery companies (Rapido, Porter, Uber Courier, Uncle Delivery) are removed from the partner list where they have no entries.
+- Migration `20261108100000_advances_independent.sql`.
+
+### Removed
+- The **Link cuts to catalog products** section in Chicken rates. Existing links stay in place and keep pricing; unlinked cuts will be matched to products automatically when the chicken catalogue is standardised.
+
 ## 2026-11-08 (Collections fix)
 
 ### Fixed

@@ -13,7 +13,9 @@ import AuthPage from "./pages/AuthPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/admin/Dashboard";
-import ProductsAdmin from "./pages/admin/ProductsAdmin";
+import ProductManagementAdmin from "./pages/admin/ProductManagementAdmin";
+import VendorManagementAdmin from "./pages/admin/VendorManagementAdmin";
+import ExpensesManagementAdmin from "./pages/admin/ExpensesManagementAdmin";
 import RateManagementAdmin from "./pages/admin/RateManagementAdmin";
 import OrdersAdmin from "./pages/admin/OrdersAdmin";
 import ContentAdmin from "./pages/admin/ContentAdmin";
@@ -21,13 +23,6 @@ import BusinessSettings from "./pages/admin/BusinessSettings";
 import ShippingSettings from "./pages/admin/ShippingSettings";
 import GSTConfigAdmin from "./pages/admin/GSTConfigAdmin";
 import GSTReportsAdmin from "./pages/admin/GSTReportsAdmin";
-import ExpensesAdmin from "./pages/admin/ExpensesAdmin";
-import DeliveryPartnersAdmin from "./pages/admin/DeliveryPartnersAdmin";
-import VendorsAdmin from "./pages/admin/VendorsAdmin";
-import PurchaseOrdersAdmin from "./pages/admin/PurchaseOrdersAdmin";
-import VendorLedger from "./pages/admin/VendorLedger";
-import VendorProfitability from "./pages/admin/VendorProfitability";
-import CategoriesAdmin from "./pages/admin/CategoriesAdmin";
 import DocumentsAdmin from "./pages/admin/DocumentsAdmin";
 import BulkUploadAdmin from "./pages/admin/BulkUploadAdmin";
 import FinancialYearsAdmin from "./pages/admin/FinancialYearsAdmin";
@@ -65,7 +60,7 @@ const App = () => (
               
               {/* Admin Routes */}
               <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
-              <Route path="/admin/products" element={<RequireAdmin><ProductsAdmin /></RequireAdmin>} />
+              <Route path="/admin/products" element={<RequireAdmin><ProductManagementAdmin /></RequireAdmin>} />
               <Route path="/admin/rates" element={<RequireAdmin><RateManagementAdmin /></RequireAdmin>} />
               {/* Retired screens: old links open the matching Rate Management tab */}
               <Route path="/admin/chicken-rate" element={<Navigate to="/admin/rates?tab=chicken" replace />} />
@@ -74,18 +69,18 @@ const App = () => (
               <Route path="/admin/todays-catch" element={<Navigate to="/admin/rates?tab=seafood" replace />} />
               <Route path="/admin/price-history" element={<Navigate to="/admin/rates" replace />} />
               <Route path="/admin/products/bulk-upload" element={<RequireAdmin><BulkUploadAdmin /></RequireAdmin>} />
-              <Route path="/admin/categories" element={<RequireAdmin><CategoriesAdmin /></RequireAdmin>} />
+              <Route path="/admin/categories" element={<Navigate to="/admin/products?tab=categories" replace />} />
               <Route path="/admin/orders" element={<RequireAdmin><OrdersAdmin /></RequireAdmin>} />
-              <Route path="/admin/vendors" element={<RequireAdmin><VendorsAdmin /></RequireAdmin>} />
-              <Route path="/admin/purchase-orders" element={<RequireAdmin><PurchaseOrdersAdmin /></RequireAdmin>} />
-              <Route path="/admin/vendor-ledger" element={<RequireAdmin><VendorLedger /></RequireAdmin>} />
-              <Route path="/admin/vendor-profitability" element={<RequireAdmin><VendorProfitability /></RequireAdmin>} />
+              <Route path="/admin/vendors" element={<RequireAdmin><VendorManagementAdmin /></RequireAdmin>} />
+              <Route path="/admin/purchase-orders" element={<Navigate to="/admin/vendors?tab=purchase-orders" replace />} />
+              <Route path="/admin/vendor-ledger" element={<Navigate to="/admin/vendors?tab=ledger" replace />} />
+              <Route path="/admin/vendor-profitability" element={<Navigate to="/admin/vendors?tab=profitability" replace />} />
               <Route path="/admin/documents" element={<RequireAdmin><DocumentsAdmin /></RequireAdmin>} />
               <Route path="/admin/shipping" element={<RequireAdmin><ShippingSettings /></RequireAdmin>} />
               <Route path="/admin/gst" element={<RequireAdmin><GSTConfigAdmin /></RequireAdmin>} />
               <Route path="/admin/gst-reports" element={<RequireAdmin><GSTReportsAdmin /></RequireAdmin>} />
-              <Route path="/admin/expenses" element={<RequireAdmin><ExpensesAdmin /></RequireAdmin>} />
-              <Route path="/admin/delivery-partners" element={<RequireAdmin><DeliveryPartnersAdmin /></RequireAdmin>} />
+              <Route path="/admin/expenses" element={<RequireAdmin><ExpensesManagementAdmin /></RequireAdmin>} />
+              <Route path="/admin/delivery-partners" element={<Navigate to="/admin/expenses?tab=advances" replace />} />
               <Route path="/admin/content" element={<RequireAdmin><ContentAdmin /></RequireAdmin>} />
               <Route path="/admin/settings" element={<RequireAdmin><BusinessSettings /></RequireAdmin>} />
               <Route path="/admin/financial-years" element={<RequireAdmin><FinancialYearsAdmin /></RequireAdmin>} />

@@ -2,7 +2,7 @@ import { useState, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { PageFrame } from '@/components/admin/TabbedAdminPage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -84,7 +84,7 @@ const defaultForm: ProductForm = {
   show_in_order_form: true,
 };
 
-export default function ProductsAdmin() {
+export default function ProductsAdmin({ embedded = false }: { embedded?: boolean } = {}) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -353,7 +353,7 @@ export default function ProductsAdmin() {
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <AdminLayout>
+    <PageFrame embedded={embedded}>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -721,6 +721,6 @@ export default function ProductsAdmin() {
           </Table>
         </div>
       </div>
-    </AdminLayout>
+    </PageFrame>
   );
 }

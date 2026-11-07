@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabase-paginate';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { PageFrame } from '@/components/admin/TabbedAdminPage';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 
 const INVOICED = new Set(['processing', 'shipped', 'delivered', 'completed']);
 
-export default function VendorProfitability() {
+export default function VendorProfitability({ embedded = false }: { embedded?: boolean } = {}) {
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
 
@@ -95,7 +95,7 @@ export default function VendorProfitability() {
   };
 
   return (
-    <AdminLayout>
+    <PageFrame embedded={embedded}>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -146,6 +146,6 @@ export default function VendorProfitability() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </PageFrame>
   );
 }

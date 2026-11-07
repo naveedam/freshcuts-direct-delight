@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, FileText, LogOut, Home, Building2, Truck, Receipt, BarChart3, Users, ClipboardList, FolderOpen, Layers, Upload, CalendarDays, Route, Wallet, TrendingUp, Tags, Bike } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, FileText, LogOut, Home, Building2, Truck, Receipt, BarChart3, Users, Upload, CalendarDays, Route, Tags } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -18,21 +18,16 @@ import {
 
 const menuItems = [
   { title: 'Dashboard', url: '/admin', icon: LayoutDashboard },
-  { title: 'Products', url: '/admin/products', icon: Package },
+  { title: 'Product Management', url: '/admin/products', icon: Package },
   { title: "Rate Management", url: '/admin/rates', icon: Tags },
   { title: 'Bulk Upload', url: '/admin/products/bulk-upload', icon: Upload },
-  { title: 'Categories', url: '/admin/categories', icon: Layers },
   { title: 'Orders', url: '/admin/orders', icon: ShoppingCart },
-  { title: 'Vendors', url: '/admin/vendors', icon: Users },
-  { title: 'Purchase Orders', url: '/admin/purchase-orders', icon: ClipboardList },
-  { title: 'Vendor Ledger', url: '/admin/vendor-ledger', icon: Wallet },
-  { title: 'Vendor Profitability', url: '/admin/vendor-profitability', icon: TrendingUp },
+  { title: 'Vendor Management', url: '/admin/vendors', icon: Users },
   { title: 'Shipping', url: '/admin/shipping', icon: Truck },
   { title: 'Delivery Runs', url: '/admin/delivery-runs', icon: Route },
   { title: 'GST Config', url: '/admin/gst', icon: Receipt },
   { title: 'GST Reports', url: '/admin/gst-reports', icon: BarChart3 },
   { title: 'Expenses', url: '/admin/expenses', icon: Receipt },
-  { title: 'Delivery Partners', url: '/admin/delivery-partners', icon: Bike },
   { title: 'Page Content', url: '/admin/content', icon: FileText },
   { title: 'Business Settings', url: '/admin/settings', icon: Building2 },
   { title: 'Financial Years', url: '/admin/financial-years', icon: CalendarDays },

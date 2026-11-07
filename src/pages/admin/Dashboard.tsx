@@ -457,7 +457,7 @@ export default function AdminDashboard() {
               {vendorPaymentsDue.length > 0 ? (
                 <div className="space-y-2">
                   {vendorPaymentsDue.map((v) => (
-                    <div key={v.name} className="flex items-center justify-between p-2 bg-amber-50 border border-amber-200 rounded-lg cursor-pointer" onClick={() => navigate('/admin/purchase-orders')}>
+                    <div key={v.name} className="flex items-center justify-between p-2 bg-amber-50 border border-amber-200 rounded-lg cursor-pointer" onClick={() => navigate('/admin/vendors?tab=purchase-orders')}>
                       <div>
                         <p className="font-medium text-sm">{v.name}</p>
                         <p className="text-xs text-muted-foreground">{v.count} PO{v.count > 1 ? 's' : ''} unpaid</p>

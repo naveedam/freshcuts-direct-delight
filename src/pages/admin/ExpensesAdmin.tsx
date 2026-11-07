@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { PageFrame } from '@/components/admin/TabbedAdminPage';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,7 +44,7 @@ const PAID_BY = [
   { value: 'out_of_pocket', label: 'Out of Pocket (Reimbursable)' },
 ];
 
-export default function ExpensesAdmin() {
+export default function ExpensesAdmin({ embedded = false }: { embedded?: boolean } = {}) {
   const queryClient = useQueryClient();
   const today = istDateString();
 
@@ -178,7 +178,7 @@ export default function ExpensesAdmin() {
   };
 
   return (
-    <AdminLayout>
+    <PageFrame embedded={embedded}>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -424,6 +424,6 @@ export default function ExpensesAdmin() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </PageFrame>
   );
 }

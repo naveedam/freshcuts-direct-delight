@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabase-paginate';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { PageFrame } from '@/components/admin/TabbedAdminPage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +27,7 @@ import { VendorLedgerSheet } from '@/components/admin/VendorLedgerSheet';
 import { writeExcelFile } from '@/lib/excel-utils';
 import { PO_STATUS_LABELS, PO_STATUS_STYLES, ACTIVE_PO_STATUSES, ARCHIVED_PO_STATUSES, markPOsPayableOnInvoice, markPOPaidIfSettled } from '@/lib/po-lifecycle';
 
-export default function PurchaseOrdersAdmin() {
+export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: boolean } = {}) {
   const queryClient = useQueryClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingPO, setEditingPO] = useState<PurchaseOrder | null>(null);
@@ -227,7 +227,7 @@ export default function PurchaseOrdersAdmin() {
   };
 
   return (
-    <AdminLayout>
+    <PageFrame embedded={embedded}>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -557,6 +557,6 @@ export default function PurchaseOrdersAdmin() {
         vendorId={ledgerVendor?.id || null}
         vendorName={ledgerVendor?.name}
       />
-    </AdminLayout>
+    </PageFrame>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { PageFrame } from '@/components/admin/TabbedAdminPage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,7 @@ import { VendorDetailsDialog } from '@/components/admin/VendorDetailsDialog';
 import { VendorProductsDialog } from '@/components/admin/VendorProductsDialog';
 import { VendorPaymentsDialog } from '@/components/admin/VendorPaymentsDialog';
 
-export default function VendorsAdmin() {
+export default function VendorsAdmin({ embedded = false }: { embedded?: boolean } = {}) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -227,7 +227,7 @@ export default function VendorsAdmin() {
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <AdminLayout>
+    <PageFrame embedded={embedded}>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -674,6 +674,6 @@ export default function VendorsAdmin() {
           />
         </>
       )}
-    </AdminLayout>
+    </PageFrame>
   );
 }

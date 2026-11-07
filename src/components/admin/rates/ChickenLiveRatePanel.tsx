@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { usePriceSaver } from './PriceDialogs';
@@ -81,19 +80,6 @@ export function ChickenLiveRatePanel() {
     const res = await savePrices(rows);
     if (res.skipped) toast.warning(`${res.skipped} cut price${res.skipped === 1 ? '' : 's'} not recorded; fix the rate or multiplier and save again.`);
   };
-
-  const { data: products } = useQuery({
-    queryKey: ['chicken-products'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name, price')
-        .or('category.eq.Poultry,name.ilike.%chicken%')
-        .order('name');
-      if (error) throw error;
-      return (data || []) as any[];
-    },
-  });
 
   const monthStart = `${month}-01`;
   const monthEnd = useMemo(() => {
@@ -236,38 +222,6 @@ export function ChickenLiveRatePanel() {
       invalidateAll();
       setEditingDate(null);
       toast.success('Multipliers saved');
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const linkProduct = useMutation({
-    mutationFn: async ({ cutId, productId }: { cutId: string; productId: string | null }) => {
-      const { error } = await supabase.from('chicken_cuts').update({ product_id: productId }).eq('id', cutId);
-      if (error) {
-        throw new Error(error.code === '23505' ? 'That product is already linked to another cut.' : error.message);
-      }
-      if (productId) {
-        // The vendor dropdown only offers mapped vendors, so make sure M N Broilers is mapped to this product.
-        const { data: rows, error: vpError } = await supabase
-          .from('vendor_products')
-          .select('id, vendor_id, is_preferred_vendor')
-          .eq('product_id', productId);
-        if (vpError) throw vpError;
-        if (!rows?.some((r: any) => r.vendor_id === MN_BROILERS_ID)) {
-          const { error: insError } = await supabase.from('vendor_products').insert({
-            vendor_id: MN_BROILERS_ID,
-            product_id: productId,
-            cost_price: 0,
-            is_preferred_vendor: !rows?.some((r: any) => r.is_preferred_vendor),
-          });
-          if (insError) throw insError;
-        }
-        await recordPrices({ only: todayRate?.rate_date || today });
-      }
-    },
-    onSuccess: () => {
-      invalidateAll();
-      toast.success('Link saved');
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -445,45 +399,6 @@ export function ChickenLiveRatePanel() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Link cuts to catalog products</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              An order only auto-prices a product once it is linked here. Linking also adds M N Broilers as a supplier for that product if it isn't one already.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cut</TableHead>
-                  <TableHead>Catalog product</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {cuts.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.name}</TableCell>
-                    <TableCell>
-                      <Select
-                        value={c.product_id || 'none'}
-                        onValueChange={(v) => linkProduct.mutate({ cutId: c.id, productId: v === 'none' ? null : v })}
-                      >
-                        <SelectTrigger className="w-80 h-8"><SelectValue placeholder="Not linked" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Not linked</SelectItem>
-                          {(products || []).map((p) => (
-                            <SelectItem key={p.id} value={p.id}>{p.name} (₹{p.price})</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
         {overrideDialog}
       </div>
   );

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { PageFrame } from '@/components/admin/TabbedAdminPage';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
@@ -18,9 +17,9 @@ import { Bike, Copy, HandCoins, History, Loader2, Plus, Wallet } from 'lucide-re
 import { formatCurrency } from '@/lib/currency';
 import { istDateString } from '@/lib/live-rate';
 
-// Delivery partners who are paid per day and may hold a cash advance. "Settle" pays for a run of
-// days, optionally taking part of it out of the advance; the cost lands in Expenses spread over
-// those days, so daily profit stays right.
+// Advance ledger for individual delivery partners: what each person holds as advance and what is
+// owed to them. It is kept apart from Expenses: nothing here creates or changes an expense, and
+// delivery payments are still entered in Expenses.
 
 const db = supabase as any;
 
@@ -80,7 +79,7 @@ export function settlementSummary(s: {
   ].join('\n');
 }
 
-export default function DeliveryPartnersAdmin() {
+export default function DeliveryPartnersAdmin({ embedded = false }: { embedded?: boolean } = {}) {
   const qc = useQueryClient();
   const today = istDateString();
 
@@ -146,13 +145,16 @@ export default function DeliveryPartnersAdmin() {
   const [ledgerFor, setLedgerFor] = useState<Partner | null>(null);
 
   return (
-    <AdminLayout>
+    <PageFrame embedded={embedded}>
       <div className="space-y-6">
         <div>
           <h1 className="font-heading text-3xl font-bold text-foreground flex items-center gap-3">
-            <Bike className="h-8 w-8" /> Delivery Partners
+            <Bike className="h-8 w-8" /> Delivery Partner Advances
           </h1>
-          <p className="text-muted-foreground mt-1">Advances, day-wise settlements and what each partner holds.</p>
+          <p className="text-muted-foreground mt-1">
+            What each delivery person holds as advance and what is owed to them. For tracking only; record
+            delivery payments in the Expenses tab.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -242,7 +244,7 @@ export default function DeliveryPartnersAdmin() {
           onClose={() => setSettleFor(null)} onDone={refresh} />
       )}
       {ledgerFor && <LedgerDialog partner={ledgerFor} onClose={() => setLedgerFor(null)} />}
-    </AdminLayout>
+    </PageFrame>
   );
 }
 
@@ -271,7 +273,7 @@ function AdvanceDialog({ partner, today, onClose, onDone }: {
           <div><Label>Amount (₹)</Label><Input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></div>
           <div><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div><Label>Notes</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" /></div>
-          <p className="text-xs text-muted-foreground">An advance isn't an expense; it's money the partner holds until it's deducted from their pay.</p>
+          <p className="text-xs text-muted-foreground">Recorded in this ledger only. It isn't added to Expenses.</p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
@@ -292,7 +294,6 @@ function SettleDialog({ partner, balance, today, onClose, onDone }: {
   const [charge, setCharge] = useState('');
   const [recovery, setRecovery] = useState('');
   const [payment, setPayment] = useState<string | null>(null); // null = follow the suggestion
-  const [paidBy, setPaidBy] = useState('bank');
   const [notes, setNotes] = useState('');
   const [done, setDone] = useState<string | null>(null);
 
@@ -310,7 +311,7 @@ function SettleDialog({ partner, balance, today, onClose, onDone }: {
       if (leftDue < -0.001) throw new Error('That pays more than is owed; reduce the amount paid or record an advance instead');
       const { error } = await db.rpc('settle_delivery_partner', {
         p_partner_id: partner.id, p_from: from, p_to: to, p_charge: n(charge),
-        p_recovery: n(recovery), p_payment: pay, p_paid_by: paidBy, p_entry_date: today, p_notes: notes || null,
+        p_recovery: n(recovery), p_payment: pay, p_entry_date: today, p_notes: notes || null,
       });
       if (error) throw error;
     },
@@ -363,16 +364,6 @@ function SettleDialog({ partner, balance, today, onClose, onDone }: {
               {Math.abs(leftDue) > 0.001 && leftDue > 0 && (
                 <p className="text-xs text-amber-600 mt-1">{inr(leftDue)} will stay owed to {partner.name}.</p>
               )}
-            </div>
-            <div>
-              <Label>Paid from</Label>
-              <Select value={paidBy} onValueChange={setPaidBy}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bank">FreshCuts Bank Account</SelectItem>
-                  <SelectItem value="out_of_pocket">Out of Pocket (Reimbursable)</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div><Label>Notes</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" /></div>
             <div>

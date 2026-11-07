@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabase-paginate';
-import { AdminLayout } from '@/components/admin/AdminLayout';
+import { PageFrame } from '@/components/admin/TabbedAdminPage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +17,7 @@ import { writeExcelFile } from '@/lib/excel-utils';
 import { PO_STATUS_LABELS, PO_STATUS_STYLES } from '@/lib/po-lifecycle';
 import { toast } from 'sonner';
 
-export default function VendorLedger() {
+export default function VendorLedger({ embedded = false }: { embedded?: boolean } = {}) {
   const [vendorId, setVendorId] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [fromDate, setFromDate] = useState<string>('');
@@ -95,7 +95,7 @@ export default function VendorLedger() {
   };
 
   return (
-    <AdminLayout>
+    <PageFrame embedded={embedded}>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -186,6 +186,6 @@ export default function VendorLedger() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </PageFrame>
   );
 }
