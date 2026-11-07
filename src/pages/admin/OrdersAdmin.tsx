@@ -57,6 +57,8 @@ export default function OrdersAdmin() {
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['admin', 'orders'],
+    // Reused for 30 s instead of reloading the full history on every visit and focus.
+    staleTime: 30 * 1000,
     queryFn: async () => {
       return await fetchAllRows<any>(() =>
         supabase.from('orders').select('*').order('created_at', { ascending: false })
@@ -67,6 +69,8 @@ export default function OrdersAdmin() {
   // All customer payments (used for dashboard widgets + party summary)
   const { data: allPayments } = useQuery({
     queryKey: ['admin', 'all-customer-payments'],
+    // Reused for 30 s instead of reloading the full history on every visit and focus.
+    staleTime: 30 * 1000,
     queryFn: async () => {
       return await fetchAllRows<any>(() =>
         supabase.from('customer_payments').select('order_id, amount, payment_date')

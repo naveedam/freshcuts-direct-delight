@@ -2,6 +2,20 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-07 (Orders and payments)
+
+### Added
+- **Settle remaining balance** in the payment dialog: records an agreed discount or round-off as an adjustment (with reason), so the invoice and Party Due clear. Excluded from cash-received figures.
+- New Order and Edit Order list only active products marked "Show in New Order dropdown".
+
+### Changed
+- GST on New Order, Repeat Order and Edit Order comes from the product's category (meat and fish: Exempt). Products explicitly marked Taxable keep their own rate.
+- Repeat Order applies today's selling price and current GST, not the old order's.
+- Migration `20261107140000_orders_payments.sql`: an order's paid amount, balance and payment status are rechecked whenever a payment is added or removed, or its total changes (e.g. at Finalize Weights). Every new order line stores the product's category and unit.
+
+### Fixed
+- An order paid in full and then increased at weighing kept saying "Paid" while Party Due showed the difference (the ₹83 case).
+
 ## 2026-11-07 (Product Master)
 
 ### Changed

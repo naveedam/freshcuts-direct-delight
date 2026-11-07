@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { gstTypeToUi } from '@/lib/gst-ui';
+import { gstTypeToUi, resolveGst } from '@/lib/gst-ui';
 import { QuantityInput } from '@/components/admin/QuantityInput';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -130,23 +130,6 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
 
   const livePricing = useOrderPricing();
 
-  // Prefill from a "Repeat Order" action — only applies when the dialog opens with data
-  useEffect(() => {
-    if (open && prefill && livePricing.ready) {
-      setCustomerEmail(prefill.customerEmail || '');
-      setCustomerPhone(prefill.customerPhone || '');
-      setBuildingName(prefill.buildingName || '');
-      setFlatNumber(prefill.flatNumber || '');
-      setShippingAddress(prefill.shippingAddress || '');
-      setShippingCity(prefill.shippingCity || '');
-      setShippingPostalCode(prefill.shippingPostalCode || '');
-      setPlaceOfSupply(prefill.placeOfSupply || '29');
-      if (prefill.lineItems && prefill.lineItems.length > 0) {
-        setLineItems(repriceRepeatLines(prefill.lineItems));
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, prefill, livePricing.ready]);
 
   // Custom item dialog
   const [customItemOpen, setCustomItemOpen] = useState(false);
@@ -165,6 +148,12 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
     }
   });
 
+  // Only products marked "Show in New Order dropdown" (and active) are offered; a line that
+  // already holds another product keeps it.
+  const orderFormProducts = (currentId?: string | null) =>
+    (products || []).filter((p: any) =>
+      (p.is_active !== false && p.show_in_order_form !== false) || p.id === currentId);
+
   // Fetch categories for custom item
   const { data: categories } = useQuery({
     queryKey: ['categories'],
@@ -178,6 +167,27 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
       return data;
     }
   });
+
+  const prefillApplied = useRef<unknown>(null);
+  // Prefill from a "Repeat Order" action — only applies when the dialog opens with data
+  useEffect(() => {
+    if (!open) { prefillApplied.current = null; return; }
+    if (prefill && prefillApplied.current !== prefill && livePricing.ready && products && categories) {
+      prefillApplied.current = prefill; // once per opening, so a background refresh can't wipe edits
+      setCustomerEmail(prefill.customerEmail || '');
+      setCustomerPhone(prefill.customerPhone || '');
+      setBuildingName(prefill.buildingName || '');
+      setFlatNumber(prefill.flatNumber || '');
+      setShippingAddress(prefill.shippingAddress || '');
+      setShippingCity(prefill.shippingCity || '');
+      setShippingPostalCode(prefill.shippingPostalCode || '');
+      setPlaceOfSupply(prefill.placeOfSupply || '29');
+      if (prefill.lineItems && prefill.lineItems.length > 0) {
+        setLineItems(repriceRepeatLines(prefill.lineItems));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, prefill, livePricing.ready, products, categories]);
 
   // Fetch business settings
   const { data: businessSettings } = useQuery({
@@ -257,7 +267,12 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
   // With no rate set, those lines are cleared to 0 rather than silently carrying an old price.
   const repriceRepeatLines = (lines: OrderLineItem[]): OrderLineItem[] => {
     let missingRate = false;
-    const repriced = lines.map((line) => {
+    const repriced = lines.map((line0) => {
+      // Repeat uses today's selling price and the current category GST, not the old order's.
+      const product = line0.product_id ? products?.find((p) => p.id === line0.product_id) : null;
+      const line = product
+        ? { ...line0, unit_price: Number(product.price) || line0.unit_price, ...resolveGst(product as any, categories as any) }
+        : line0;
       const quote = livePricing.priceFor(line.vendor_id, line.product_id);
       if (!quote.hasRule) return line;
       if (quote.price == null) {
@@ -318,9 +333,7 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
         quantity: lineItems[index].quantity || 1,
         unit_price: product.price,
         vendor_cost: resolvedVendorCost,
-        hsn_code: product.hsn_code || '',
-        gst_type: gstTypeToUi(product.gst_type),
-        gst_rate: product.gst_rate || 0,
+        ...resolveGst(product as any, categories as any),
         vendor_id: autoVendorId,
       };
       setLineItems(updated);
@@ -654,7 +667,7 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
                                 <SelectValue placeholder="Select product" />
                               </SelectTrigger>
                               <SelectContent>
-                                {products?.map((product) => (
+                                {orderFormProducts(item.product_id).map((product) => (
                                   <SelectItem key={product.id} value={product.id} className="text-xs">
                                     {product.name} - ₹{product.price}
                                   </SelectItem>

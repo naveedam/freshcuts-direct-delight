@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { gstTypeToUi } from '@/lib/gst-ui';
+import { gstTypeToUi, resolveGst } from '@/lib/gst-ui';
 import { QuantityInput } from '@/components/admin/QuantityInput';
 import { useAuth } from '@/context/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -95,6 +95,15 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
     queryKey: ['products'],
     queryFn: async () => {
       const { data, error } = await supabase.from('products').select('*').order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: categories } = useQuery({
+    queryKey: ['categories-gst'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('categories').select('*');
       if (error) throw error;
       return data;
     },
@@ -254,9 +263,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
             product_name: product.name,
             unit_price: Number(product.price),
             vendor_cost: finalVendorCost,
-            hsn_code: product.hsn_code || '',
-            gst_type: gstTypeToUi(product.gst_type),
-            gst_rate: Number(product.gst_rate) || 0,
+            ...resolveGst(product as any, categories as any),
             vendor_id: autoVendorId,
           };
           break;
@@ -488,7 +495,7 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
                                     <SelectValue placeholder="Select product" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {products?.map((p) => (
+                                    {(products || []).filter((p: any) => p.is_active !== false && p.show_in_order_form !== false).map((p) => (
                                       <SelectItem key={p.id} value={p.id} className="text-xs">
                                         {p.name}
                                       </SelectItem>

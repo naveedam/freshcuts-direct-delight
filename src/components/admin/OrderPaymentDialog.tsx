@@ -68,6 +68,37 @@ export function OrderPaymentDialog({ open, onOpenChange, order }: OrderPaymentDi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, isLoading, order?.id]);
 
+  // Settle a small agreed shortfall (discount or round-off) so the invoice and Party Due show
+  // nothing owed. Recorded as an adjustment, not money received, and kept in the payment history.
+  const [settleReason, setSettleReason] = useState('');
+  const [showSettle, setShowSettle] = useState(false);
+  const settleMutation = useMutation({
+    mutationFn: async () => {
+      if (!(balanceDue > 0.01)) throw new Error('Nothing left to settle');
+      if (!settleReason.trim()) throw new Error('Give a reason, e.g. round-off or agreed discount');
+      const { error } = await supabase.from('customer_payments').insert({
+        order_id: order.id,
+        amount: Number(balanceDue.toFixed(2)),
+        payment_method: 'settlement',
+        is_adjustment: true,
+        notes: settleReason.trim(),
+        recorded_by: user?.id || null,
+      } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer_payments', order?.id] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'all-customer-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['party-ledger'] });
+      toast.success('Balance settled');
+      setShowSettle(false);
+      setSettleReason('');
+      onOpenChange(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const addPaymentMutation = useMutation({
     mutationFn: async () => {
       const payAmount = parseFloat(amount);
@@ -174,7 +205,9 @@ export function OrderPaymentDialog({ open, onOpenChange, order }: OrderPaymentDi
                   <TableRow key={p.id}>
                     <TableCell className="text-xs">{new Date(p.payment_date).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs capitalize">{p.payment_method.replace('_', ' ')}</Badge>
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {p.payment_method === 'settlement' ? `Settled${p.notes ? `: ${p.notes}` : ''}` : p.payment_method.replace('_', ' ')}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{p.reference_number || '-'}</TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(Number(p.amount))}</TableCell>
@@ -237,6 +270,26 @@ export function OrderPaymentDialog({ open, onOpenChange, order }: OrderPaymentDi
             Add Payment
           </Button>
         ) : null}
+
+        {balanceDue > 0.01 && (showSettle ? (
+          <div className="space-y-2 border rounded-lg p-3">
+            <p className="text-sm">
+              Settle the remaining <span className="font-medium">{formatCurrency(balanceDue)}</span> without payment? It is recorded as an adjustment, not cash received.
+            </p>
+            <Input value={settleReason} onChange={(e) => setSettleReason(e.target.value)} placeholder="Reason, e.g. round-off, agreed discount" />
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowSettle(false)}>Cancel</Button>
+              <Button size="sm" onClick={() => settleMutation.mutate()} disabled={settleMutation.isPending || !settleReason.trim()}>
+                {settleMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                Settle {formatCurrency(balanceDue)}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={() => setShowSettle(true)}>
+            Settle remaining balance (discount or round-off)
+          </Button>
+        ))}
       </DialogContent>
     </Dialog>
   );

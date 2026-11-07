@@ -96,6 +96,7 @@ export default function AdminDashboard() {
       const { data, error } = await supabase
         .from('customer_payments')
         .select('amount, payment_date, order_id')
+        .eq('is_adjustment' as any, false) // settlements aren't money received
         .gte('payment_date', today.toISOString());
       if (error) throw error;
       return data || [];
