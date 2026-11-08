@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Loader2, Tags } from 'lucide-react';
 import { toast } from 'sonner';
-import { ChickenSellingPanel } from '@/components/admin/rates/ChickenSellingPanel';
+import { ChickenPricePanel, ChickenSellingPanel } from '@/components/admin/rates/ChickenPricePanel';
+import { useChickenCuts } from '@/lib/live-rate';
 import { ChickenLiveRatePanel } from '@/components/admin/rates/ChickenLiveRatePanel';
 import { DatedPricePanel } from '@/components/admin/rates/DatedPricePanel';
 import { SeafoodSheetPanel } from '@/components/admin/rates/SeafoodSheetPanel';
@@ -53,6 +54,12 @@ export default function RateManagementAdmin() {
 
   const bySlug = (slug: string) => (products || []).filter((p) => p.categorySlug === slug);
   const poultry = useMemo(() => bySlug('poultry'), [products]);
+  // Poultry that isn't one of the 14 chicken cuts (priced in the cut tables).
+  const { data: chickenCuts } = useChickenCuts();
+  const otherPoultry = useMemo(() => {
+    const cutIds = new Set((chickenCuts || []).map((c: any) => c.product_id).filter(Boolean));
+    return poultry.filter((p) => !cutIds.has(p.id));
+  }, [poultry, chickenCuts]);
   const mutton = useMemo(() => bySlug('lamb'), [products]);
   const seafood = useMemo(() => bySlug('seafood'), [products]);
   const other = useMemo(
@@ -107,26 +114,32 @@ export default function RateManagementAdmin() {
                     Bismillah Chicken (fixed prices)
                   </Button>
                 </div>
+                {/* Same layout for both suppliers: their purchase prices, then the shared selling price. */}
                 {chickenSupplier === 'mn' ? (
-                  <>
-                    <ChickenLiveRatePanel />
-                    <ChickenSellingPanel />
-                  </>
+                  <ChickenLiveRatePanel />
                 ) : bismillah ? (
-                  <DatedPricePanel
-                    title="Bismillah Chicken"
-                    description="Purchase and selling price per product. Prices apply every day until you enter a new one."
-                    products={poultry}
+                  <ChickenPricePanel
+                    field="purchase_price"
                     vendorId={bismillah.id}
-                    storeKey="chicken-bismillah"
-                    expectedNames={CHICKEN_PRODUCTS}
-                    newProductCategory={catFor('poultry')}
+                    title="Bismillah Chicken: Purchase Price"
+                    description="Rupees per kg, entered by hand. A price applies from its date until the next change; a blank cell means that cut didn't change that day."
+                    storeKey="chicken-bismillah-purchase"
                   />
                 ) : (
                   <div className="rounded-md border p-4 text-sm">
                     Bismillah Chicken isn't in your supplier list yet.
                     <Button size="sm" className="ml-3" onClick={() => addBismillah.mutate()} disabled={addBismillah.isPending}>Add it</Button>
                   </div>
+                )}
+                <ChickenSellingPanel />
+                {otherPoultry.length > 0 && (
+                  <DatedPricePanel
+                    title="Other poultry items"
+                    description="Items that aren't chicken cuts (liver, country chicken, kebabs, eggs). Purchase and selling price per item, whichever supplier; each applies until you enter a new one."
+                    products={otherPoultry}
+                    vendorId={null}
+                    storeKey="poultry-other"
+                  />
                 )}
               </TabsContent>
 
