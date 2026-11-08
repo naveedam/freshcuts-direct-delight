@@ -2,6 +2,11 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-08 (Invoice share closes on download)
+
+### Fixed
+- Downloading an invoice as PDF or image from Share now closes the Share and Invoice Preview windows as soon as the file is downloaded, back to the Orders list. Saving a copy to the flat's documents carries on in the background; before, the windows waited for that and stayed open if it was slow or failed.
+
 ## 2026-11-08 (Delivery partner advance ledger)
 
 ### Added
