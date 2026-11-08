@@ -198,6 +198,9 @@ export function ChickenLiveRatePanel() {
           if (!(v > 0)) throw new Error(`Enter a buying multiplier above 0 for ${c.name}`);
           const sell = rawSell === '' ? null : Number(rawSell);
           if (sell != null && !(sell > 0)) throw new Error(`Enter a selling multiplier above 0 for ${c.name}`);
+          // Multipliers are small numbers like 1.65; a value like 370 is a price typed in the wrong box.
+          if (v > 10) throw new Error(`${c.name}: ${v} looks like a price, not a multiplier (e.g. 1.65)`);
+          if (sell != null && sell > 10) throw new Error(`${c.name}: sell ${sell} looks like a price, not a multiplier (e.g. 2.8). For a fixed selling price, use the Bismillah or Other Products tab.`);
           if (sell != null && sell < v) throw new Error(`${c.name}: the selling multiplier is below the buying one, so it would sell below cost`);
           rows.push({ vendor_id: MN_BROILERS_ID, cut_id: c.id, effective_date: date, multiplier: v, selling_multiplier: sell });
         }
@@ -251,7 +254,7 @@ export function ChickenLiveRatePanel() {
             {todayRate
               ? `Today (${fmtDate(today)}): ₹${todayRate.rate}/kg`
               : `Today's rate (${fmtDate(today)}) is not set yet`}
-            {' · '}M N Broilers buying price = live rate × the cut's buy multiplier; selling price = live rate × the sell multiplier, rounded to the rupee. A blank sell multiplier leaves that product's selling price unchanged.
+            {' · '}M N Broilers buying price = live rate × the cut's buy multiplier; selling price = live rate × the sell multiplier, rounded to the rupee. A blank sell multiplier leaves that product's selling price unchanged. Multipliers are small numbers like 1.65, not prices.
           </p>
         </div>
 

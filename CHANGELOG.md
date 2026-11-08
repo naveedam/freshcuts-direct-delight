@@ -2,6 +2,15 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-08 (Chicken selling price fix)
+
+### Fixed
+- **Chicken - Skin out showed a selling price of ₹52,910.** A selling multiplier of 370 (a price typed into "Sell ×") was multiplied by the live rate (143 × 370). Migration `20261108110000_fix_chicken_sell_multiplier.sql` clears multipliers above 10, removes the selling prices worked out from them, and puts the product's price back to the latest correct one. Past orders and invoices are unchanged.
+
+### Added
+- Chicken multipliers above 10 are refused, on screen and in the database, with a message that it looks like a price.
+- The price check now flags a selling price more than 5 times its cost, and compares a supplier's first selling price with the product's current price (it used to skip that case).
+
 ## 2026-11-08 (Screens combined)
 
 ### Changed
