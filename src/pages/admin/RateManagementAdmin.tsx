@@ -122,7 +122,7 @@ export default function RateManagementAdmin() {
                     field="purchase_price"
                     vendorId={bismillah.id}
                     title="Bismillah Chicken: Purchase Price"
-                    description="Rupees per kg, entered by hand. A price applies from its date until the next change; a blank cell means that cut didn't change that day."
+                    description="Rupees per kg, entered by hand. A price stays in force until you enter a new one. In each row, prices in bold changed that day; grey ones are still in force from earlier."
                     storeKey="chicken-bismillah-purchase"
                   />
                 ) : (
