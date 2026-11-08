@@ -2,9 +2,29 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-08 (Chicken tabs alike; suppliers)
+
+### Changed
+- **Chicken selling price is one price for all suppliers.** Rate Management → Chicken shows the same **Selling Price** table (by cut and date) under both M N Broilers and Bismillah. Existing selling prices entered against either supplier became the shared price on the same dates (M N Broilers' where both had one).
+- **Bismillah Chicken tab laid out like M N Broilers:** a **Purchase Price** table by cut and date, entered by hand, above the shared Selling Price table.
+- **Other poultry items** (liver, country chicken, kebabs, eggs) have their own price list under Chicken.
+- **Suppliers:** Chicken Kebabs and Mutton Kebabs → Patli Galli; Country Chicken → Al Azeez and A S Chicken; every egg product → A J Eggs (their other supplier links removed).
+- **Vendor Management → Manage Products:** tick any number of products, or a whole category, and link them to the vendor in one go.
+- Migration `20261108170000_shared_chicken_selling_and_vendors.sql`.
+
+## 2026-11-08 (Security check)
+
+### Security
+- Database functions that run with full rights (`refresh_product_price`, `refresh_all_product_prices`, `recompute_order_payment`) can no longer be called from outside; only the database's own triggers and scheduled job use them. Admin-only helpers can't be called by signed-out visitors. Migration `20261108150000_function_access.sql`.
+- The access change didn't take effect on the live project, so `20261108160000_function_guards.sql` adds a second lock: each of those functions now checks its caller and answers "Not allowed" to anyone but an admin or the database itself (triggers, the nightly price job). It also repeats the access change.
+- `supabase/rls_check.sql`: a check to run in the SQL Editor; it now also calls each function as a signed-out visitor and a customer to confirm they're refused.
+- (Earlier version of the check:) a check to run in the SQL Editor. It acts as a signed-out visitor, a signed-in customer and an admin, tries to read and change each table, undoes every change, and lists the results (every row should say OK).
+
 ## 2026-11-08 (Invoice share closes on download)
 
 ### Fixed
+- Closing the invoice windows after a download crashed the Orders screen ("Cannot read properties of null (reading 'invoice_number')"): the preview read the order after the page had already cleared it. The preview now keeps the order until it has closed.
+- Downloading the same invoice a second time failed to save its copy (storage refused to replace the file). Migration `20261108140000_invoice_storage_update.sql` lets admins replace invoice files.
 - Downloading an invoice as PDF or image from Share now closes the Share and Invoice Preview windows as soon as the file is downloaded, back to the Orders list. Saving a copy to the flat's documents carries on in the background; before, the windows waited for that and stayed open if it was slow or failed.
 
 ## 2026-11-08 (Delivery partner advance ledger)
