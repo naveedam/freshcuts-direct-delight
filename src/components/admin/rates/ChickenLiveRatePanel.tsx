@@ -245,7 +245,7 @@ export function ChickenLiveRatePanel() {
             {todayRate
               ? `Today (${fmtDate(today)}): ₹${todayRate.rate}/kg`
               : `Today's rate (${fmtDate(today)}) is not set yet`}
-            {' · '}M N Broilers buying price = live rate × the cut's multiplier, rounded to the rupee. Multipliers are small numbers like 1.65. Selling prices are entered in rupees below.
+            {' · '}M N Broilers buying price = live rate × the cut's multiplier, rounded to the rupee. Multipliers are small numbers like 1.65. Selling prices are entered in rupees in the Selling Price table.
           </p>
         </div>
 

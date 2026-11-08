@@ -7,12 +7,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Loader2, Tags } from 'lucide-react';
 import { toast } from 'sonner';
+import { ChickenSellingPanel } from '@/components/admin/rates/ChickenSellingPanel';
 import { ChickenLiveRatePanel } from '@/components/admin/rates/ChickenLiveRatePanel';
 import { DatedPricePanel } from '@/components/admin/rates/DatedPricePanel';
 import { SeafoodSheetPanel } from '@/components/admin/rates/SeafoodSheetPanel';
 import { RATE_TAB_SLUGS, useRateProducts, useVendors } from '@/components/admin/rates/useRateProducts';
 import { useQuery } from '@tanstack/react-query';
-import { MN_BROILERS_ID } from '@/lib/live-rate';
 
 const TABS = ['chicken', 'mutton', 'seafood', 'other'] as const;
 type Tab = typeof TABS[number];
@@ -108,14 +108,7 @@ export default function RateManagementAdmin() {
                 {chickenSupplier === 'mn' ? (
                   <>
                     <ChickenLiveRatePanel />
-                    <DatedPricePanel
-                      title="M N Broilers selling prices"
-                      description="Selling price in rupees per product. It applies every day until you enter a new one; the buying price comes from the live rate above."
-                      products={poultry}
-                      vendorId={MN_BROILERS_ID}
-                      storeKey="chicken-mn-selling"
-                      sellingOnly
-                    />
+                    <ChickenSellingPanel />
                   </>
                 ) : bismillah ? (
                   <DatedPricePanel

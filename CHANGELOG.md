@@ -5,7 +5,7 @@ All notable changes to FreshCuts Daily are documented here.
 ## 2026-11-08 (M N Broilers selling prices in rupees)
 
 ### Changed
-- M N Broilers selling prices are now entered as rupee amounts in a new **M N Broilers selling prices** list under the live rate (Rate Management → Chicken → M N Broilers). Each price applies until a new one is entered, with history, and the list shows the live-rate buying price and margin next to it.
+- M N Broilers selling prices are now entered as rupee amounts in a **Selling Price** table under the live rate (Rate Management → Chicken → M N Broilers), laid out like the buying-price table: one column per cut, one row per date. A price applies from its date until the next change. "In force today" shows the current price of every cut; "Set new prices" adds a dated row, and Edit corrects one.
 - The **Sell ×** row is removed from the multiplier table; multipliers now set the buying price only. Saving a rate or multiplier set no longer changes any selling price.
 
 ## 2026-11-08 (Chicken selling price fix)
