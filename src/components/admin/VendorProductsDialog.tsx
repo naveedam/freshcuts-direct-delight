@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -24,7 +25,9 @@ interface VendorProductsDialogProps {
 export function VendorProductsDialog({ vendor, open, onOpenChange }: VendorProductsDialogProps) {
   const queryClient = useQueryClient();
   const [isAdding, setIsAdding] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [costPrice, setCostPrice] = useState('');
   const [leadTime, setLeadTime] = useState('1');
   const [minQty, setMinQty] = useState('1');
@@ -52,7 +55,7 @@ export function VendorProductsDialog({ vendor, open, onOpenChange }: VendorProdu
     queryFn: async () => {
       const { data: allProducts, error: productsError } = await supabase
         .from('products')
-        .select('id, name, category')
+        .select('id, name, category, category_id, is_active' as any)
         .order('name');
       
       if (productsError) throw productsError;
@@ -65,26 +68,61 @@ export function VendorProductsDialog({ vendor, open, onOpenChange }: VendorProdu
       if (linkedError) throw linkedError;
 
       const linkedIds = new Set(linkedProducts.map(p => p.product_id));
-      return allProducts.filter(p => !linkedIds.has(p.id));
+      return (allProducts as any[]).filter(p => !linkedIds.has(p.id) && p.is_active !== false) as
+        { id: string; name: string; category: string; category_id: string | null }[];
     },
     enabled: open && isAdding
   });
 
+  const { data: categories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('categories').select('id, name, slug').order('name');
+      if (error) throw error;
+      return data as { id: string; name: string; slug: string }[];
+    },
+    enabled: open && isAdding,
+  });
+  const categoryOf = (p: { category: string; category_id: string | null }) => {
+    const text = String(p.category || '').toLowerCase();
+    return categories?.find((c) => c.id === p.category_id)
+      ?? categories?.find((c) => c.slug.toLowerCase() === text || c.name.toLowerCase() === text);
+  };
+  const shown = useMemo(() => (availableProducts || []).filter((p) =>
+    (categoryFilter === 'all' || categoryOf(p)?.id === categoryFilter)
+    && (!search.trim() || p.name.toLowerCase().includes(search.trim().toLowerCase()))),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [availableProducts, categories, categoryFilter, search]);
+  const allShownSelected = shown.length > 0 && shown.every((p) => selected.has(p.id));
+  const toggle = (id: string, on: boolean) => setSelected((prev) => {
+    const next = new Set(prev);
+    if (on) next.add(id); else next.delete(id);
+    return next;
+  });
+  const toggleAllShown = (on: boolean) => setSelected((prev) => {
+    const next = new Set(prev);
+    shown.forEach((p) => (on ? next.add(p.id) : next.delete(p.id)));
+    return next;
+  });
+
   const addMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('vendor_products').insert({
+      if (selected.size === 0) throw new Error('Tick at least one product');
+      const { error } = await supabase.from('vendor_products').insert(Array.from(selected).map((product_id) => ({
         vendor_id: vendor.id,
-        product_id: selectedProduct,
+        product_id,
         cost_price: parseFloat(costPrice) || 0,
         lead_time_days: parseInt(leadTime) || 1,
         minimum_order_quantity: parseInt(minQty) || 1
-      });
+      })));
       if (error) throw error;
+      return selected.size;
     },
-    onSuccess: () => {
+    onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey: ['vendor-products', vendor.id] });
       queryClient.invalidateQueries({ queryKey: ['available-products', vendor.id] });
-      toast.success('Product linked to vendor');
+      queryClient.invalidateQueries({ queryKey: ['vendor-products-all'] });
+      toast.success(`${count} product${count === 1 ? '' : 's'} linked to ${vendor.name}`);
       resetAddForm();
     },
     onError: (error) => {
@@ -122,7 +160,9 @@ export function VendorProductsDialog({ vendor, open, onOpenChange }: VendorProdu
 
   const resetAddForm = () => {
     setIsAdding(false);
-    setSelectedProduct('');
+    setSelected(new Set());
+    setSearch('');
+    setCategoryFilter('all');
     setCostPrice('');
     setLeadTime('1');
     setMinQty('1');
@@ -139,24 +179,37 @@ export function VendorProductsDialog({ vendor, open, onOpenChange }: VendorProdu
           {/* Add Product Form */}
           {isAdding ? (
             <div className="border rounded-lg p-4 space-y-4 bg-muted/50">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Select Product</Label>
-                  <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a product..." />
-                    </SelectTrigger>
+              <div className="space-y-2">
+                <Label>Products this vendor supplies</Label>
+                <div className="flex flex-wrap gap-2">
+                  <Input className="h-9 w-56" placeholder="Search product" value={search} onChange={(e) => setSearch(e.target.value)} />
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="h-9 w-56"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {availableProducts?.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} ({product.category})
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="all">All categories</SelectItem>
+                      {categories?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="rounded-md border bg-background max-h-64 overflow-y-auto">
+                  <label className="flex items-center gap-2 border-b px-3 py-2 text-sm font-medium sticky top-0 bg-background">
+                    <Checkbox checked={allShownSelected} onCheckedChange={(v) => toggleAllShown(!!v)} disabled={shown.length === 0} />
+                    {categoryFilter === 'all' ? 'Select all shown' : `Whole category: ${categories?.find((c) => c.id === categoryFilter)?.name}`} ({shown.length})
+                  </label>
+                  {shown.length === 0 && <p className="px-3 py-3 text-sm text-muted-foreground">No products left to link here.</p>}
+                  {shown.map((product) => (
+                    <label key={product.id} className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted/50 cursor-pointer">
+                      <Checkbox checked={selected.has(product.id)} onCheckedChange={(v) => toggle(product.id, !!v)} />
+                      <span className="flex-1">{product.name}</span>
+                      <span className="text-xs text-muted-foreground">{categoryOf(product)?.name || product.category}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">{selected.size} selected. Products already linked to {vendor.name} aren't listed.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Cost Price (₹)</Label>
+                  <Label>Cost Price (₹, optional)</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -193,17 +246,17 @@ export function VendorProductsDialog({ vendor, open, onOpenChange }: VendorProdu
                 </Button>
                 <Button 
                   onClick={() => addMutation.mutate()} 
-                  disabled={!selectedProduct || addMutation.isPending}
+                  disabled={selected.size === 0 || addMutation.isPending}
                 >
                   {addMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Add Product
+                  Link {selected.size || ''} product{selected.size === 1 ? '' : 's'}
                 </Button>
               </div>
             </div>
           ) : (
             <Button onClick={() => setIsAdding(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Link Product
+              Link products
             </Button>
           )}
 
