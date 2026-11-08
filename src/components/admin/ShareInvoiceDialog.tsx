@@ -55,6 +55,19 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
     load();
   }, [open, order?.id]);
 
+  // Saves a copy of the invoice under the flat's documents. Runs after the windows have closed;
+  // a failure only shows a message.
+  const archiveInvoice = (blob: Blob, fileName: string) => {
+    (async () => {
+      const url = await uploadInvoiceToStorage(blob, fileName, flatNumber);
+      await saveDocumentRecord({
+        flatNumber, buildingName, orderId: order.id,
+        documentType: 'invoice', fileUrl: url, fileName,
+        invoiceNumber: invoiceNum, customerName,
+      });
+    })().catch((e: any) => toast.error(`Invoice downloaded, but saving a copy to the flat's documents failed: ${e?.message || e}`));
+  };
+
   const handleDownloadPdf = async () => {
     setLoading('pdf');
     try {
@@ -65,16 +78,12 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
       const fileName = `invoice-${invoiceNum}.pdf`;
       downloadBlob(blob, fileName);
 
-      const url = await uploadInvoiceToStorage(blob, fileName, flatNumber);
-      await saveDocumentRecord({
-        flatNumber, buildingName, orderId: order.id,
-        documentType: 'invoice', fileUrl: url, fileName,
-        invoiceNumber: invoiceNum, customerName,
-      });
-
+      // The file is downloaded: close the share and preview windows straight away, back to the
+      // orders list. Keeping a copy against the flat carries on in the background.
       toast.success('PDF downloaded successfully');
       onOpenChange(false);
       onDone?.();
+      archiveInvoice(blob, fileName);
     } catch (e: any) {
       toast.error('Failed: ' + e.message);
     } finally {
@@ -93,16 +102,12 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
       const fileName = `invoice-${invoiceNum}.png`;
       downloadBlob(blob, fileName);
 
-      const url = await uploadInvoiceToStorage(blob, fileName, flatNumber);
-      await saveDocumentRecord({
-        flatNumber, buildingName, orderId: order.id,
-        documentType: 'invoice', fileUrl: url, fileName,
-        invoiceNumber: invoiceNum, customerName,
-      });
-
+      // The file is downloaded: close the share and preview windows straight away, back to the
+      // orders list. Keeping a copy against the flat carries on in the background.
       toast.success('Image downloaded');
       onOpenChange(false);
       onDone?.();
+      archiveInvoice(blob, fileName);
     } catch (e: any) {
       toast.error('Failed: ' + e.message);
     } finally {
