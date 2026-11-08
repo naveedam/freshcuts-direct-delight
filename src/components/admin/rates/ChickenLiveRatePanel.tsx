@@ -21,8 +21,8 @@ function fmtDate(d: string): string {
 }
 
 // The Chicken Rate screen as it was before 5 November (M N Broilers: live rate × multiplier),
-// with a selling multiplier per cut. Every saved rate, set or link also records that day's
-// purchase and selling prices in Rate Management, for history, checks and order pricing.
+// per cut. Every saved rate or set also records that day's buying price in Rate Management, for
+// history, checks and order pricing. Selling prices are rupee amounts, entered separately.
 export function ChickenLiveRatePanel() {
   const queryClient = useQueryClient();
   const today = istDateString();
@@ -38,7 +38,7 @@ export function ChickenLiveRatePanel() {
   const [month, setMonth] = useState(today.slice(0, 7));
   const [editingDate, setEditingDate] = useState<string | null>(null); // a set's date, or 'NEW'
   const [newSetDate, setNewSetDate] = useState('');
-  const [editValues, setEditValues] = useState<Record<string, string>>({}); // `${cutId}:buy` | `${cutId}:sell`
+  const [editValues, setEditValues] = useState<Record<string, string>>({}); // `${cutId}:buy`
   const { save: savePrices, dialog: overrideDialog } = usePriceSaver();
 
   const invalidateAll = () => {
@@ -48,7 +48,7 @@ export function ChickenLiveRatePanel() {
     ].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
   };
 
-  // Writes the purchase and selling price of every linked cut for each saved rate day from
+  // Writes the buying price of every linked cut for each saved rate day from
   // `from` onwards (one day when `only` is given), using the multiplier set in force that day.
   const recordPrices = async ({ from, only }: { from?: string; only?: string }) => {
     let q = supabase.from('live_chicken_rates').select('rate_date, rate').order('rate_date');
@@ -70,8 +70,9 @@ export function ChickenLiveRatePanel() {
         if (!set) continue;
         rows.push({
           product_id: c.product_id, vendor_id: MN_BROILERS_ID, effective_date: r.rate_date,
+          // Buying price only: the selling price is entered as a rupee amount in "M N Broilers
+          // selling prices" and is left as it is here.
           purchase_price: priceFromRate(Number(r.rate), Number(set.multiplier)),
-          selling_price: set.selling_multiplier != null ? priceFromRate(Number(r.rate), Number(set.selling_multiplier)) : null,
           source: 'chicken_rate', label: `${c.name}, ${fmtDate(r.rate_date)}`,
         });
       }
@@ -121,13 +122,12 @@ export function ChickenLiveRatePanel() {
     setSource(dayRow?.source || 'KTPA Facebook');
   }, [dayRow, rateDate]);
 
-  // Multiplier sets, oldest first: [effective date, { `${cutId}:buy` | `${cutId}:sell`: multiplier }]
+  // Multiplier sets, oldest first: [effective date, { `${cutId}:buy`: multiplier }]
   const sets = useMemo(() => {
     const map = new Map<string, Record<string, number>>();
     multipliers.forEach((r: any) => {
       if (!map.has(r.effective_date)) map.set(r.effective_date, {});
       map.get(r.effective_date)![`${r.cut_id}:buy`] = Number(r.multiplier);
-      if (r.selling_multiplier != null) map.get(r.effective_date)![`${r.cut_id}:sell`] = Number(r.selling_multiplier);
     });
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [multipliers]);
@@ -136,10 +136,8 @@ export function ChickenLiveRatePanel() {
     const found = sets.find(([d]) => d === date);
     const values: Record<string, string> = {};
     cuts.forEach((c) => {
-      for (const k of [`${c.id}:buy`, `${c.id}:sell`]) {
-        const v = found?.[1][k];
-        values[k] = v == null ? '' : String(v);
-      }
+      const v = found?.[1][`${c.id}:buy`];
+      values[`${c.id}:buy`] = v == null ? '' : String(v);
     });
     setEditValues(values);
     setEditingDate(date);
@@ -149,9 +147,8 @@ export function ChickenLiveRatePanel() {
     const latest = sets.length ? sets[sets.length - 1][1] : {};
     const values: Record<string, string> = {};
     cuts.forEach((c) => {
-      for (const k of [`${c.id}:buy`, `${c.id}:sell`]) {
-        values[k] = latest[k] == null ? '' : String(latest[k]);
-      }
+      const k = `${c.id}:buy`;
+      values[k] = latest[k] == null ? '' : String(latest[k]);
     });
     setEditValues(values);
     setNewSetDate('');
@@ -189,20 +186,14 @@ export function ChickenLiveRatePanel() {
       const clearIds: string[] = [];
       cuts.forEach((c) => {
         const raw = (editValues[`${c.id}:buy`] ?? '').trim();
-        const rawSell = (editValues[`${c.id}:sell`] ?? '').trim();
         if (raw === '') {
-          if (rawSell !== '') throw new Error(`${c.name} needs a buying multiplier as well`);
           clearIds.push(c.id);
         } else {
           const v = Number(raw);
           if (!(v > 0)) throw new Error(`Enter a buying multiplier above 0 for ${c.name}`);
-          const sell = rawSell === '' ? null : Number(rawSell);
-          if (sell != null && !(sell > 0)) throw new Error(`Enter a selling multiplier above 0 for ${c.name}`);
           // Multipliers are small numbers like 1.65; a value like 370 is a price typed in the wrong box.
           if (v > 10) throw new Error(`${c.name}: ${v} looks like a price, not a multiplier (e.g. 1.65)`);
-          if (sell != null && sell > 10) throw new Error(`${c.name}: sell ${sell} looks like a price, not a multiplier (e.g. 2.8). For a fixed selling price, use the Bismillah or Other Products tab.`);
-          if (sell != null && sell < v) throw new Error(`${c.name}: the selling multiplier is below the buying one, so it would sell below cost`);
-          rows.push({ vendor_id: MN_BROILERS_ID, cut_id: c.id, effective_date: date, multiplier: v, selling_multiplier: sell });
+          rows.push({ vendor_id: MN_BROILERS_ID, cut_id: c.id, effective_date: date, multiplier: v, selling_multiplier: null });
         }
       });
       if (rows.length === 0) throw new Error('Enter at least one multiplier');
@@ -254,7 +245,7 @@ export function ChickenLiveRatePanel() {
             {todayRate
               ? `Today (${fmtDate(today)}): ₹${todayRate.rate}/kg`
               : `Today's rate (${fmtDate(today)}) is not set yet`}
-            {' · '}M N Broilers buying price = live rate × the cut's buy multiplier; selling price = live rate × the sell multiplier, rounded to the rupee. A blank sell multiplier leaves that product's selling price unchanged. Multipliers are small numbers like 1.65, not prices.
+            {' · '}M N Broilers buying price = live rate × the cut's multiplier, rounded to the rupee. Multipliers are small numbers like 1.65. Selling prices are entered in rupees below.
           </p>
         </div>
 
@@ -278,10 +269,10 @@ export function ChickenLiveRatePanel() {
               <TableBody>
                 {sets.map(([date, values]) => {
                   const isEditing = editingDate === date;
-                  return ['buy', 'sell'].map((kind) => (
-                    <TableRow key={`${date}-${kind}`} className={kind === 'sell' ? 'border-b-2' : 'border-b-0'}>
-                      <TableCell className="whitespace-nowrap font-medium">{kind === 'buy' ? fmtDate(date) : ''}</TableCell>
-                      <TableCell className="whitespace-nowrap text-xs">{kind === 'buy' ? 'Buy ×' : 'Sell ×'}</TableCell>
+                  return ['buy'].map((kind) => (
+                    <TableRow key={`${date}-${kind}`}>
+                      <TableCell className="whitespace-nowrap font-medium">{fmtDate(date)}</TableCell>
+                      <TableCell className="whitespace-nowrap text-xs">Buy ×</TableCell>
                       {cuts.map((c) => {
                         const v = values[`${c.id}:${kind}`];
                         return (
@@ -291,7 +282,7 @@ export function ChickenLiveRatePanel() {
                         );
                       })}
                       <TableCell className="whitespace-nowrap">
-                        {kind === 'sell' ? null : isEditing ? saveCancel : (
+                        {isEditing ? saveCancel : (
                           <Button size="sm" variant="outline" onClick={() => startEdit(date)} disabled={editingDate !== null}>
                             Edit
                           </Button>
@@ -300,16 +291,16 @@ export function ChickenLiveRatePanel() {
                     </TableRow>
                   ));
                 })}
-                {editingDate === 'NEW' && ['buy', 'sell'].map((kind) => (
+                {editingDate === 'NEW' && ['buy'].map((kind) => (
                   <TableRow key={`new-${kind}`}>
                     <TableCell>
-                      {kind === 'buy' && <Input type="date" className="h-8 w-36" value={newSetDate} onChange={(e) => setNewSetDate(e.target.value)} />}
+                      <Input type="date" className="h-8 w-36" value={newSetDate} onChange={(e) => setNewSetDate(e.target.value)} />
                     </TableCell>
-                    <TableCell className="whitespace-nowrap text-xs">{kind === 'buy' ? 'Buy ×' : 'Sell ×'}</TableCell>
+                    <TableCell className="whitespace-nowrap text-xs">Buy ×</TableCell>
                     {cuts.map((c) => (
                       <TableCell key={c.id} className="text-center">{renderInput(`${c.id}:${kind}`)}</TableCell>
                     ))}
-                    <TableCell className="whitespace-nowrap">{kind === 'buy' ? saveCancel : null}</TableCell>
+                    <TableCell className="whitespace-nowrap">{saveCancel}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { toast } from 'sonner';
 import { History, Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { istDateString } from '@/lib/live-rate';
-import { deletePriceRecord, recordOn, recordsFor, usePriceRecords, type PriceRecord } from '@/lib/product-prices';
+import { deletePriceRecord, latestWith, recordOn, recordsFor, usePriceRecords, type PriceRecord } from '@/lib/product-prices';
 import { fmtDay, PriceHistoryDialog, rupees, usePriceSaver } from './PriceDialogs';
 import { ensureVendorMapped, type RateProduct } from './useRateProducts';
 
@@ -26,12 +26,15 @@ interface Props {
   // Names that should exist in this list (e.g. the nine mutton products); missing ones can be added.
   expectedNames?: string[];
   newProductCategory?: { id: string; name: string } | null;
+  // Selling prices only: the purchase price comes from elsewhere (M N Broilers' live rate) and is
+  // shown for reference, never changed here.
+  sellingOnly?: boolean;
 }
 
 // Products in rows with their active purchase and selling price. Edit saves a new dated record
 // (prices carry forward until the next one); Delete removes a wrong record; History lists them all.
 export function DatedPricePanel({
-  title, description, products, vendorId, storeKey, showCategory, expectedNames, newProductCategory,
+  title, description, products, vendorId, storeKey, showCategory, expectedNames, newProductCategory, sellingOnly,
 }: Props) {
   const queryClient = useQueryClient();
   const today = istDateString();
@@ -62,8 +65,19 @@ export function DatedPricePanel({
   const missing = (expectedNames || []).filter(
     (n) => !products.some((p) => p.name.trim().toLowerCase() === n.toLowerCase()));
 
+  // In selling-only mode the two prices can come from different days' records.
+  const pricesFor = (productId: string) => {
+    if (!sellingOnly) {
+      const r = recordOn(records, productId, vendorId, today);
+      return { purchase: r?.purchase_price ?? null, selling: r?.selling_price ?? null, record: r, since: r?.effective_date };
+    }
+    const buy = latestWith(records, productId, vendorId, today, 'purchase_price');
+    const sell = latestWith(records, productId, vendorId, today, 'selling_price');
+    return { purchase: buy?.purchase_price ?? null, selling: sell?.selling_price ?? null, record: sell, since: sell?.effective_date };
+  };
+
   const openEdit = (p: RateProduct) => {
-    const r = recordOn(records, p.id, vendorId, today);
+    const r = sellingOnly ? latestWith(records, p.id, vendorId, today, 'selling_price') : recordOn(records, p.id, vendorId, today);
     setForm({
       date: today,
       purchase: r?.purchase_price != null ? String(r.purchase_price) : '',
@@ -75,9 +89,10 @@ export function DatedPricePanel({
   const saveEdit = useMutation({
     mutationFn: async () => {
       if (!editing) return;
-      const purchase = form.purchase.trim() === '' ? null : Number(form.purchase);
+      const purchase = sellingOnly || form.purchase.trim() === '' ? null : Number(form.purchase);
       const selling = form.selling.trim() === '' ? null : Number(form.selling);
       if (!form.date) throw new Error('Pick the date the price takes effect');
+      if (sellingOnly && selling == null) throw new Error('Enter the selling price');
       if (purchase == null && selling == null) throw new Error('Enter a purchase or selling price');
       if (purchase != null && !(purchase >= 0)) throw new Error('Purchase price must be a number');
       if (selling != null && !(selling > 0)) throw new Error('Selling price must be above 0');
@@ -85,10 +100,13 @@ export function DatedPricePanel({
         throw new Error(`Selling price ₹${selling} is below purchase price ₹${purchase}`);
       }
       if (vendorId) await ensureVendorMapped(vendorId, editing.id);
-      const res = await save([{
-        product_id: editing.id, vendor_id: vendorId, effective_date: form.date,
-        purchase_price: purchase, selling_price: selling, source: 'manual', label: editing.name,
-      }]);
+      const res = await save([sellingOnly
+        // Leave out the purchase price so that day's live-rate buying price is kept.
+        ? { product_id: editing.id, vendor_id: vendorId, effective_date: form.date, selling_price: selling, source: 'manual', label: editing.name }
+        : {
+          product_id: editing.id, vendor_id: vendorId, effective_date: form.date,
+          purchase_price: purchase, selling_price: selling, source: 'manual', label: editing.name,
+        }]);
       if (res.skipped) throw new Error('Not saved: fix the price or give a reason.');
       if (selling != null && form.date <= today) {
         await supabase.from('products').update({ awaiting_daily_price: false } as any).eq('id', editing.id);
@@ -99,7 +117,16 @@ export function DatedPricePanel({
   });
 
   const removeRecord = useMutation({
-    mutationFn: async () => { if (deleting) await deletePriceRecord(deleting.record.id); },
+    mutationFn: async () => {
+      if (!deleting) return;
+      if (sellingOnly && deleting.record.purchase_price != null) {
+        // Keep that day's buying price; only take the selling price off.
+        const { error } = await (supabase as any).from('product_prices').update({ selling_price: null }).eq('id', deleting.record.id);
+        if (error) throw new Error(error.message);
+      } else {
+        await deletePriceRecord(deleting.record.id);
+      }
+    },
     onSuccess: () => { setDeleting(null); refresh(); toast.success('Price record deleted; the previous one applies again'); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -155,7 +182,7 @@ export function DatedPricePanel({
               <TableRow>
                 <TableHead>Product</TableHead>
                 {showCategory && <TableHead>Category</TableHead>}
-                <TableHead className="text-right">Purchase</TableHead>
+                <TableHead className="text-right">{sellingOnly ? 'Buying (live rate)' : 'Purchase'}</TableHead>
                 <TableHead className="text-right">Selling</TableHead>
                 <TableHead className="text-right">Margin</TableHead>
                 <TableHead>Since</TableHead>
@@ -167,9 +194,8 @@ export function DatedPricePanel({
                 <TableRow><TableCell colSpan={showCategory ? 7 : 6} className="text-sm text-muted-foreground">No products match.</TableCell></TableRow>
               )}
               {visible.map((p) => {
-                const r = recordOn(records, p.id, vendorId, today);
-                const margin = r?.purchase_price != null && r?.selling_price != null
-                  ? Number(r.selling_price) - Number(r.purchase_price) : null;
+                const { purchase, selling, record: r, since } = pricesFor(p.id);
+                const margin = purchase != null && selling != null ? Number(selling) - Number(purchase) : null;
                 return (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">
@@ -177,12 +203,12 @@ export function DatedPricePanel({
                       {!p.is_published && <Badge variant="outline" className="ml-2 text-[10px]">Hidden</Badge>}
                     </TableCell>
                     {showCategory && <TableCell className="text-xs text-muted-foreground">{p.categoryName}</TableCell>}
-                    <TableCell className="text-right">{rupees(r?.purchase_price)}</TableCell>
-                    <TableCell className="text-right">{rupees(r?.selling_price)}</TableCell>
+                    <TableCell className={`text-right ${sellingOnly ? 'text-muted-foreground' : ''}`}>{rupees(purchase)}</TableCell>
+                    <TableCell className="text-right">{rupees(selling)}</TableCell>
                     <TableCell className={`text-right text-xs ${margin != null && margin < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
                       {margin == null ? '-' : rupees(margin)}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{r ? fmtDay(r.effective_date) : 'No price yet'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{since ? fmtDay(since) : 'No price yet'}</TableCell>
                     <TableCell className="text-right whitespace-nowrap">
                       <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Edit price" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
                       <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="History" onClick={() => setHistoryFor(p)}><History className="h-4 w-4" /></Button>
@@ -200,18 +226,20 @@ export function DatedPricePanel({
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit price · {editing?.name}</DialogTitle>
+            <DialogTitle>{sellingOnly ? 'Selling price' : 'Edit price'} · {editing?.name}</DialogTitle>
             <DialogDescription>Saves a new dated record; the current one stays in the history.</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1 col-span-3 sm:col-span-1">
+          <div className={`grid gap-3 ${sellingOnly ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            <div className={`space-y-1 ${sellingOnly ? '' : 'col-span-3 sm:col-span-1'}`}>
               <Label className="text-xs">Takes effect</Label>
               <Input type="date" className="h-9" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Purchase ₹/{editing?.unit}</Label>
-              <Input inputMode="decimal" className="h-9" value={form.purchase} onChange={(e) => setForm({ ...form, purchase: e.target.value })} />
-            </div>
+            {!sellingOnly && (
+              <div className="space-y-1">
+                <Label className="text-xs">Purchase ₹/{editing?.unit}</Label>
+                <Input inputMode="decimal" className="h-9" value={form.purchase} onChange={(e) => setForm({ ...form, purchase: e.target.value })} />
+              </div>
+            )}
             <div className="space-y-1">
               <Label className="text-xs">Selling ₹/{editing?.unit}</Label>
               <Input inputMode="decimal" className="h-9" value={form.selling} onChange={(e) => setForm({ ...form, selling: e.target.value })} />
@@ -229,9 +257,11 @@ export function DatedPricePanel({
       <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete this price record?</DialogTitle>
+            <DialogTitle>{sellingOnly ? 'Remove this selling price?' : 'Delete this price record?'}</DialogTitle>
             <DialogDescription>
-              {deleting && `${deleting.product.name}, from ${fmtDay(deleting.record.effective_date)}: purchase ${rupees(deleting.record.purchase_price)}, selling ${rupees(deleting.record.selling_price)}. The previous record applies again. The product itself stays.`}
+              {deleting && (sellingOnly
+                ? `${deleting.product.name}, selling ${rupees(deleting.record.selling_price)} from ${fmtDay(deleting.record.effective_date)}. The previous selling price applies again; buying prices stay.`
+                : `${deleting.product.name}, from ${fmtDay(deleting.record.effective_date)}: purchase ${rupees(deleting.record.purchase_price)}, selling ${rupees(deleting.record.selling_price)}. The previous record applies again. The product itself stays.`)}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">

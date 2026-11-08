@@ -24,8 +24,9 @@ export interface PriceInput {
   product_id: string;
   vendor_id: string | null;
   effective_date: string;
-  purchase_price: number | null;
-  selling_price: number | null;
+  // Leave a price out (rather than null) to keep what that day's record already has.
+  purchase_price?: number | null;
+  selling_price?: number | null;
   source: PriceSource;
 }
 
@@ -92,6 +93,23 @@ export function usePriceRecords(productIds: string[] | undefined, key: string) {
 }
 
 // The record in force on a date for a product and supplier (null = no supplier).
+// The latest record on or before `date` that has the given price set.
+export function latestWith(
+  rows: PriceRecord[] | undefined,
+  productId: string,
+  vendorId: string | null,
+  date: string,
+  field: 'purchase_price' | 'selling_price',
+): PriceRecord | null {
+  let best: PriceRecord | null = null;
+  for (const r of rows || []) {
+    if (r.product_id !== productId || (r.vendor_id ?? null) !== vendorId || r.effective_date > date) continue;
+    if (r[field] == null) continue;
+    if (!best || r.effective_date > best.effective_date) best = r;
+  }
+  return best;
+}
+
 export function recordOn(
   rows: PriceRecord[] | undefined,
   productId: string,
