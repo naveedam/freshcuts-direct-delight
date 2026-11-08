@@ -2,6 +2,17 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-08 (Catalogue: chicken, mutton, seafood)
+
+### Changed
+- **One chicken list of 14 cuts**, used by both M N Broilers (buying price from the live rate) and Bismillah (prices entered by hand). Duplicate products created from the cut names were merged into the products that hold the order history, which took the cut names. Chicken Breast, Chicken Boneless and Chicken Breast Fillet are now one product, **Chicken Breast Fillet**; the breast cut is renamed to match. Chicken Wings became **Chicken Wings With Skin**. Every cut is now linked to its product, so all 14 get M N Broilers buying prices.
+- **Mutton: 17 items** with the agreed names and selling rates from 8 Nov 2026 (Goat Boneless, Goat Spleen, Goat Liver and Goat Head are new). Brain / Bheja is sold per piece at ₹180.
+- **Seafood: 55 items** with the agreed names; 12 are new and wait for the daily sheet to price them.
+- Switched off (hidden, not deleted): the merged duplicates, a duplicate Tender Lamb Shanks, "Goat - Heart, Liver , Kidney", Salmon, Fresh Sea Bass, Live Maine Lobster and Mussels.
+- **Products screen:** the Price column and price fields are removed; prices are set only in Rate Management. A new product shows "No price yet" and stays off the storefront until it is priced.
+- Past orders and invoices keep the names and prices they were made with.
+- Migration `20261108120000_catalogue.sql` (ends with a list of the catalogue as it now stands).
+
 ## 2026-11-08 (M N Broilers selling prices in rupees)
 
 ### Changed

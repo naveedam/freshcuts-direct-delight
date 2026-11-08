@@ -111,6 +111,11 @@ export function ChickenSellingPanel() {
           selling_price: price, source: 'manual' as const, label: cut.name,
         })));
         if (res.skipped) throw new Error('Some prices were not saved: fix them or give a reason.');
+        if (date <= today) {
+          // Now priced, so the shop can show them.
+          await supabase.from('products').update({ awaiting_daily_price: false } as any)
+            .in('id', toSave.map(({ cut }) => cut.product_id!));
+        }
       }
       for (const r of toClear) {
         // Keep the record's buying price; just take the selling price off.

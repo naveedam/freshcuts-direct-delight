@@ -13,8 +13,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Switch } from '@/components/ui/switch';
 import { Plus, Pencil, Trash2, Loader2, Upload, Image as ImageIcon, X, Search, RotateCcw, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { istDateString } from '@/lib/live-rate';
-import { savePriceRows, isPriceCheckError } from '@/lib/product-prices';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Category } from '@/types/category';
@@ -178,15 +176,13 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
 
   const createMutation = useMutation({
     mutationFn: async (data: ProductForm) => {
-      const selling = parseFloat(data.price);
-      const purchase = data.purchase_price.trim() === '' ? null : parseFloat(data.purchase_price);
-      if (purchase != null && purchase > selling) {
-        throw new Error(`Selling price ₹${selling} is below purchase price ₹${purchase}`);
-      }
-      const { data: created, error } = await supabase.from('products').insert({
+      // Prices are set in Rate Management; until then the product shows as "No price yet" and
+      // stays off the storefront.
+      const { error } = await supabase.from('products').insert({
         name: data.name,
         description: data.description || null,
-        price: selling,
+        price: 0,
+        awaiting_daily_price: true,
         category: data.category,
         category_id: categoryIdFor(data.category),
         is_active: data.is_active,
@@ -201,23 +197,13 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
         hsn_code: data.hsn_code || null,
         is_processed: data.is_processed,
         yield_multiplier: parseFloat(data.yield_multiplier) || 1.0
-      } as any).select('id').single();
+      } as any);
       if (error) throw error;
-      // The starting price becomes the product's first dated record in Rate Management.
-      try {
-        await savePriceRows([{
-          product_id: created.id, vendor_id: null, effective_date: istDateString(),
-          purchase_price: purchase, selling_price: selling, source: 'manual',
-        }]);
-        await supabase.from('products').update({ awaiting_daily_price: false } as any).eq('id', created.id);
-      } catch (e: any) {
-        if (!isPriceCheckError(e)) throw e;
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast.success('Product created successfully');
+      toast.success('Product created. Set its prices in Rate Management.');
       resetForm();
     },
     onError: (error) => {
@@ -338,8 +324,8 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || (!editingId && !form.price)) {
-      toast.error(editingId ? 'Name is required' : 'Name and selling price are required');
+    if (!form.name) {
+      toast.error('Name is required');
       return;
     }
 
@@ -396,30 +382,14 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  {editingId ? (
-                    <div className="space-y-2">
-                      <Label>Selling price</Label>
-                      <div className="flex h-10 items-center gap-2 text-sm">
-                        <span className="font-medium">₹{Number(form.price || 0).toFixed(0)}</span>
-                        <Link to={`/admin/rates?tab=${rateTabFor(form.category)}`} className="text-xs text-primary inline-flex items-center gap-1 hover:underline">
-                          Change in Rate Management <ExternalLink className="h-3 w-3" />
-                        </Link>
-                      </div>
+                  <div className="space-y-2">
+                    <Label>Prices</Label>
+                    <div className="flex h-10 items-center text-sm">
+                      <Link to={`/admin/rates?tab=${rateTabFor(form.category)}`} className="text-xs text-primary inline-flex items-center gap-1 hover:underline">
+                        {editingId ? 'Set in Rate Management' : 'Set in Rate Management after saving'} <ExternalLink className="h-3 w-3" />
+                      </Link>
                     </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="price">Selling ₹ *</Label>
-                        <Input id="price" type="number" step="0.01" min="0" value={form.price}
-                          onChange={(e) => setForm({ ...form, price: e.target.value })} required />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="purchase_price">Purchase ₹</Label>
-                        <Input id="purchase_price" type="number" step="0.01" min="0" value={form.purchase_price}
-                          onChange={(e) => setForm({ ...form, purchase_price: e.target.value })} />
-                      </div>
-                    </div>
-                  )}
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="unit">Unit</Label>
                     <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
@@ -637,7 +607,6 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
-                <TableHead className="text-right">Price</TableHead>
                 {SWITCHES.map((sw) => (
                   <TableHead key={sw.field} className="text-center text-xs whitespace-nowrap px-2">{sw.short}</TableHead>
                 ))}
@@ -650,7 +619,6 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                     <TableCell colSpan={SWITCHES.length}><Skeleton className="h-6 w-full" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
                   </TableRow>
@@ -669,11 +637,6 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {categories?.find((c) => c.slug === slug)?.name || product.category}
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
-                      <Link to={`/admin/rates?tab=${rateTabFor(slug)}`} className="hover:underline" title="Set in Rate Management">
-                        ₹{Number(product.price).toFixed(0)}
-                      </Link>
                     </TableCell>
                     {SWITCHES.map((sw) => (
                       <TableCell key={sw.field} className="text-center px-2">

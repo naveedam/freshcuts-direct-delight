@@ -18,15 +18,17 @@ const TABS = ['chicken', 'mutton', 'seafood', 'other'] as const;
 type Tab = typeof TABS[number];
 
 export const MUTTON_PRODUCTS = [
-  'Mutton', 'Mutton Boneless', 'Mutton Minced', 'Mutton Shanks', 'Mutton Chops',
-  'Mutton Spleen', 'Mutton Liver', 'Mutton Kidneys', 'Mutton Brain',
+  'Mutton', 'Goat Meat', 'Mutton Boneless', 'Goat Boneless', 'Mutton Minced / Kheema',
+  'Goat Minced / Kheema', 'Mutton Chops', 'Goat Chops', 'Mutton Spleen', 'Goat Spleen',
+  'Mutton Liver', 'Goat Liver', 'Goat Head', 'Tender Lamb Shanks', 'Paya / Trotters',
+  'Kidneys / Gurda', 'Brain / Bheja',
 ];
 
 export const CHICKEN_PRODUCTS = [
   'Chicken Skin Out', 'Chicken With Skin', 'Chicken Drumstick Skin Out', 'Chicken Drumstick With Skin',
   'Chicken Leg & Thigh Skin Out', 'Chicken Leg & Thigh With Skin', 'Chicken Lollipop Skin Out',
   'Chicken Lollipop With Skin', 'Chicken Wings Skin Out', 'Chicken Wings With Skin', 'Chicken Minced',
-  'Chicken Breast Boneless', 'Chicken Thigh Boneless', 'Chicken Boneless With Skin',
+  'Chicken Breast Fillet', 'Chicken Thigh Boneless', 'Chicken Boneless With Skin',
 ];
 
 // One screen for every purchase and selling price: Chicken, Mutton, Seafood and Other Products,
