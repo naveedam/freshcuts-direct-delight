@@ -277,6 +277,12 @@ export default function ExpensesAdmin({ embedded = false }: { embedded?: boolean
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">{EXPENSE_TYPES.find((t) => t.value === expenseType)?.hint}</p>
+            {category === 'Delivery' && (
+              <p className="text-xs text-amber-700 mt-1">
+                Delivery partners: enter the full amount for the days, including any part taken from their advance.
+                Advances themselves are tracked in the Delivery Partner Advances tab, not here.
+              </p>
+            )}
             <Button
               className="mt-3"
               onClick={() => addMutation.mutate()}

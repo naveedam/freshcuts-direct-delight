@@ -2,6 +2,18 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-08 (Delivery partner advance ledger)
+
+### Added
+- **Expenses → Delivery Partner Advances** is now a full ledger per delivery person, kept apart from Expenses (nothing here creates or counts an expense):
+  - Entries: Opening advance balance, Additional advance, Amount for delivery (with the days it covers), Amount deducted, Amount paid; each with a date and remarks.
+  - Two running balances: **advance held** (opening + additional − deducted) and **owed to partner** (delivery − deducted − paid). Closing balance = advance held − owed.
+  - **Settle days** records delivery, deduction and payment together and reminds you to enter the full delivery amount in Expenses.
+  - **Ledger** shows every entry with the balances after it for any date range, with **Share via WhatsApp**, **Copy summary** and a downloadable **Statement** (Excel).
+  - Entries aren't edited; a wrong one is removed (and kept in the audit log) and entered again.
+- The Expenses form reminds you, for Delivery, to enter the full amount for the days.
+- Migration `20261108130000_partner_ledger.sql`: the opening balance entry, balances and deduction check updated, and an audit trail for the ledger and partners.
+
 ## 2026-11-08 (Seafood in the order form)
 
 ### Changed
