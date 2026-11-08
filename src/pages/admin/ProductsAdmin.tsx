@@ -1,3 +1,5 @@
+import { isSeafood, useSeafoodDayPrices } from '@/lib/seafood-availability';
+import { istDateString } from '@/lib/live-rate';
 import { useState, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -56,7 +58,8 @@ const FILTERS: Record<string, { label: string; test: (p: any) => boolean }> = {
   out: { label: 'Out of stock', test: (p) => p.is_active !== false && p.in_stock === false },
   notorderable: { label: 'Not orderable', test: (p) => p.is_active !== false && p.is_orderable === false },
   preorder: { label: 'Pre-orders on', test: (p) => p.is_active !== false && p.preorder_enabled },
-  notinform: { label: 'Not in order form', test: (p) => p.is_active !== false && p.show_in_order_form === false },
+  // Seafood: whether today's sheet prices it (worked out on screen as p.orderFormToday).
+  notinform: { label: 'Not in order form', test: (p) => p.is_active !== false && (p.orderFormToday ?? p.show_in_order_form) === false },
   hsn: { label: 'HSN to check', test: (p) => p.is_active !== false && p.hsn_auto_filled },
   inactive: { label: 'Inactive', test: (p) => p.is_active === false },
   all: { label: 'All products', test: () => true },
@@ -285,12 +288,17 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
       ?? categories?.find((c) => c.slug.toLowerCase() === text || c.name.toLowerCase() === text)?.slug
       ?? null;
   };
-  const visibleProducts = useMemo(() => (products || []).filter((p: any) =>
+  // Seafood's order-form status follows today's sheet prices rather than the switch.
+  const { data: seafoodToday } = useSeafoodDayPrices(istDateString());
+  const withOrderForm = useMemo(() => (products || []).map((p: any) =>
+    isSeafood(p, categories as any) ? { ...p, orderFormToday: !!seafoodToday?.has(p.id) } : p),
+  [products, categories, seafoodToday]);
+  const visibleProducts = useMemo(() => withOrderForm.filter((p: any) =>
     FILTERS[statusFilter].test(p)
     && (categoryFilter === 'all' || slugOf(p) === categoryFilter)
     && (!search.trim() || p.name.toLowerCase().includes(search.trim().toLowerCase()))),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [products, categories, statusFilter, categoryFilter, search]);
+  [withOrderForm, categories, statusFilter, categoryFilter, search]);
 
   const resetForm = () => {
     setForm(defaultForm);
@@ -640,12 +648,21 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
                     </TableCell>
                     {SWITCHES.map((sw) => (
                       <TableCell key={sw.field} className="text-center px-2">
+                        {sw.field === 'show_in_order_form' && product.orderFormToday !== undefined ? (
+                          <span
+                            className={`text-[10px] font-medium ${product.orderFormToday ? 'text-green-700' : 'text-muted-foreground'}`}
+                            title="Seafood: in the order form on days the seafood sheet prices it"
+                          >
+                            Auto · {product.orderFormToday ? 'On' : 'Off'}
+                          </span>
+                        ) : (
                         <Switch
                           checked={!!product[sw.field]}
                           disabled={inactive}
                           aria-label={`${sw.label}: ${product.name}`}
                           onCheckedChange={(checked) => toggleMutation.mutate({ id: product.id, field: sw.field, value: checked })}
                         />
+                        )}
                       </TableCell>
                     ))}
                     <TableCell className="text-right">

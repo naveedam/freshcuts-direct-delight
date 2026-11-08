@@ -1,3 +1,5 @@
+import { istDateString } from '@/lib/live-rate';
+import { isSeafood, useSeafoodDayPrices } from '@/lib/seafood-availability';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -118,6 +120,8 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
   const [shippingCity, setShippingCity] = useState('');
   const [shippingPostalCode, setShippingPostalCode] = useState('');
   const [placeOfSupply, setPlaceOfSupply] = useState('29');
+  // The day the order is for. Seafood is offered only if the sheet has a price for this day.
+  const [deliveryDate, setDeliveryDate] = useState(istDateString());
   const [notes, setNotes] = useState('');
   const [discountType, setDiscountType] = useState<'none' | 'percentage' | 'flat'>('none');
   const [discountValue, setDiscountValue] = useState('0');
@@ -148,11 +152,19 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
     }
   });
 
-  // Only products marked "Show in New Order dropdown" (and active) are offered; a line that
-  // already holds another product keeps it.
+  const { data: seafoodPrices } = useSeafoodDayPrices(deliveryDate);
+  const seafoodPriceFor = (p: any) => (isSeafood(p, categories as any) ? seafoodPrices?.get(p.id) ?? null : undefined);
+
+  // Only products marked "Show in New Order dropdown" (and active) are offered; seafood also needs
+  // a price on the sheet for the delivery date. A line that already holds a product keeps it.
   const orderFormProducts = (currentId?: string | null) =>
-    (products || []).filter((p: any) =>
-      (p.is_active !== false && p.show_in_order_form !== false) || p.id === currentId);
+    (products || []).filter((p: any) => {
+      if (p.id === currentId) return true;
+      if (p.is_active === false) return false;
+      const fish = seafoodPriceFor(p);
+      if (fish !== undefined) return fish !== null;
+      return p.show_in_order_form !== false;
+    });
 
   // Fetch categories for custom item
   const { data: categories } = useQuery({
@@ -240,6 +252,7 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
     setShippingCity('');
     setShippingPostalCode('');
     setPlaceOfSupply('29');
+    setDeliveryDate(istDateString());
     setNotes('');
     setDiscountType('none');
     setDiscountValue('0');
@@ -331,7 +344,8 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
         product_id: product.id,
         product_name: product.name,
         quantity: lineItems[index].quantity || 1,
-        unit_price: product.price,
+        // Seafood takes the delivery day's selling price from the sheet.
+        unit_price: seafoodPriceFor(product)?.selling ?? product.price,
         vendor_cost: resolvedVendorCost,
         ...resolveGst(product as any, categories as any),
         vendor_id: autoVendorId,
@@ -490,6 +504,8 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
           shipping_postal_code: shippingPostalCode || null,
           place_of_supply: placeOfSupply,
           is_igst: isIGST,
+          delivery_date: deliveryDate || istDateString(),
+          is_preorder: !!deliveryDate && deliveryDate > istDateString(),
           notes: notes || null,
           total_amount: finalTotal,
           status: 'pending',
@@ -610,6 +626,10 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Delivery date</Label>
+              <Input className="h-9" type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} />
+            </div>
           </div>
           {businessSettings && (
             <p className="text-xs text-muted-foreground -mt-2">
@@ -669,12 +689,18 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
                               <SelectContent>
                                 {orderFormProducts(item.product_id).map((product) => (
                                   <SelectItem key={product.id} value={product.id} className="text-xs">
-                                    {product.name} - ₹{product.price}
+                                    {product.name} - ₹{seafoodPriceFor(product)?.selling ?? product.price}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           )}
+                          {!isCustom && item.product_id && (() => {
+                            const p = products?.find((x) => x.id === item.product_id);
+                            return p && seafoodPriceFor(p) === null ? (
+                              <p className="text-[10px] text-amber-700 mt-0.5">No seafood price for {deliveryDate}</p>
+                            ) : null;
+                          })()}
                         </TableCell>
                         <TableCell>
                           <Select

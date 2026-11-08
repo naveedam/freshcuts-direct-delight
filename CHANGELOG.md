@@ -2,6 +2,13 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-08 (Seafood in the order form)
+
+### Changed
+- **New Order** has a **Delivery date** (today by default). Seafood appears in the product dropdown only if the seafood sheet has a selling price for that date, and a fish line takes that day's selling price. Saving, repeating or removing sheet prices updates the list straight away. Orders for a later date are marked as pre-orders.
+- A line that already holds an unpriced fish (e.g. a repeated order) keeps it and shows "No seafood price for <date>".
+- **Products** screen: for seafood the Order form column shows **Auto · On/Off** for today, worked out from the sheet, instead of a switch. The "Not in order form" filter uses the same rule. Storefront visibility and stock are unchanged and stay separate.
+
 ## 2026-11-08 (Catalogue: chicken, mutton, seafood)
 
 ### Changed
