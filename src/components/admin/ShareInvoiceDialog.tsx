@@ -243,7 +243,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
         </div>
 
         {/* Hidden render target for image generation */}
-        {hasItems && (
+        {hasItems && order && (
           <div style={{ position: 'fixed', left: '-9999px', top: 0 }}>
             <InvoiceShareView
               ref={shareViewRef}

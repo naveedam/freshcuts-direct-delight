@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -52,7 +52,12 @@ function normalizeGstType(raw: string): string {
   return lower === 'nil-rated' ? 'nil' : lower;
 }
 
-export function InvoiceEditDialog({ open, onOpenChange, order, orderItems }: InvoiceEditDialogProps) {
+export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderItems }: InvoiceEditDialogProps) {
+  // Keep showing the last order while the window fades out after closing: the page clears the
+  // order straight away, and reading it then crashed the whole Orders screen.
+  const lastOrder = useRef(orderProp);
+  if (orderProp) lastOrder.current = orderProp;
+  const order = orderProp ?? lastOrder.current;
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [editMode, setEditMode] = useState(false);
