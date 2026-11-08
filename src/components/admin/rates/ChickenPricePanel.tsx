@@ -37,7 +37,7 @@ export function ChickenSellingPanel() {
       field="selling_price"
       vendorId={null}
       title="Selling Price"
-      description="Rupees per kg, the same whichever supplier the chicken comes from. A price applies from its date until the next change; a blank cell means that cut didn't change that day."
+      description="Rupees per kg, the same whichever supplier the chicken comes from. A price stays in force until you enter a new one. In each row, prices in bold changed that day; grey ones are still in force from earlier."
       storeKey="chicken-selling"
     />
   );
@@ -229,7 +229,13 @@ export function ChickenPricePanel({ field, vendorId, title, description, storeKe
                       </TableCell>
                       {cuts.map((c) => (
                         <TableCell key={c.id} className="text-center">
-                          {isEditing ? input(c.id, !c.product_id) : cellText(c.product_id ? row.get(c.product_id)?.[field] : null)}
+                          {isEditing ? input(c.id, !c.product_id) : (() => {
+                            // A change on this date in bold; otherwise the price still in force, in grey.
+                            const changed = c.product_id ? row.get(c.product_id)?.[field] : null;
+                            if (changed != null) return <span className="font-medium">{cellText(changed)}</span>;
+                            const carried = inForce(c.product_id, date);
+                            return <span className="text-muted-foreground/70" title="No change this day: the earlier price still applies">{cellText(carried)}</span>;
+                          })()}
                         </TableCell>
                       ))}
                       <TableCell className="whitespace-nowrap">
