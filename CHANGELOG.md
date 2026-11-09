@@ -7,7 +7,8 @@ All notable changes to FreshCuts Daily are documented here.
 ### Changed
 - The Fresh Cuts Daily logo (vector, sharp at any size) is used in the storefront header (larger, with a slight lift on hover), in white in the footer, on the sign-in page, and in the admin sidebar (the cleaver alone when the sidebar is collapsed).
 - Browser tab and phone home-screen icons use the cleaver (`public/favicon.svg`, `public/apple-touch-icon.png`).
-- `public/fresh-cuts-daily-logo.png` (1200 px) can be used as the Logo URL in Business Settings for invoices.
+- **Invoices use the Fresh Cuts Daily colours:** logo brown for the business name, section labels, table headings and rules; a thin gold line under the header; warm cream panels; the website red for the Total band; the website's fonts (Playfair Display for the business name). An unpaid balance stays red.
+- **Invoices** (PDF and WhatsApp image) show the logo at the top left, beside the business name and address. It's built into the invoice layout (`src/lib/brand-logo.ts`), so it's always included.
 
 ## 2026-11-09 (Party ledger payments)
 

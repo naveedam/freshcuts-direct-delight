@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import { formatCurrency } from '@/lib/currency';
+import { LOGO_PNG_DATA_URL } from '@/lib/brand-logo';
 
 interface ShareOrderItem {
   product_name: string;
@@ -123,18 +124,24 @@ const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
     const isIgst = order.is_igst;
 
     // Styles
-    const font = "'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif";
-    const green = '#16a34a';
-    const gray100 = '#f3f4f6';
-    const gray200 = '#e5e7eb';
+    // Fresh Cuts Daily colours and fonts, as on the website and logo.
+    const font = "'Source Sans 3', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif";
+    const headingFont = "'Playfair Display', Georgia, serif";
+    const brand = '#6D281A';      // logo brown: headings, rules, labels
+    const brandDeep = '#8B1818';  // website red: the Total band
+    const gold = '#D9A520';       // website gold: thin accent under the header
+    const cream = '#FAF5EE';      // warm panel background (website background, a touch deeper)
+    const creamLine = '#EADFD2';  // panel and table lines
+    const gray100 = cream;
+    const gray200 = creamLine;
     const gray400 = '#9ca3af';
-    const gray500 = '#6b7280';
-    const gray700 = '#374151';
-    const gray900 = '#111827';
+    const gray500 = '#7A6E68'; // warm greys, as on the website
+    const gray700 = '#4A403B';
+    const gray900 = '#2A2522';
 
     const thStyle: React.CSSProperties = {
-      padding: '5px 6px', fontWeight: 600, fontSize: '9px', color: gray500,
-      textTransform: 'uppercase', letterSpacing: '0.3px', borderBottom: `1.5px solid ${gray200}`,
+      padding: '5px 6px', fontWeight: 700, fontSize: '9px', color: brand, backgroundColor: cream,
+      textTransform: 'uppercase', letterSpacing: '0.3px', borderBottom: `1.5px solid ${brand}`,
       whiteSpace: 'nowrap',
     };
     const tdStyle: React.CSSProperties = {
@@ -148,19 +155,22 @@ const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
         padding: '24px 28px', fontSize: '11px', color: gray900, lineHeight: '1.45',
       }}>
         {/* HEADER ROW */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: '10px', borderBottom: `2px solid ${green}`, marginBottom: '10px' }}>
-          <div>
-            <p style={{ fontSize: '16px', fontWeight: 700, color: green, margin: 0 }}>{business.business_name}</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: '10px', borderBottom: `2px solid ${brand}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <img src={LOGO_PNG_DATA_URL} alt="Fresh Cuts Daily" style={{ height: '64px', width: 'auto', display: 'block' }} />
+            <div>
+            <p style={{ fontSize: '18px', fontWeight: 700, color: brand, margin: 0, fontFamily: headingFont }}>{business.business_name}</p>
             {business.gstin && <p style={{ fontSize: '9px', color: gray700, margin: '2px 0 0', fontWeight: 600 }}>GSTIN: {business.gstin}</p>}
             <p style={{ fontSize: '9px', color: gray500, margin: '1px 0 0' }}>
               {[business.address, business.city, business.postal_code].filter(Boolean).join(', ')}
               {business.phone ? ` • ${business.phone}` : ''}
             </p>
+            </div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <span style={{
-              fontSize: '10px', fontWeight: 700, color: gray900,
-              border: `1.5px solid ${gray900}`, padding: '2px 10px',
+              fontSize: '10px', fontWeight: 700, color: brand,
+              border: `1.5px solid ${brand}`, padding: '2px 10px',
               borderRadius: '2px', letterSpacing: '0.5px',
             }}>TAX INVOICE</span>
             <p style={{ fontSize: '9px', color: gray500, margin: '4px 0 0', lineHeight: '1.5' }}>
@@ -169,18 +179,20 @@ const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
             </p>
           </div>
         </div>
+        {/* thin gold line under the brown rule */}
+        <div style={{ height: '2px', backgroundColor: gold, marginBottom: '12px' }} />
 
         {/* BILL TO — 2-column */}
         <div style={{ display: 'flex', gap: '16px', marginBottom: '10px' }}>
           <div style={{ flex: 1, backgroundColor: gray100, borderRadius: '4px', padding: '8px 10px' }}>
-            <p style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', color: green, letterSpacing: '0.6px', margin: '0 0 3px' }}>Sold By</p>
+            <p style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', color: brand, letterSpacing: '0.6px', margin: '0 0 3px' }}>Sold By</p>
             <p style={{ fontSize: '11px', fontWeight: 600, margin: 0 }}>{business.business_name}</p>
             <p style={{ fontSize: '9px', color: gray500, margin: '1px 0 0' }}>
               {[business.address, business.city, business.postal_code].filter(Boolean).join(', ')}
             </p>
           </div>
           <div style={{ flex: 1, backgroundColor: gray100, borderRadius: '4px', padding: '8px 10px' }}>
-            <p style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', color: green, letterSpacing: '0.6px', margin: '0 0 3px' }}>Bill To / Deliver To</p>
+            <p style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', color: brand, letterSpacing: '0.6px', margin: '0 0 3px' }}>Bill To / Deliver To</p>
             <p style={{ fontSize: '11px', fontWeight: 600, margin: 0 }}>
               {order.flat_number && `${order.flat_number}, `}{order.building_name || ''}
             </p>
@@ -232,7 +244,7 @@ const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
           {/* HSN Summary (if taxable items exist) */}
           {hsnRows.length > 0 && (
             <div style={{ flex: 1, backgroundColor: gray100, borderRadius: '4px', padding: '8px 10px' }}>
-              <p style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', color: green, letterSpacing: '0.5px', margin: '0 0 4px' }}>HSN Summary</p>
+              <p style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', color: brand, letterSpacing: '0.5px', margin: '0 0 4px' }}>HSN Summary</p>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9px' }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${gray200}` }}>
@@ -269,7 +281,7 @@ const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
           {/* Tax Summary */}
           {hasTax && (
             <div style={{ flex: 1, backgroundColor: gray100, borderRadius: '4px', padding: '8px 10px' }}>
-              <p style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', color: green, letterSpacing: '0.5px', margin: '0 0 4px' }}>Tax Breakup</p>
+              <p style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', color: brand, letterSpacing: '0.5px', margin: '0 0 4px' }}>Tax Breakup</p>
               <div style={{ fontSize: '10px' }}>
                 {isIgst ? (
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', color: gray700 }}>
@@ -294,7 +306,7 @@ const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
 
           {/* Invoice Total */}
           <div style={{ flex: 1, backgroundColor: gray100, borderRadius: '4px', padding: '8px 10px' }}>
-            <p style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', color: green, letterSpacing: '0.5px', margin: '0 0 4px' }}>Invoice Total</p>
+            <p style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', color: brand, letterSpacing: '0.5px', margin: '0 0 4px' }}>Invoice Total</p>
             <div style={{ fontSize: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', color: gray700 }}>
                 <span>Sub Total</span><span style={{ fontWeight: 600 }}>{formatCurrency(subtotal)}</span>
@@ -312,7 +324,7 @@ const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
             </div>
             <div style={{
               display: 'flex', justifyContent: 'space-between', padding: '5px 8px',
-              fontSize: '12px', fontWeight: 700, backgroundColor: green, color: '#ffffff',
+              fontSize: '12px', fontWeight: 700, backgroundColor: brandDeep, color: '#ffffff',
               borderRadius: '3px', marginTop: '4px',
             }}>
               <span>Total</span><span>{formatCurrency(grandTotal)}</span>
@@ -322,7 +334,7 @@ const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
             </div>
             <div style={{
               display: 'flex', justifyContent: 'space-between', padding: '2px 0',
-              fontSize: '11px', fontWeight: 700, color: balance > 0 ? '#dc2626' : green,
+              fontSize: '11px', fontWeight: 700, color: balance > 0 ? '#dc2626' : brand,
             }}>
               <span>Balance</span><span>{formatCurrency(Math.abs(balance))}</span>
             </div>
