@@ -21,22 +21,6 @@ function sortProducts(list: StorefrontProduct[]) {
     Number(canAddToCart(availabilityOf(b))) - Number(canAddToCart(availabilityOf(a))) || a.name.localeCompare(b.name));
 }
 
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
-        active
-          ? 'bg-primary text-primary-foreground border-primary'
-          : 'bg-card text-foreground border-border hover:border-primary'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
 function ProductRow({
   product, emoji, inCart, onAdd,
 }: { product: StorefrontProduct; emoji: string; inCart: boolean; onAdd: () => void }) {
@@ -84,12 +68,13 @@ export function ProductBrowser() {
   const { data: categories } = useCategories();
   const { data: products, isLoading } = useStorefrontProducts();
   const { addToCart, items } = useCart();
-  const [active, setActive] = useState('fresh');
+  // The category links are in the site header, so the home page always shows every fresh
+  // category (or search results).
+  const active: string = 'fresh';
   const [query, setQuery] = useState('');
 
   const cats = useMemo(() => categories || [], [categories]);
   const freshCats = useMemo(() => cats.filter((c) => c.categoryType === 'fresh'), [cats]);
-  const otherCats = useMemo(() => cats.filter((c) => c.categoryType !== 'fresh'), [cats]);
   const inCartIds = useMemo(() => new Set(items.map((i) => i.product.id)), [items]);
   const slugById = useMemo(() => new Map(cats.map((c) => [c.id, c.slug] as const)), [cats]);
 
@@ -136,17 +121,6 @@ export function ProductBrowser() {
               className="pl-9"
             />
           </div>
-          {!q && (
-            <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <Chip active={active === 'fresh'} onClick={() => setActive('fresh')}>All fresh</Chip>
-              {freshCats.map((c) => (
-                <Chip key={c.id} active={active === c.id} onClick={() => setActive(c.id)}>{c.name}</Chip>
-              ))}
-              {otherCats.map((c) => (
-                <Chip key={c.id} active={active === c.id} onClick={() => setActive(c.id)}>{c.name}</Chip>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
