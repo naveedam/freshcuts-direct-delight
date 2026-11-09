@@ -153,20 +153,8 @@
   }
 }
 
-/* Today's Catch: cards roll slowly right to left; hovering (or touching) a card stops them. */
-@keyframes catch-roll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-.catch-roll {
-  animation: catch-roll var(--catch-duration, 40s) linear infinite;
-}
-.catch-roll-wrap:hover .catch-roll,
-.catch-roll-wrap:active .catch-roll,
-.catch-roll-wrap:focus-within .catch-roll {
-  animation-play-state: paused;
-}
-@media (prefers-reduced-motion: reduce) {
-  .catch-roll { animation: none; }
-  .catch-roll-wrap { overflow-x: auto; }
+/* Home search bar: under the site menu (4rem, 5rem on larger screens) and the home title bar. */
+.home-search-sticky { top: calc(4rem + var(--home-hero-h, 0px)); }
+@media (min-width: 768px) {
+  .home-search-sticky { top: calc(5rem + var(--home-hero-h, 0px)); }
 }
