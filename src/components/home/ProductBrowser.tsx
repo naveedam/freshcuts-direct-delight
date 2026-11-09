@@ -110,7 +110,8 @@ export function ProductBrowser() {
 
   return (
     <section id="menu" className="bg-background">
-      <div className="sticky top-16 md:top-20 z-40 bg-background/95 backdrop-blur border-b border-border">
+      {/* Search stays in place just under the home title bar (its height comes from CompactHero). */}
+      <div className="home-search-sticky sticky z-30 bg-background/95 backdrop-blur border-b border-border">
         <div className="container mx-auto px-4 py-3 space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
