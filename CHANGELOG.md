@@ -2,6 +2,17 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-08 (Outstanding figures, fixed screen tops, storefront)
+
+### Fixed
+- **Outstanding** in the party bar on Orders (e.g. B2901 Zenith Residences showed -₹687 instead of ₹7,241) and the **Total Outstanding** / **Overdue** cards on Orders and **Customer Outstanding** on the Dashboard now use the same figure as each row's Party Due: billed minus payments received, with advances set against later invoices. They used to add up each order's stored balance, which can be out of date or negative where an advance sits on one order. Shared in `src/lib/party-dues.ts`.
+
+### Changed
+- **Admin screens:** on larger screens the top of each list screen (title, totals, filters, and the tab bar on tabbed screens) stays in place while the list below scrolls: Orders, Products, Categories, Vendors, Purchase Orders, Vendor Ledger, Vendor Profitability, Delivery Partner Advances, Documents, Delivery Runs and Rate Management. Phones scroll as before.
+- **Storefront home:** heading now "Fresh meat & fish, delivered to your doorstep" with the line "The finest cuts and freshest catches, delivered to you". The category buttons under Today's Catch are removed (the same categories are in the site menu); the home page shows every fresh category, and search still works.
+- **Today's Catch** cards roll slowly from right to left and stop while the customer hovers over or touches them (they stay still for visitors who have reduced motion turned on).
+- **Category pages:** the coloured bar with the category name is shorter and stays in place under the site menu while the products scroll.
+
 ## 2026-11-08 (Chicken tabs alike; suppliers)
 
 ### Changed
