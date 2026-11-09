@@ -2,6 +2,15 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-09 (Party ledger payments)
+
+### Fixed
+- **A party payment shows as one line in the party ledger** with the full amount (e.g. ₹12,647 cash), not one line per invoice it settled. It's still applied to the open invoices oldest-first, as before; the line notes how many invoices it settled. Earlier split payments are grouped the same way (records saved together by the same person with the same method, reference and note). Migration `20261109100000_payment_batches.sql` adds `customer_payments.payment_batch_id`.
+- **Notes entered with a payment show in the ledger**, under the method and reference.
+
+### Changed
+- The payment method in both payment windows (single order and party) starts on **UPI**.
+
 ## 2026-11-09 (Home title bar, Today's Catch roll)
 
 ### Changed
