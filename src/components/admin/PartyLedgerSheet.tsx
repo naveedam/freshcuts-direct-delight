@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -53,9 +53,12 @@ export function PartyLedgerSheet({ open, onOpenChange, party, title }: Props) {
     enabled: open && !!party,
   });
 
+  // Which payment line has its list of settled invoices open.
+  const [openRow, setOpenRow] = useState<number | null>(null);
+
   const rows = useMemo(() => {
     if (!data) return [] as any[];
-    type Row = { date: string; type: 'invoice' | 'payment'; ref: string; note?: string | null; split?: number; debit: number; credit: number; balance: number; cancelled?: boolean };
+    type Row = { date: string; type: 'invoice' | 'payment'; ref: string; note?: string | null; split?: number; parts?: { invoice: string; amount: number }[]; debit: number; credit: number; balance: number; cancelled?: boolean };
     const events: Omit<Row, 'balance'>[] = [];
     for (const o of data.orders) {
       if (o.invoice_cancelled) continue;
@@ -83,6 +86,14 @@ export function PartyLedgerSheet({ open, onOpenChange, party, title }: Props) {
         ref: `${String(p.payment_method).replace('_', ' ')}${p.reference_number ? ` · ${p.reference_number}` : ''}`,
         note: list.map((x: any) => x.notes).find(Boolean) || null,
         split: list.length,
+        // Which invoices this payment settled, and how much went to each.
+        parts: list.map((x: any) => {
+          const o = data.orders.find((ord: any) => ord.id === x.order_id);
+          return {
+            invoice: o?.invoice_number || `#${String(x.order_id).slice(0, 8).toUpperCase()}`,
+            amount: Number(x.amount) || 0,
+          };
+        }),
         debit: 0,
         credit: list.reduce((s: number, x: any) => s + (Number(x.amount) || 0), 0),
       });
@@ -194,7 +205,27 @@ export function PartyLedgerSheet({ open, onOpenChange, party, title }: Props) {
                     <TableCell className="text-xs">
                       <span className="font-mono">{r.ref}</span>
                       {r.note && <span className="block text-muted-foreground whitespace-normal">{r.note}</span>}
-                      {r.split > 1 && <span className="block text-[10px] text-muted-foreground">Settled {r.split} invoices</span>}
+                      {r.split > 1 && (
+                        <>
+                          <button
+                            type="button"
+                            className="block text-[10px] text-primary underline-offset-2 hover:underline"
+                            onClick={() => setOpenRow(openRow === i ? null : i)}
+                          >
+                            {openRow === i ? 'Hide' : 'Show'} the {r.split} invoices settled
+                          </button>
+                          {openRow === i && (
+                            <ul className="mt-1 space-y-0.5">
+                              {r.parts?.map((pt: { invoice: string; amount: number }, k: number) => (
+                                <li key={k} className="flex justify-between gap-4 font-mono text-[11px]">
+                                  <span>{pt.invoice}</span>
+                                  <span className="text-green-700">{formatCurrency(pt.amount)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </>
+                      )}
                     </TableCell>
                     <TableCell className="text-right text-xs">{r.debit ? formatCurrency(r.debit) : '—'}</TableCell>
                     <TableCell className="text-right text-xs text-green-700">{r.credit ? formatCurrency(r.credit) : '—'}</TableCell>
