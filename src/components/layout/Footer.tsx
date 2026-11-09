@@ -1,3 +1,4 @@
+import logoLight from '@/assets/fresh-cuts-daily-logo-light.svg';
 import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Clock } from 'lucide-react';
 import { usePageContent, FooterContent } from '@/hooks/usePageContent';
@@ -23,11 +24,8 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12">
           {/* Brand */}
           <div className="space-y-4">
-            {/* One wordmark: "Fresh Cuts" with "Daily" in gold, no comma */}
-            <p className="font-heading text-2xl font-bold leading-none tracking-tight">
-              <span className="text-primary-foreground">{brandName}</span>{' '}
-              <span className="text-gold">Daily</span>
-            </p>
+            {/* The logo in white on the dark footer. */}
+            <img src={logoLight} alt={`${brandName} Daily`} className="h-24 w-auto" />
             <p className="font-body text-sm text-primary-foreground/70 leading-relaxed">
               {c.tagline}
             </p>

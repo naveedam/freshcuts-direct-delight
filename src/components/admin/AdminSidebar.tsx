@@ -1,3 +1,5 @@
+import brandLogo from '@/assets/fresh-cuts-daily-logo.svg';
+import brandIcon from '@/assets/fresh-cuts-daily-icon.svg';
 import { LayoutDashboard, Package, ShoppingCart, FileText, LogOut, Home, Building2, Truck, Receipt, BarChart3, Users, Upload, CalendarDays, Route, Tags } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, Link } from 'react-router-dom';
@@ -54,11 +56,15 @@ export function AdminSidebar() {
       <SidebarContent>
         {/* Logo */}
         <div className={`p-4 ${collapsed ? 'px-2' : ''}`}>
-          <Link to="/admin" className="flex items-center gap-2">
-            <span className="font-heading text-xl font-bold text-primary">
-              {collapsed ? 'FC' : 'FreshCuts'}
-            </span>
-            {!collapsed && <span className="font-body text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">Admin</span>}
+          <Link to="/admin" className="flex items-center gap-2" aria-label="Fresh Cuts Daily admin">
+            {collapsed ? (
+              <img src={brandIcon} alt="Fresh Cuts Daily" className="h-9 w-9" />
+            ) : (
+              <>
+                <img src={brandLogo} alt="Fresh Cuts Daily" className="h-14 w-auto" />
+                <span className="font-body text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">Admin</span>
+              </>
+            )}
           </Link>
         </div>
 

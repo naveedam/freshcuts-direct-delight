@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ShoppingCart, User, Menu, X, LogOut, Settings, Package, Shield, LayoutDashboard } from 'lucide-react';
-import logo from '@/assets/logo.png';
+import logo from '@/assets/fresh-cuts-daily-logo.svg';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
@@ -28,11 +28,12 @@ export function Header() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center">
-            <img 
-              src={logo} 
-              alt="Fresh Cuts Daily" 
-              className="h-12 md:h-14 w-auto"
+          <Link to="/" className="flex items-center group" aria-label="Fresh Cuts Daily home">
+            {/* Sharp at any size; as tall as the bar allows, with a slight lift on hover. */}
+            <img
+              src={logo}
+              alt="Fresh Cuts Daily"
+              className="h-14 md:h-[4.5rem] w-auto transition-transform duration-200 group-hover:scale-105"
             />
           </Link>
 

@@ -2,11 +2,19 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-09 (Logo)
+
+### Changed
+- The Fresh Cuts Daily logo (vector, sharp at any size) is used in the storefront header (larger, with a slight lift on hover), in white in the footer, on the sign-in page, and in the admin sidebar (the cleaver alone when the sidebar is collapsed).
+- Browser tab and phone home-screen icons use the cleaver (`public/favicon.svg`, `public/apple-touch-icon.png`).
+- `public/fresh-cuts-daily-logo.png` (1200 px) can be used as the Logo URL in Business Settings for invoices.
+
 ## 2026-11-09 (Party ledger payments)
 
 ### Fixed
 - **A party payment shows as one line in the party ledger** with the full amount (e.g. ₹12,647 cash), not one line per invoice it settled. It's still applied to the open invoices oldest-first, as before; the line notes how many invoices it settled. Earlier split payments are grouped the same way (records saved together by the same person with the same method, reference and note). Migration `20261109100000_payment_batches.sql` adds `customer_payments.payment_batch_id`.
 - **Notes entered with a payment show in the ledger**, under the method and reference.
+- A payment that settled several invoices has a **Show the N invoices settled** link that lists each invoice number and the amount applied to it.
 
 ### Changed
 - The payment method in both payment windows (single order and party) starts on **UPI**.
@@ -15,6 +23,7 @@ All notable changes to FreshCuts Daily are documented here.
 
 ### Changed
 - **Home page title bar** now matches the category bars: same height, and it stays in place under the site menu. The search bar stays in place just under it.
+- **Today's Catch** never shows a gap: with only a few fish the cards are repeated to fill the width, and the speed stays the same however many there are.
 - **Today's Catch** rolling no longer depends on the shared stylesheet, and it rolls on every computer, including ones with the "reduce motion" / "show animations" setting turned off (that setting had stopped it).
 
 ## 2026-11-08 (Outstanding figures, fixed screen tops, storefront)

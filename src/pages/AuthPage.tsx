@@ -1,3 +1,4 @@
+import brandLogo from '@/assets/fresh-cuts-daily-logo.svg';
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -103,13 +104,14 @@ const AuthPage = () => {
         <div className="w-full max-w-md">
           {/* Header */}
           <div className="text-center mb-8">
+            <img src={brandLogo} alt="Fresh Cuts Daily" className="h-28 w-auto mx-auto mb-4" />
             <h1 className="font-heading text-3xl font-bold text-foreground mb-2">
               {isLogin ? 'Welcome Back' : 'Create Account'}
             </h1>
             <p className="font-body text-muted-foreground">
               {isLogin 
                 ? 'Sign in to access your account and orders' 
-                : 'Join FreshCuts for premium meat delivery'}
+                : 'Join Fresh Cuts Daily for premium meat delivery'}
             </p>
           </div>
 
