@@ -1,3 +1,5 @@
+import { StickyTop } from '@/components/admin/TabbedAdminPage';
+import { invoiceDues } from '@/lib/party-dues';
 import { useState, useMemo } from 'react';
 import { istDateString, istDateOf } from '@/lib/live-rate';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -80,31 +82,6 @@ export default function OrdersAdmin() {
     refetchInterval: 60000,
   });
 
-  // Dashboard widgets — global
-  const widgets = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayMs = today.getTime();
-    // Payments are dated by when they were received, in IST; settlements aren't money received.
-    const todayStr = istDateString();
-    const todaysCollection = (allPayments || [])
-      .filter((p) => !p.is_adjustment && istDateOf(p.payment_date) === todayStr)
-      .reduce((s, p) => s + Number(p.amount || 0), 0);
-
-    let outstanding = 0;
-    let overdue = 0;
-    const now = Date.now();
-    for (const o of orders || []) {
-      if (o.invoice_cancelled) continue;
-      if (o.status === 'cancelled') continue;
-      const out = Number(o.balance_due) || Math.max(0, (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0));
-      if (out <= 0.01) continue;
-      outstanding += out;
-      const days = (now - new Date(o.created_at).getTime()) / 86400000;
-      if (days > 30) overdue += out;
-    }
-    return { todaysCollection, outstanding, overdue };
-  }, [orders, allPayments]);
 
   // Get unique building names for filtering
   const buildingNames = useMemo(() => {
@@ -157,27 +134,6 @@ export default function OrdersAdmin() {
 
   // Party summary — when any filter narrows the list
   const filtersActive = !!(buildingFilter || searchQuery.trim() || paymentStatusFilter !== 'all' || dateFrom || dateTo);
-  const partySummary = useMemo(() => {
-    if (!filtersActive) return null;
-    const ids = new Set(filteredOrders.map((o: any) => o.id));
-    const billed = filteredOrders
-      .filter((o: any) => !o.invoice_cancelled)
-      .reduce((s: number, o: any) => s + (Number(o.total_amount) || 0), 0);
-    const pays = (allPayments || []).filter((p) => ids.has(p.order_id));
-    const paid = pays.reduce((s, p) => s + Number(p.amount || 0), 0);
-    const lastPayment = pays
-      .map((p) => new Date(p.payment_date).getTime())
-      .sort((a, b) => b - a)[0];
-    return {
-      orderCount: filteredOrders.length,
-      billed,
-      paid,
-      outstanding: filteredOrders
-        .filter((o: any) => !o.invoice_cancelled && o.status !== 'cancelled')
-        .reduce((s: number, o: any) => s + (Number(o.balance_due) || Math.max(0, (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0))), 0),
-      lastPayment: lastPayment ? new Date(lastPayment) : null,
-    };
-  }, [filtersActive, filteredOrders, allPayments]);
 
   // Party outstanding map: aggregates unpaid balance across all invoices for the same party.
   // Key resolution priority: phone -> flat+building -> customer_email.
@@ -214,42 +170,64 @@ export default function OrdersAdmin() {
   // invoice's own total (an advance) is pooled and applied to the party's other
   // invoices oldest-first. A party's total due always equals the Ledger
   // (billed minus received).
-  const invoiceDueMap = useMemo(() => {
-    const result = new Map<string, number>();
-    if (!allPayments || !orders) return result;
-    const r2 = (n: number) => Math.round(n * 100) / 100;
-    const paidByOrder = new Map<string, number>();
-    for (const p of allPayments) {
-      paidByOrder.set(p.order_id, (paidByOrder.get(p.order_id) || 0) + (Number(p.amount) || 0));
+  const invoiceDueMap = useMemo(() => invoiceDues(orders as any, allPayments as any), [orders, allPayments]);
+
+  // An invoice's amount still due, from payments received (see invoiceDueMap).
+  const dueOf = (o: any): number => invoiceDueMap.has(o.id)
+    ? invoiceDueMap.get(o.id)!
+    : Math.max(0, (Number(o.total_amount) || 0) - (Number(o.amount_paid) || 0));
+
+  // Dashboard widgets — global
+  const widgets = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+    // Payments are dated by when they were received, in IST; settlements aren't money received.
+    const todayStr = istDateString();
+    const todaysCollection = (allPayments || [])
+      .filter((p) => !p.is_adjustment && istDateOf(p.payment_date) === todayStr)
+      .reduce((s, p) => s + Number(p.amount || 0), 0);
+
+    let outstanding = 0;
+    let overdue = 0;
+    const now = Date.now();
+    for (const o of orders || []) {
+      if (o.invoice_cancelled) continue;
+      if (o.status === 'cancelled') continue;
+      // Same figure as the Party Due on each row: payments received, advances set against
+      // later invoices. The stored balance_due can be stale or negative, so it isn't summed.
+      const out = dueOf(o);
+      if (out <= 0.01) continue;
+      outstanding += out;
+      const days = (now - new Date(o.created_at).getTime()) / 86400000;
+      if (days > 30) overdue += out;
     }
-    const groups = new Map<string, any[]>();
-    for (const o of orders) {
-      const k = partyKeyForOrder(o);
-      if (!k) continue;
-      if (!groups.has(k)) groups.set(k, []);
-      groups.get(k)!.push(o);
-    }
-    for (const list of groups.values()) {
-      list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-      let pool = 0;
-      const shortfalls: { id: string; amount: number }[] = [];
-      for (const o of list) {
-        const total = o.invoice_cancelled ? 0 : (Number(o.total_amount) || 0);
-        const paid = paidByOrder.get(o.id) || 0;
-        if (paid - total > 0.005) pool += paid - total;
-        else if (total - paid > 0.005) shortfalls.push({ id: o.id, amount: total - paid });
-      }
-      for (const s of shortfalls) {
-        const applied = Math.min(s.amount, pool);
-        pool -= applied;
-        result.set(s.id, r2(s.amount - applied));
-      }
-      for (const o of list) {
-        if (!result.has(o.id)) result.set(o.id, 0);
-      }
-    }
-    return result;
-  }, [orders, allPayments]);
+    return { todaysCollection, outstanding, overdue };
+  }, [orders, allPayments, invoiceDueMap]);
+
+  const partySummary = useMemo(() => {
+    if (!filtersActive) return null;
+    const ids = new Set(filteredOrders.map((o: any) => o.id));
+    const billed = filteredOrders
+      .filter((o: any) => !o.invoice_cancelled)
+      .reduce((s: number, o: any) => s + (Number(o.total_amount) || 0), 0);
+    const pays = (allPayments || []).filter((p) => ids.has(p.order_id));
+    const paid = pays.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const lastPayment = pays
+      .map((p) => new Date(p.payment_date).getTime())
+      .sort((a, b) => b - a)[0];
+    return {
+      orderCount: filteredOrders.length,
+      billed,
+      paid,
+      // Sum of each invoice's due, as in the Party Due column (billed minus received, advances
+      // applied oldest-first), so this always matches the rows and the Ledger.
+      outstanding: filteredOrders
+        .filter((o: any) => !o.invoice_cancelled && o.status !== 'cancelled')
+        .reduce((s: number, o: any) => s + dueOf(o), 0),
+      lastPayment: lastPayment ? new Date(lastPayment) : null,
+    };
+  }, [filtersActive, filteredOrders, allPayments, invoiceDueMap]);
 
   const partyCreditMap = useMemo(() => {
     const m = new Map<string, number>();
@@ -704,6 +682,7 @@ export default function OrdersAdmin() {
   return (
     <AdminLayout>
       <div className="space-y-4">
+        <StickyTop>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-heading text-3xl font-bold text-foreground">Orders</h1>
@@ -907,6 +886,8 @@ export default function OrdersAdmin() {
             </CardContent>
           </Card>
         )}
+
+        </StickyTop>
 
         {/* Orders Table */}
         <div className="bg-card border border-border rounded-lg overflow-hidden">

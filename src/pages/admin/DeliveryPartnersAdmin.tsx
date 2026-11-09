@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { PageFrame } from '@/components/admin/TabbedAdminPage';
+import { PageFrame, StickyTop } from '@/components/admin/TabbedAdminPage';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -124,6 +124,7 @@ export default function DeliveryPartnersAdmin({ embedded = false }: { embedded?:
   return (
     <PageFrame embedded={embedded}>
       <div className="space-y-6">
+        <StickyTop>
         <div>
           <h1 className="font-heading text-3xl font-bold text-foreground flex items-center gap-3">
             <Bike className="h-8 w-8" /> Delivery Partner Advances
@@ -152,6 +153,8 @@ export default function DeliveryPartnersAdmin({ embedded = false }: { embedded?:
             </div>
           </CardContent></Card>
         </div>
+
+        </StickyTop>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

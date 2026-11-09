@@ -1,3 +1,4 @@
+import { StickyTop } from '@/components/admin/TabbedAdminPage';
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -224,6 +225,7 @@ export default function DeliveryRunsAdmin() {
   return (
     <AdminLayout>
       <div className="space-y-4">
+        <StickyTop>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-heading text-3xl font-bold text-foreground">Delivery Runs</h1>
@@ -249,6 +251,8 @@ export default function DeliveryRunsAdmin() {
             <CardContent><p className="text-2xl font-bold">{todayTotalOrders}</p></CardContent>
           </Card>
         </div>
+
+        </StickyTop>
 
         {/* Runs table */}
         <Card>

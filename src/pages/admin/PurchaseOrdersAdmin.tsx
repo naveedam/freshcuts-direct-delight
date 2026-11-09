@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabase-paginate';
-import { PageFrame } from '@/components/admin/TabbedAdminPage';
+import { PageFrame, StickyTop } from '@/components/admin/TabbedAdminPage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -229,6 +229,7 @@ export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: b
   return (
     <PageFrame embedded={embedded}>
       <div className="space-y-4">
+        <StickyTop>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-heading text-3xl font-bold text-foreground">Purchase Orders</h1>
@@ -390,6 +391,8 @@ export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: b
             </CardContent>
           </Card>
         )}
+
+        </StickyTop>
 
         {/* Table */}
         <Card>

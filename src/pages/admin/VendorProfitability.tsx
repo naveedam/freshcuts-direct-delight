@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabase-paginate';
-import { PageFrame } from '@/components/admin/TabbedAdminPage';
+import { PageFrame, StickyTop } from '@/components/admin/TabbedAdminPage';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,6 +97,7 @@ export default function VendorProfitability({ embedded = false }: { embedded?: b
   return (
     <PageFrame embedded={embedded}>
       <div className="space-y-4">
+        <StickyTop>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-heading text-3xl font-bold">Vendor Profitability</h1>
@@ -113,6 +114,8 @@ export default function VendorProfitability({ embedded = false }: { embedded?: b
             <div><Label>To</Label><Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} /></div>
           </CardContent>
         </Card>
+
+        </StickyTop>
 
         <Card>
           <CardContent className="p-0">

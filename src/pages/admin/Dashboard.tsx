@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { istDateString, istDateOf, istDayStartISO } from '@/lib/live-rate';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabase-paginate';
+import { invoiceDues } from '@/lib/party-dues';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,10 +63,16 @@ export default function AdminDashboard() {
       return await fetchAllRows<any>(() =>
         supabase
           .from('orders')
-          .select('id, total_amount, amount_paid, balance_due, status, created_at, building_name, flat_number, shipping_cost, converted_to_sale, invoice_cancelled, weight_finalized')
+          .select('id, total_amount, amount_paid, balance_due, status, created_at, building_name, flat_number, phone, customer_email, shipping_cost, converted_to_sale, invoice_cancelled, weight_finalized')
           .order('created_at', { ascending: false })
       );
     }
+  });
+
+  // Every payment (just order and amount), for what each invoice still owes.
+  const { data: allPaymentsForDues } = useQuery({
+    queryKey: ['admin', 'dashboard-all-payments'],
+    queryFn: async () => fetchAllRows<any>(() => supabase.from('customer_payments').select('order_id, amount')),
   });
 
   const { data: orderItems } = useQuery({
@@ -172,23 +179,21 @@ export default function AdminDashboard() {
     const pendingFinalization = todayOrders.filter(o =>
       !o.weight_finalized && o.status !== 'cancelled'
     ).length;
+    // Same figures as the Orders screen's Party Due: payments received, advances set against
+    // later invoices (the stored balance_due can be stale or negative).
+    const dues = invoiceDues(orders as any, allPaymentsForDues as any);
+    const dueOf = (o: any) => dues.get(o.id) ?? Math.max(0, Number(o.total_amount) - Number(o.amount_paid || 0));
     const totalOutstanding = orders
       .filter(o => isLiveInvoice(o))
-      .reduce((s, o) => s + Math.max(0, Number(o.balance_due || 0) || (Number(o.total_amount) - Number(o.amount_paid || 0))), 0);
-    const overdueOrders = orders.filter(o => {
-      if (!isLiveInvoice(o)) return false;
-      const due = Number(o.balance_due || 0) || (Number(o.total_amount) - Number(o.amount_paid || 0));
-      if (due <= 0) return false;
-      const daysOld = (Date.now() - new Date(o.created_at).getTime()) / (1000 * 60 * 60 * 24);
-      return daysOld > 30;
-    });
-    const overdueAmount = overdueOrders.reduce((s, o) =>
-      s + (Number(o.balance_due || 0) || (Number(o.total_amount) - Number(o.amount_paid || 0))), 0);
+      .reduce((s, o) => s + dueOf(o), 0);
+    const overdueAmount = orders
+      .filter(o => isLiveInvoice(o) && (Date.now() - new Date(o.created_at).getTime()) / 86400000 > 30)
+      .reduce((s, o) => s + dueOf(o), 0);
     return {
       salesToday, vendorCostToday, profitToday, collectionsToday, expensesToday,
       ordersToday, pendingFinalization, totalOutstanding, overdueAmount,
     };
-  }, [orders, purchaseOrders, customerPayments, expensesCounted, today, istDay]);
+  }, [orders, purchaseOrders, customerPayments, allPaymentsForDues, expensesCounted, today, istDay]);
 
   // Vendor payments due this week
   const vendorPaymentsDue = useMemo(() => {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { PageFrame } from '@/components/admin/TabbedAdminPage';
+import { PageFrame, StickyTop } from '@/components/admin/TabbedAdminPage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -229,6 +229,7 @@ export default function VendorsAdmin({ embedded = false }: { embedded?: boolean 
   return (
     <PageFrame embedded={embedded}>
       <div className="space-y-4">
+        <StickyTop>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-heading text-3xl font-bold text-foreground">Vendors & Suppliers</h1>
@@ -521,6 +522,8 @@ export default function VendorsAdmin({ embedded = false }: { embedded?: boolean 
             </SelectContent>
           </Select>
         </div>
+
+        </StickyTop>
 
         {/* Vendors Table */}
         <div className="bg-card border border-border rounded-lg overflow-hidden">

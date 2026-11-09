@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabase-paginate';
-import { PageFrame } from '@/components/admin/TabbedAdminPage';
+import { PageFrame, StickyTop } from '@/components/admin/TabbedAdminPage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,6 +97,7 @@ export default function VendorLedger({ embedded = false }: { embedded?: boolean 
   return (
     <PageFrame embedded={embedded}>
       <div className="space-y-4">
+        <StickyTop>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-heading text-3xl font-bold">Vendor Ledger</h1>
@@ -143,6 +144,8 @@ export default function VendorLedger({ embedded = false }: { embedded?: boolean 
             <div><Label>To</Label><Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} /></div>
           </CardContent>
         </Card>
+
+        </StickyTop>
 
         {/* Table */}
         <Card>

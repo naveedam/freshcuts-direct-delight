@@ -1,3 +1,4 @@
+import { StickyTop } from '@/components/admin/TabbedAdminPage';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -85,20 +86,21 @@ export default function RateManagementAdmin() {
   return (
     <AdminLayout>
       <div className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Tags className="h-6 w-6" /> Rate Management</h1>
-          <p className="text-sm text-muted-foreground">
-            Every purchase and selling price, with history. A price stays in force until a newer one is saved; prices are checked against cost and the previous price before saving.
-          </p>
-        </div>
-
-        <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })}>
-          <TabsList>
-            <TabsTrigger value="chicken">Chicken</TabsTrigger>
-            <TabsTrigger value="mutton">Mutton</TabsTrigger>
-            <TabsTrigger value="seafood">Seafood</TabsTrigger>
-            <TabsTrigger value="other">Other Products</TabsTrigger>
-          </TabsList>
+        <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })} className="space-y-4">
+          <StickyTop>
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2"><Tags className="h-6 w-6" /> Rate Management</h1>
+              <p className="text-sm text-muted-foreground">
+                Every purchase and selling price, with history. A price stays in force until a newer one is saved; prices are checked against cost and the previous price before saving.
+              </p>
+            </div>
+            <TabsList>
+              <TabsTrigger value="chicken">Chicken</TabsTrigger>
+              <TabsTrigger value="mutton">Mutton</TabsTrigger>
+              <TabsTrigger value="seafood">Seafood</TabsTrigger>
+              <TabsTrigger value="other">Other Products</TabsTrigger>
+            </TabsList>
+          </StickyTop>
 
           {isLoading ? (
             <Loader2 className="h-5 w-5 animate-spin mt-4" />
