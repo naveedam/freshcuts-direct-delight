@@ -55,7 +55,7 @@ export function PartyLedgerSheet({ open, onOpenChange, party, title }: Props) {
 
   const rows = useMemo(() => {
     if (!data) return [] as any[];
-    type Row = { date: string; type: 'invoice' | 'payment'; ref: string; debit: number; credit: number; balance: number; cancelled?: boolean };
+    type Row = { date: string; type: 'invoice' | 'payment'; ref: string; note?: string | null; split?: number; debit: number; credit: number; balance: number; cancelled?: boolean };
     const events: Omit<Row, 'balance'>[] = [];
     for (const o of data.orders) {
       if (o.invoice_cancelled) continue;
@@ -67,13 +67,24 @@ export function PartyLedgerSheet({ open, onOpenChange, party, title }: Props) {
         credit: 0,
       });
     }
+    // A payment recorded for the party is saved split across the invoices it settles; those
+    // records share a payment_batch_id and are shown here as the one payment that was made.
+    const batches = new Map<string, any[]>();
     for (const p of data.payments) {
+      const key = p.payment_batch_id || p.id;
+      if (!batches.has(key)) batches.set(key, []);
+      batches.get(key)!.push(p);
+    }
+    for (const list of batches.values()) {
+      const p = list[0];
       events.push({
-        date: p.payment_date,
+        date: list.reduce((d: string, x: any) => (x.payment_date < d ? x.payment_date : d), p.payment_date),
         type: 'payment',
-        ref: `${p.payment_method}${p.reference_number ? ` · ${p.reference_number}` : ''}`,
+        ref: `${String(p.payment_method).replace('_', ' ')}${p.reference_number ? ` · ${p.reference_number}` : ''}`,
+        note: list.map((x: any) => x.notes).find(Boolean) || null,
+        split: list.length,
         debit: 0,
-        credit: Number(p.amount) || 0,
+        credit: list.reduce((s: number, x: any) => s + (Number(x.amount) || 0), 0),
       });
     }
     events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -180,7 +191,11 @@ export function PartyLedgerSheet({ open, onOpenChange, party, title }: Props) {
                         <Badge className="bg-green-600 text-[10px]">Payment</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-xs font-mono">{r.ref}</TableCell>
+                    <TableCell className="text-xs">
+                      <span className="font-mono">{r.ref}</span>
+                      {r.note && <span className="block text-muted-foreground whitespace-normal">{r.note}</span>}
+                      {r.split > 1 && <span className="block text-[10px] text-muted-foreground">Settled {r.split} invoices</span>}
+                    </TableCell>
                     <TableCell className="text-right text-xs">{r.debit ? formatCurrency(r.debit) : '—'}</TableCell>
                     <TableCell className="text-right text-xs text-green-700">{r.credit ? formatCurrency(r.credit) : '—'}</TableCell>
                     <TableCell className={`text-right text-xs font-semibold ${r.balance > 0 ? 'text-destructive' : 'text-foreground'}`}>{formatCurrency(r.balance)}</TableCell>

@@ -33,7 +33,7 @@ export function OrderPaymentDialog({ open, onOpenChange, order }: OrderPaymentDi
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState('');
-  const [method, setMethod] = useState('cash');
+  const [method, setMethod] = useState('upi'); // nearly all payments come by UPI
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
 

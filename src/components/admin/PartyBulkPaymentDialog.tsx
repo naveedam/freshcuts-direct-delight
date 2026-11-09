@@ -32,7 +32,7 @@ export function PartyBulkPaymentDialog({ open, onOpenChange, party, title }: Pro
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [amount, setAmount] = useState('');
-  const [method, setMethod] = useState('cash');
+  const [method, setMethod] = useState('upi'); // nearly all payments come by UPI
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -83,6 +83,9 @@ export function PartyBulkPaymentDialog({ open, onOpenChange, party, title }: Pro
 
       let remaining = payAmount;
       let ordersUpdated = 0;
+      // One payment, possibly split over several invoices: the records share this id so the
+      // ledger shows a single payment of the full amount.
+      const batchId = crypto.randomUUID();
 
       const applyToOrder = async (orderId: string, applied: number) => {
         const { error: payErr } = await supabase.from('customer_payments').insert({
@@ -92,7 +95,8 @@ export function PartyBulkPaymentDialog({ open, onOpenChange, party, title }: Pro
           reference_number: reference || null,
           notes: notes || null,
           recorded_by: user?.id || null,
-        });
+          payment_batch_id: batchId,
+        } as any);
         if (payErr) throw payErr;
 
         const cur = state.get(orderId)!;
