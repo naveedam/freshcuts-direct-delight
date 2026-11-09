@@ -15,10 +15,10 @@ const CategoryPage = () => {
   if (categoryLoading) {
     return (
       <Layout>
-        <section className="bg-primary py-12 md:py-16">
+        <section className="bg-primary py-4 md:py-6">
           <div className="container mx-auto px-4">
-            <Skeleton className="h-12 w-64 bg-primary-foreground/20 mb-4" />
-            <Skeleton className="h-6 w-96 bg-primary-foreground/20" />
+            <Skeleton className="h-9 w-64 bg-primary-foreground/20 mb-2" />
+            <Skeleton className="h-5 w-96 bg-primary-foreground/20" />
           </div>
         </section>
       </Layout>
@@ -42,15 +42,18 @@ const CategoryPage = () => {
 
   return (
     <Layout>
-      {/* Hero Section */}
-      <section className="bg-primary py-12 md:py-16">
+      {/* Category bar: shorter than before and stays in place under the site header while the
+          products scroll. */}
+      <section className="sticky top-16 md:top-20 z-40 bg-primary py-4 md:py-6 shadow-sm">
         <div className="container mx-auto px-4">
-          <h1 className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-primary-foreground mb-4">
+          <h1 className="font-heading text-2xl md:text-4xl font-bold text-primary-foreground">
             {category.name}
           </h1>
-          <p className="font-body text-lg text-primary-foreground/80 max-w-2xl">
-            {category.description}
-          </p>
+          {category.description && (
+            <p className="font-body text-sm md:text-base text-primary-foreground/80 max-w-2xl mt-1">
+              {category.description}
+            </p>
+          )}
         </div>
       </section>
 
