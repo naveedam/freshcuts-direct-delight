@@ -22,7 +22,8 @@ export function TodaysCatchStrip() {
     },
   });
 
-  if (!catchItems || catchItems.length === 0) return null;
+  const shown = (catchItems || []).filter((item: any) => item.products && !item.products.awaiting_daily_price);
+  if (shown.length === 0) return null;
 
   return (
     <div className="bg-blue-50 border-y border-blue-100 py-4">
@@ -32,30 +33,45 @@ export function TodaysCatchStrip() {
           <h2 className="font-semibold text-blue-900">Today's Catch</h2>
           <span className="text-xs text-blue-600">Fresh in this morning</span>
         </div>
-        <div className="flex gap-3 overflow-x-auto pb-1">
-          {catchItems.map((item: any) => {
-            const product = item.products;
-            if (!product || product.awaiting_daily_price) return null;
-            return (
-              <Link
-                key={item.id}
-                to={`/product/${product.id}`}
-                className="shrink-0 bg-white rounded-lg border border-blue-100 px-4 py-2 hover:shadow-md transition-shadow min-w-[160px]"
-              >
-                <p className="font-medium text-sm">{product.name}</p>
-                {item.note && (
-                  <p className="text-xs text-muted-foreground truncate">{item.note}</p>
-                )}
-                {seafood.visible ? (
-                  <p className="text-sm font-semibold text-primary mt-1">
-                    ₹{product.price}/{product.unit}
-                  </p>
-                ) : (
-                  <SeafoodPriceNote message={seafood.message} className="mt-1" />
-                )}
-              </Link>
-            );
-          })}
+        {/* Two copies side by side, moved left by one copy's width, so the roll never has a gap.
+            The animation is defined here so it can't go missing with a stylesheet. */}
+        <style>{`
+          @keyframes fc-catch-roll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+          .fc-catch-track { animation: fc-catch-roll var(--catch-duration, 40s) linear infinite; will-change: transform; }
+          .fc-catch-wrap:hover .fc-catch-track,
+          .fc-catch-wrap:active .fc-catch-track,
+          .fc-catch-wrap:focus-within .fc-catch-track { animation-play-state: paused; }
+        `}</style>
+        <div className="fc-catch-wrap overflow-hidden pb-1">
+          <div className="fc-catch-track flex w-max" style={{ ['--catch-duration' as any]: `${Math.max(20, shown.length * 5)}s` }}>
+            {[0, 1].map((copy) => (
+              <div key={copy} className="flex gap-3 pr-3" aria-hidden={copy === 1 || undefined}>
+                {shown.map((item: any) => {
+                  const product = item.products;
+                  return (
+                    <Link
+                      key={`${copy}-${item.id}`}
+                      to={`/product/${product.id}`}
+                      tabIndex={copy === 1 ? -1 : undefined}
+                      className="shrink-0 bg-white rounded-lg border border-blue-100 px-4 py-2 hover:shadow-md transition-shadow min-w-[160px]"
+                    >
+                      <p className="font-medium text-sm">{product.name}</p>
+                      {item.note && (
+                        <p className="text-xs text-muted-foreground truncate">{item.note}</p>
+                      )}
+                      {seafood.visible ? (
+                        <p className="text-sm font-semibold text-primary mt-1">
+                          ₹{product.price}/{product.unit}
+                        </p>
+                      ) : (
+                        <SeafoodPriceNote message={seafood.message} className="mt-1" />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
