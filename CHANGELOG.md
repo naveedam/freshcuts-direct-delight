@@ -2,6 +2,12 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-09 (Home title bar, Today's Catch roll)
+
+### Changed
+- **Home page title bar** now matches the category bars: same height, and it stays in place under the site menu. The search bar stays in place just under it.
+- **Today's Catch** rolling no longer depends on the shared stylesheet, and it rolls on every computer, including ones with the "reduce motion" / "show animations" setting turned off (that setting had stopped it).
+
 ## 2026-11-08 (Outstanding figures, fixed screen tops, storefront)
 
 ### Fixed
