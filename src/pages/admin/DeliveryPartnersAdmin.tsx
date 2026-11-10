@@ -120,6 +120,17 @@ export default function DeliveryPartnersAdmin({ embedded = false }: { embedded?:
   const [entryFor, setEntryFor] = useState<Partner | null>(null);
   const [settleFor, setSettleFor] = useState<Partner | null>(null);
   const [ledgerFor, setLedgerFor] = useState<Partner | null>(null);
+  const [deleteFor, setDeleteFor] = useState<Partner | null>(null);
+
+  // Deletes the partner and their whole ledger in one step (kept in the audit log).
+  const deletePartner = useMutation({
+    mutationFn: async (p: Partner) => {
+      const { error } = await db.rpc('delete_delivery_partner', { p_partner_id: p.id });
+      if (error) throw error;
+    },
+    onSuccess: (_d, p) => { toast.success(`${p.name} deleted`); setDeleteFor(null); refresh(); },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   return (
     <PageFrame embedded={embedded}>
@@ -203,6 +214,10 @@ export default function DeliveryPartnersAdmin({ embedded = false }: { embedded?:
                               <Button size="sm" onClick={() => setSettleFor(p)}><Wallet className="h-4 w-4 mr-1" />Settle days</Button>
                               <Button size="sm" variant="outline" onClick={() => setLedgerFor(p)}><BookOpen className="h-4 w-4 mr-1" />Ledger</Button>
                               <Button size="sm" variant="ghost" onClick={() => toggleActive.mutate(p)}>{p.is_active ? 'Deactivate' : 'Activate'}</Button>
+                              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" title="Delete this partner"
+                                onClick={() => setDeleteFor(p)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -218,6 +233,28 @@ export default function DeliveryPartnersAdmin({ embedded = false }: { embedded?:
 
       {entryFor && <EntryDialog partner={entryFor} balance={balanceOf(entryFor.id)} today={today} onClose={() => setEntryFor(null)} onDone={refresh} />}
       {settleFor && <SettleDialog partner={settleFor} balance={balanceOf(settleFor.id)} today={today} onClose={() => setSettleFor(null)} onDone={refresh} />}
+      <Dialog open={!!deleteFor} onOpenChange={(o) => !o && setDeleteFor(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete {deleteFor?.name}?</DialogTitle>
+            <DialogDescription>
+              {deleteFor && (() => {
+                const b = balanceOf(deleteFor.id);
+                const open = Math.abs(Number(b.advance_balance)) > 0.005 || Math.abs(Number(b.amount_due)) > 0.005;
+                return open
+                  ? `They still hold ${rupee(Number(b.advance_balance))} of advance and are owed ${rupee(Number(b.amount_due))}. Deleting removes them and their whole ledger. To keep the history, Deactivate instead.`
+                  : 'This removes them and their whole ledger. To keep the history, Deactivate instead.';
+              })()}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteFor(null)}>Cancel</Button>
+            <Button variant="destructive" disabled={deletePartner.isPending} onClick={() => deleteFor && deletePartner.mutate(deleteFor)}>
+              {deletePartner.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {ledgerFor && <LedgerDialog partner={ledgerFor} today={today} onClose={() => setLedgerFor(null)} onChanged={refresh} />}
     </PageFrame>
   );

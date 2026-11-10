@@ -15,6 +15,24 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 
+// Shop-front names for the menu. A category not listed here keeps its own name.
+const MENU_LABELS: Record<string, string> = {
+  lamb: 'Prime Mutton',
+  poultry: 'Farm Poultry',
+  seafood: 'Ocean Fresh',
+  pantry: 'The Pantry',
+};
+const menuLabel = (cat: { slug: string; name: string }) =>
+  MENU_LABELS[cat.slug] || (/pantry/i.test(cat.name) ? 'The Pantry' : cat.name);
+
+// Serif, spaced capitals with a gold underline that draws in on hover.
+const NAV_LINK =
+  "relative font-heading text-[13px] lg:text-[15px] font-semibold uppercase tracking-[0.1em] lg:tracking-[0.14em] text-foreground hover:text-primary transition-colors " +
+  "after:absolute after:left-0 after:-bottom-1.5 after:h-[2px] after:w-full after:origin-left after:scale-x-0 after:bg-gold " +
+  "after:transition-transform after:duration-300 hover:after:scale-x-100";
+const MOBILE_LINK =
+  "font-heading text-base font-semibold uppercase tracking-[0.12em] text-foreground hover:text-primary transition-colors";
+
 export function Header() {
   const { totalItems } = useCart();
   const { user, signOut, isAdmin } = useAuth();
@@ -38,11 +56,8 @@ export function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8">
-            <Link 
-              to="/" 
-              className="font-body text-sm font-medium text-foreground hover:text-primary transition-colors"
-            >
+          <nav className="hidden md:flex items-center gap-5 lg:gap-9">
+            <Link to="/" className={NAV_LINK}>
               Home
             </Link>
             {categoriesLoading ? (
@@ -56,9 +71,9 @@ export function Header() {
                 <Link
                   key={cat.id}
                   to={`/category/${cat.slug}`}
-                  className="font-body text-sm font-medium text-foreground hover:text-primary transition-colors"
+                  className={NAV_LINK}
                 >
-                  {cat.name}
+                  {menuLabel(cat)}
                 </Link>
               ))
             )}
@@ -152,7 +167,7 @@ export function Header() {
             <div className="flex flex-col gap-4">
               <Link 
                 to="/" 
-                className="font-body text-sm font-medium text-foreground hover:text-primary transition-colors"
+                className={MOBILE_LINK}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Home
@@ -161,10 +176,10 @@ export function Header() {
                 <Link
                   key={cat.id}
                   to={`/category/${cat.slug}`}
-                  className="font-body text-sm font-medium text-foreground hover:text-primary transition-colors"
+                  className={MOBILE_LINK}
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  {cat.name}
+                  {menuLabel(cat)}
                 </Link>
               ))}
               

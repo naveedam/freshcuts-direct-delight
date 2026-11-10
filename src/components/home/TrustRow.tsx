@@ -1,13 +1,12 @@
 import { Star } from 'lucide-react';
-import { usePageContent, type GoogleReviewsContent } from '@/hooks/usePageContent';
+import { useGoogleRating, type GoogleReviewsContent } from '@/hooks/usePageContent';
 
 const REVIEWS_URL = 'https://share.google/YgAiKvO7dRTtaVLq9';
 
 const fallback: GoogleReviewsContent = { overallRating: 5.0, totalReviews: 61, reviews: [] };
 
 export function TrustRow() {
-  const { data: content } = usePageContent<GoogleReviewsContent>('google_reviews');
-  const c = content || fallback;
+  const c = useGoogleRating(fallback);
   const reviews = (c.reviews || []).slice(0, 3);
   return (
     <section className="py-8 bg-background">

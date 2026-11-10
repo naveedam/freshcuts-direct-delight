@@ -26,40 +26,58 @@ function ProductRow({
 }: { product: StorefrontProduct; emoji: string; inCart: boolean; onAdd: () => void }) {
   const hasImage = !!product.image && product.image !== '/placeholder.svg';
   const seafood = useSeafoodStorefront();
+  const availability = availabilityOf(product);
   return (
-    <div className="flex items-center gap-3 bg-card border border-border rounded-xl p-3">
+    <div className="group flex flex-col bg-card border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
       <Link
         to={`/product/${product.id}`}
-        className="shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-muted flex items-center justify-center text-2xl"
+        className="relative block aspect-[4/3] overflow-hidden bg-muted flex items-center justify-center text-5xl"
       >
         {hasImage ? (
-          <img src={product.image} alt={product.name} loading="lazy" className="w-full h-full object-cover" />
+          <img
+            src={product.image}
+            alt={product.name}
+            loading="lazy"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
         ) : (
           <span>{emoji}</span>
         )}
-      </Link>
-      <Link to={`/product/${product.id}`} className="min-w-0 flex-1">
-        <p className="font-heading text-base font-semibold text-foreground leading-snug line-clamp-2">
-          {product.name}
-        </p>
-        {seafood.isHidden(product.category) ? (
-          <SeafoodPriceNote message={seafood.message} />
-        ) : (
-          <p className="font-body text-sm text-muted-foreground">
-            <span className="font-semibold text-primary">₹{product.price.toFixed(0)}</span>{' '}
-            {getPriceUnitLabel(product.pricingModel || 'weight_based')}
-          </p>
+        {inCart && (
+          <span className="absolute top-2 left-2 rounded-full bg-green-600/90 px-2.5 py-0.5 text-[11px] font-medium text-white">
+            In your basket
+          </span>
         )}
-        {inCart && <p className="text-xs font-medium text-green-600">In cart</p>}
       </Link>
-      {canAddToCart(availabilityOf(product)) ? (
-        <Button size="sm" onClick={onAdd} className="shrink-0 gap-1">
-          <Plus className="h-4 w-4" />
-          {availabilityOf(product) === 'preorder' ? 'Pre-order' : 'Add'}
-        </Button>
-      ) : (
-        <span className="shrink-0 text-xs font-medium text-muted-foreground">{AVAILABILITY_LABEL[availabilityOf(product)]}</span>
-      )}
+      <div className="flex flex-1 flex-col p-3 md:p-4">
+        <Link to={`/product/${product.id}`} className="flex-1">
+          <p className="font-heading text-base md:text-lg font-semibold text-foreground leading-snug line-clamp-2">
+            {product.name}
+          </p>
+          {seafood.isHidden(product.category) ? (
+            <SeafoodPriceNote message={seafood.message} className="mt-1" />
+          ) : (
+            <p className="font-body text-sm text-muted-foreground mt-1">
+              <span className="font-heading text-lg font-bold text-primary">₹{product.price.toFixed(0)}</span>{' '}
+              {getPriceUnitLabel(product.pricingModel || 'weight_based')}
+            </p>
+          )}
+        </Link>
+        {canAddToCart(availability) ? (
+          <Button
+            size="sm"
+            onClick={onAdd}
+            className="mt-3 w-full gap-1.5 rounded-full font-heading tracking-wide"
+          >
+            <Plus className="h-4 w-4" />
+            {availability === 'preorder' ? 'Reserve yours' : 'Add to basket'}
+          </Button>
+        ) : (
+          <span className="mt-3 block text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {AVAILABILITY_LABEL[availability]}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -127,8 +145,8 @@ export function ProductBrowser() {
 
       <div className="container mx-auto px-4 py-6 space-y-8">
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
+            {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)}
           </div>
         ) : sections.length === 0 ? (
           <p className="text-center text-muted-foreground py-10">
@@ -138,9 +156,9 @@ export function ProductBrowser() {
           sections.map((s) => (
             <div key={s.id}>
               {s.title && (
-                <h2 className="font-heading text-xl font-bold text-foreground mb-3">{s.title}</h2>
+                <h2 className="font-heading text-2xl font-bold text-foreground mb-4">{s.title}</h2>
               )}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
                 {s.list.map((p) => (
                   <ProductRow
                     key={p.id}

@@ -69,7 +69,7 @@ export function ProductCard({ product }: ProductCardProps) {
             disabled={!canAddToCart(availability)}
           >
             <Plus className="h-4 w-4" />
-            {availability === 'preorder' ? 'Pre-order' : 'Quick Add'}
+            {availability === 'preorder' ? 'Reserve yours' : 'Add to basket'}
           </Button>
         </div>
       </Link>

@@ -1,5 +1,5 @@
 import { Star } from 'lucide-react';
-import { usePageContent, type GoogleReviewsContent } from '@/hooks/usePageContent';
+import { useGoogleRating, type GoogleReviewsContent } from '@/hooks/usePageContent';
 
 const defaultContent: GoogleReviewsContent = {
   overallRating: 5.0,
@@ -8,8 +8,7 @@ const defaultContent: GoogleReviewsContent = {
 };
 
 export function GoogleReviews() {
-  const { data: content } = usePageContent<GoogleReviewsContent>('google_reviews');
-  const reviewsContent = content || defaultContent;
+  const reviewsContent = useGoogleRating(defaultContent);
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (

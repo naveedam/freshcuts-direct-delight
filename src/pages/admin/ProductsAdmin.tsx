@@ -1,5 +1,6 @@
 import { isSeafood, useSeafoodDayPrices } from '@/lib/seafood-availability';
 import { istDateString } from '@/lib/live-rate';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useState, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -281,6 +282,29 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
       queryClient.invalidateQueries({ queryKey: ['products'] });
     },
   });
+
+  // Turn one switch on or off for every product currently listed (after search and filters).
+  // Seafood's Order form follows the day's prices, so it's left out of that column.
+  const bulkToggle = useMutation({
+    mutationFn: async ({ field, value, ids }: { field: SwitchField; value: boolean; ids: string[] }) => {
+      for (let i = 0; i < ids.length; i += 200) {
+        const { error } = await supabase.from('products').update({ [field]: value } as any).in('id', ids.slice(i, i + 200));
+        if (error) throw error;
+      }
+      return ids.length;
+    },
+    onSuccess: (n, { field, value }) => {
+      toast.success(`${SWITCHES.find((x) => x.field === field)?.short} turned ${value ? 'on' : 'off'} for ${n} product${n === 1 ? '' : 's'}`);
+    },
+    onError: (e: Error) => toast.error('Not saved: ' + e.message),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+  });
+  const bulkTargets = (field: SwitchField) => (visibleProducts as any[])
+    .filter((p) => !(field === 'show_in_order_form' && p.orderFormToday !== undefined))
+    .map((p) => p.id as string);
 
   const slugOf = (p: any) => {
     const text = String(p.category || '').toLowerCase();
@@ -619,7 +643,26 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
                 {SWITCHES.map((sw) => (
-                  <TableHead key={sw.field} className="text-center text-xs whitespace-nowrap px-2">{sw.short}</TableHead>
+                  <TableHead key={sw.field} className="text-center text-xs whitespace-nowrap px-2">
+                    <div>{sw.short}</div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button type="button" className="text-[10px] font-normal text-primary hover:underline">All on / off</button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-56 p-3 text-left" align="center">
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {sw.short} for the {bulkTargets(sw.field).length} product{bulkTargets(sw.field).length === 1 ? '' : 's'} listed
+                          {sw.field === 'show_in_order_form' ? ' (seafood follows its daily price)' : ''}:
+                        </p>
+                        <div className="flex gap-2">
+                          <Button size="sm" className="flex-1" disabled={bulkToggle.isPending || bulkTargets(sw.field).length === 0}
+                            onClick={() => bulkToggle.mutate({ field: sw.field, value: true, ids: bulkTargets(sw.field) })}>All on</Button>
+                          <Button size="sm" variant="outline" className="flex-1" disabled={bulkToggle.isPending || bulkTargets(sw.field).length === 0}
+                            onClick={() => bulkToggle.mutate({ field: sw.field, value: false, ids: bulkTargets(sw.field) })}>All off</Button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </TableHead>
                 ))}
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>

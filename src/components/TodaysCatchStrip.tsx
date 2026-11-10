@@ -58,8 +58,8 @@ export function TodaysCatchStrip() {
       <div className="container mx-auto px-4">
         <div className="flex items-center gap-2 mb-3">
           <Fish className="h-5 w-5 text-blue-700" />
-          <h2 className="font-semibold text-blue-900">Today's Catch</h2>
-          <span className="text-xs text-blue-600">Fresh in this morning</span>
+          <h2 className="font-heading text-xl font-semibold text-blue-950">Today's Catch</h2>
+          <span className="font-body text-sm italic text-blue-700">Fresh off the boats this morning</span>
         </div>
         {/* Two copies side by side, moved left by one copy's width, so the roll never has a gap.
             The animation is defined here so it can't go missing with a stylesheet. */}
@@ -82,19 +82,29 @@ export function TodaysCatchStrip() {
                       key={`${copy}-${item.id}`}
                       to={`/product/${product.id}`}
                       tabIndex={copy > 0 ? -1 : undefined}
-                      className="shrink-0 bg-white rounded-lg border border-blue-100 px-4 py-2 hover:shadow-md transition-shadow min-w-[160px]"
+                      className="shrink-0 flex items-center gap-3 bg-white rounded-xl border border-blue-100 p-2 pr-5 shadow-sm hover:shadow-md transition-shadow w-[250px] md:w-[280px]"
                     >
-                      <p className="font-medium text-sm">{product.name}</p>
-                      {item.note && (
-                        <p className="text-xs text-muted-foreground truncate">{item.note}</p>
-                      )}
-                      {seafood.visible ? (
-                        <p className="text-sm font-semibold text-primary mt-1">
-                          ₹{product.price}/{product.unit}
-                        </p>
-                      ) : (
-                        <SeafoodPriceNote message={seafood.message} className="mt-1" />
-                      )}
+                      <div className="shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden bg-blue-50 flex items-center justify-center">
+                        {product.image_url ? (
+                          <img src={product.image_url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                        ) : (
+                          <Fish className="h-8 w-8 text-blue-300" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-heading text-base font-semibold text-blue-950 leading-snug line-clamp-2">{product.name}</p>
+                        {item.note && (
+                          <p className="font-body text-xs italic text-muted-foreground truncate">{item.note}</p>
+                        )}
+                        {seafood.visible ? (
+                          <p className="mt-1 font-heading text-base font-bold text-primary">
+                            ₹{product.price}
+                            <span className="font-body text-xs font-normal text-muted-foreground"> / {product.unit}</span>
+                          </p>
+                        ) : (
+                          <SeafoodPriceNote message={seafood.message} className="mt-1" />
+                        )}
+                      </div>
                     </Link>
                   );
                 })}

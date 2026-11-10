@@ -27,8 +27,8 @@ const CATEGORIES = [
 // purchase or a monthly bill doesn't make the day it's paid look like a loss.
 const EXPENSE_TYPES = [
   { value: 'daily', label: 'Daily running cost', hint: 'Counted on the day (delivery, ice, fuel)' },
-  { value: 'packaging', label: 'Packaging stock', hint: 'Boxes, covers, labels: spread over the period they last' },
-  { value: 'overhead', label: 'Fixed overhead', hint: 'Electricity, water, rent, internet: spread over the period covered' },
+  { value: 'packaging', label: 'Packaging stock', hint: 'Boxes, covers, labels: shared out over the month of the expense date' },
+  { value: 'overhead', label: 'Fixed overhead', hint: 'Electricity, water, rent, internet: shared out over the month of the expense date' },
   { value: 'capital', label: 'Capital purchase', hint: 'Freezer, scale: left out of daily profit' },
 ];
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(EXPENSE_TYPES.map((t) => [t.value, t.label]));
@@ -56,8 +56,6 @@ export default function ExpensesAdmin({ embedded = false }: { embedded?: boolean
   const [payee, setPayee] = useState('');
   const [notes, setNotes] = useState('');
   const [expenseType, setExpenseType] = useState('daily');
-  const [spreadFrom, setSpreadFrom] = useState('');
-  const [spreadTo, setSpreadTo] = useState('');
   const [filterMonth, setFilterMonth] = useState(today.slice(0, 7));
   const [filterCategory, setFilterCategory] = useState('all');
 
@@ -89,13 +87,14 @@ export default function ExpensesAdmin({ embedded = false }: { embedded?: boolean
   const addMutation = useMutation({
     mutationFn: async () => {
       if (!category || !amount || parseFloat(amount) <= 0) throw new Error('Category and amount are required');
-      const spread = expenseType === 'packaging' || expenseType === 'overhead' || (spreadFrom && spreadTo);
-      if (spread && (!spreadFrom || !spreadTo)) throw new Error('Pick the period this expense covers');
-      if (spread && spreadTo < spreadFrom) throw new Error('The period ends before it starts');
+      // Packaging stock and fixed overheads are shared out over the month of the expense date, so
+      // one bill doesn't make a single day look like a loss. Daily costs count on their own day.
+      const spread = expenseType === 'packaging' || expenseType === 'overhead';
+      const month = monthBounds(date || today);
       const { error } = await supabase.from('expenses').insert({
         expense_type: expenseType,
-        spread_from: spread && expenseType !== 'capital' ? spreadFrom : null,
-        spread_to: spread && expenseType !== 'capital' ? spreadTo : null,
+        spread_from: spread ? month.from : null,
+        spread_to: spread ? month.to : null,
         expense_date: date,
         category,
         sub_category: subCategory || null,
@@ -113,8 +112,6 @@ export default function ExpensesAdmin({ embedded = false }: { embedded?: boolean
       setPayee('');
       setNotes('');
       setSubCategory('');
-      setSpreadFrom('');
-      setSpreadTo('');
       queryClient.invalidateQueries({ queryKey: ['expense-counted'] });
       queryClient.invalidateQueries({ queryKey: ['admin'] });
     },
@@ -209,8 +206,6 @@ export default function ExpensesAdmin({ embedded = false }: { embedded?: boolean
                   // Sensible default type for the category; can still be changed.
                   const t = v === 'Packaging' ? 'packaging' : v === 'Utilities' ? 'overhead' : 'daily';
                   setExpenseType(t);
-                  if (t !== 'daily') { const b = monthBounds(date || today); setSpreadFrom(b.from); setSpreadTo(b.to); }
-                  else { setSpreadFrom(''); setSpreadTo(''); }
                 }}>
                   <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
@@ -233,31 +228,13 @@ export default function ExpensesAdmin({ embedded = false }: { embedded?: boolean
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Type</p>
-                <Select value={expenseType} onValueChange={(v) => {
-                  setExpenseType(v);
-                  if ((v === 'packaging' || v === 'overhead') && !spreadFrom) {
-                    const { from, to } = monthBounds(date || today);
-                    setSpreadFrom(from); setSpreadTo(to);
-                  }
-                }}>
+                <Select value={expenseType} onValueChange={setExpenseType}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {EXPENSE_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              {expenseType !== 'capital' && (
-                <div className="md:col-span-2">
-                  <p className="text-xs text-muted-foreground mb-1">
-                    Spread over {expenseType === 'daily' ? '(optional, e.g. two days paid together)' : '*'}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Input type="date" value={spreadFrom} onChange={(e) => setSpreadFrom(e.target.value)} />
-                    <span className="text-xs text-muted-foreground">to</span>
-                    <Input type="date" value={spreadTo} onChange={(e) => setSpreadTo(e.target.value)} />
-                  </div>
-                </div>
-              )}
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Paid By</p>
                 <Select value={paidBy} onValueChange={setPaidBy}>

@@ -1,5 +1,7 @@
 import { StickyTop } from '@/components/admin/TabbedAdminPage';
 import { invoiceDues } from '@/lib/party-dues';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useState, useMemo } from 'react';
 import { istDateString, istDateOf } from '@/lib/live-rate';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, FileText, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays, FileEdit, CreditCard, BookOpen, Send, Wallet, AlertTriangle, IndianRupee, Tag, Repeat, Trash2 } from 'lucide-react';
+import { Eye, FileText, Receipt, Loader2, CheckCircle, MapPin, Plus, Scale, MessageCircle, Pencil, Building2, Search, CalendarDays, FileEdit, CreditCard, BookOpen, Send, Wallet, AlertTriangle, IndianRupee, Tag, Repeat, Trash2, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +36,12 @@ import { fetchAllRows } from '@/lib/supabase-paginate';
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
+const PAYMENT_STATUS_OPTIONS = [
+  { value: 'unpaid', label: 'Unpaid' },
+  { value: 'partial', label: 'Partial' },
+  { value: 'paid', label: 'Paid' },
+];
+
 export default function OrdersAdmin() {
   const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -47,7 +55,8 @@ export default function OrdersAdmin() {
   const [fyFilter, setFyFilter] = useState<string>('all');
   const [paymentOrder, setPaymentOrder] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
+  // Payment statuses to show; empty = all. Several can be picked (e.g. Unpaid and Partial).
+  const [paymentStatuses, setPaymentStatuses] = useState<string[]>([]);
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
   const [cancelTarget, setCancelTarget] = useState<any>(null);
@@ -93,6 +102,16 @@ export default function OrdersAdmin() {
   }, [orders]);
 
   // Filtered orders
+  const invoiceDueMap = useMemo(() => invoiceDues(orders as any, allPayments as any), [orders, allPayments]);
+  // Payment status as shown on each row's badge: from payments actually received (advances set
+  // against later invoices). The filter uses the same, so "Paid" lists exactly the Paid badges.
+  const paymentStatusOf = (o: any): string => {
+    if (o.invoice_cancelled || !invoiceDueMap.has(o.id)) return o.payment_status;
+    const due = invoiceDueMap.get(o.id)!;
+    if (due <= 0.01) return 'paid';
+    return due < (Number(o.total_amount) || 0) - 0.01 ? 'partial' : 'unpaid';
+  };
+
   const filteredOrders = useMemo(() => {
     if (!orders) return [];
     let filtered = orders;
@@ -102,8 +121,8 @@ export default function OrdersAdmin() {
     if (fyFilter && fyFilter !== 'all') {
       filtered = filtered.filter((o: any) => o.financial_year_id === fyFilter);
     }
-    if (paymentStatusFilter !== 'all') {
-      filtered = filtered.filter((o: any) => o.payment_status === paymentStatusFilter);
+    if (paymentStatuses.length > 0) {
+      filtered = filtered.filter((o: any) => paymentStatuses.includes(paymentStatusOf(o)));
     }
     if (dateFrom) {
       const from = new Date(dateFrom).getTime();
@@ -130,10 +149,11 @@ export default function OrdersAdmin() {
       });
     }
     return filtered;
-  }, [orders, buildingFilter, fyFilter, paymentStatusFilter, dateFrom, dateTo, searchQuery]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders, buildingFilter, fyFilter, paymentStatuses, invoiceDueMap, dateFrom, dateTo, searchQuery]);
 
   // Party summary — when any filter narrows the list
-  const filtersActive = !!(buildingFilter || searchQuery.trim() || paymentStatusFilter !== 'all' || dateFrom || dateTo);
+  const filtersActive = !!(buildingFilter || searchQuery.trim() || paymentStatuses.length > 0 || dateFrom || dateTo);
 
   // Party outstanding map: aggregates unpaid balance across all invoices for the same party.
   // Key resolution priority: phone -> flat+building -> customer_email.
@@ -170,7 +190,6 @@ export default function OrdersAdmin() {
   // invoice's own total (an advance) is pooled and applied to the party's other
   // invoices oldest-first. A party's total due always equals the Ledger
   // (billed minus received).
-  const invoiceDueMap = useMemo(() => invoiceDues(orders as any, allPayments as any), [orders, allPayments]);
 
   // An invoice's amount still due, from payments received (see invoiceDueMap).
   const dueOf = (o: any): number => invoiceDueMap.has(o.id)
@@ -773,17 +792,34 @@ export default function OrdersAdmin() {
               )}
             </>
           )}
-          <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Payment" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Payments</SelectItem>
-              <SelectItem value="unpaid">Unpaid</SelectItem>
-              <SelectItem value="partial">Partial</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[180px] justify-between font-normal">
+                <span className="truncate">
+                  {paymentStatuses.length === 0 ? 'All Payments'
+                    : PAYMENT_STATUS_OPTIONS.filter((p) => paymentStatuses.includes(p.value)).map((p) => p.label).join(' + ')}
+                </span>
+                <ChevronDown className="h-4 w-4 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-52 p-2" align="start">
+              {PAYMENT_STATUS_OPTIONS.map((p) => (
+                <label key={p.value} className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer">
+                  <Checkbox
+                    checked={paymentStatuses.includes(p.value)}
+                    onCheckedChange={(on) => setPaymentStatuses((prev) =>
+                      on ? [...prev, p.value] : prev.filter((v) => v !== p.value))}
+                  />
+                  {p.label}
+                </label>
+              ))}
+              {paymentStatuses.length > 0 && (
+                <Button variant="ghost" size="sm" className="w-full mt-1" onClick={() => setPaymentStatuses([])}>
+                  Show all payments
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
           <div className="flex items-center gap-1">
             <Input
               type="date"
@@ -801,13 +837,13 @@ export default function OrdersAdmin() {
               aria-label="To date"
             />
           </div>
-          {(searchQuery || paymentStatusFilter !== 'all' || dateFrom || dateTo || buildingFilter) && (
+          {(searchQuery || paymentStatuses.length > 0 || dateFrom || dateTo || buildingFilter) && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
                 setSearchQuery('');
-                setPaymentStatusFilter('all');
+                setPaymentStatuses([]);
                 setDateFrom('');
                 setDateTo('');
                 setBuildingFilter('');
@@ -1039,7 +1075,7 @@ export default function OrdersAdmin() {
                         const partyDue = pk ? (partyOutstandingMap.get(pk) || 0) : invoiceDue;
                         const otherPartyDue = Math.abs(partyDue - invoiceDue) > 0.01 ? Math.max(0, partyDue) : 0;
                         const partyCredit = Math.max(0, -partyDue);
-                        const displayStatus = (!order.invoice_cancelled && invoiceDueMap.has(order.id)) ? (invoiceDue <= 0.01 ? 'paid' : (invoiceDue < (Number(order.total_amount) || 0) - 0.01 ? 'partial' : 'unpaid')) : order.payment_status;
+                        const displayStatus = paymentStatusOf(order);
                         const lk = ledgerKeyForOrder(order);
                         return (
                           <TooltipProvider delayDuration={150}>

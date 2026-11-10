@@ -111,3 +111,31 @@ export function useAllPageContent() {
     },
   });
 }
+
+/**
+ * The Google star rating and review count shown on the storefront.
+ * Starts from the saved numbers (Admin → Content) and then asks the
+ * 'google-rating' function, which refreshes them from Google every few hours
+ * once a Places API key is set up. If the function isn't there, the saved
+ * numbers stay on screen.
+ */
+export function useGoogleRating(fallback: { overallRating: number; totalReviews: number }) {
+  const { data: saved } = usePageContent<GoogleReviewsContent>('google_reviews');
+  const { data: live } = useQuery({
+    queryKey: ['google-rating-live'],
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('google-rating');
+      if (error) throw error;
+      return data as { overallRating: number; totalReviews: number } | null;
+    },
+  });
+  const base = saved || fallback;
+  const ok = live && Number.isFinite(Number(live.overallRating)) && Number(live.totalReviews) > 0;
+  return {
+    overallRating: Number(ok ? live!.overallRating : base.overallRating),
+    totalReviews: Number(ok ? live!.totalReviews : base.totalReviews),
+    reviews: (saved?.reviews || []) as GoogleReview[],
+  };
+}

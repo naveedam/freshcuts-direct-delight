@@ -10,7 +10,8 @@ export function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      <main className="flex-1">
+      {/* Bottom room so the WhatsApp button never covers the last row of cards. */}
+      <main className="flex-1 pb-20">
         {children}
       </main>
       <Footer />

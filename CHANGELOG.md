@@ -2,6 +2,22 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-10
+
+### Fixed
+- **Orders → payment filter** now matches the badge on each row (it was reading a stored status that could be out of date). You can tick more than one, e.g. Unpaid + Partial.
+
+### Added
+- **Products:** "All on / off" above the Storefront, In stock, Orderable, Pre-order and Order form columns. It changes only the products currently shown by your filters.
+- **Delivery Partner Advances:** delete a partner and their advance entries (asks first; Deactivate still keeps the history).
+- **Prices switch products on:** once a product has both a buying and a selling price for today (seafood: both dated today), it's switched on for Storefront, In stock, Orderable and Order form. Pre-order is left as it is. A daily job at 00:10 IST does the same for anything priced in advance. You can still switch things off by hand.
+- **Live Google rating:** a `google-rating` function refreshes the star rating and review count from Google every 6 hours once a Places API key and Place ID are set; until then the numbers from Admin → Content are shown.
+
+### Changed
+- **Price check** flags only changes of 30% or more, up or down (all categories set to 30%).
+- **Expenses:** the "Spread over" dates are gone; packaging and overhead are shared out over the month of the expense date.
+- **Storefront:** classier menu (Prime Mutton, Farm Poultry, Ocean Fresh, The Pantry) in spaced serif capitals with a gold underline; product cards are larger, 4 to a row on desktop (2 on phones) with an "Add to basket" button; Today's Catch cards are larger with the fish photo on the left; the WhatsApp button is a small round button in the corner (label slides out on hover) with room left below the last row.
+
 ## 2026-11-09 (Logo)
 
 ### Changed
