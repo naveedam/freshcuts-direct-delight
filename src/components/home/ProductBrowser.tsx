@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search } from 'lucide-react';
+import { Search, ShoppingCart } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -54,29 +54,31 @@ function ProductRow({
           <p className="font-heading text-base md:text-lg font-semibold text-foreground leading-snug line-clamp-2">
             {product.name}
           </p>
-          {seafood.isHidden(product.category) ? (
-            <SeafoodPriceNote message={seafood.message} className="mt-1" />
-          ) : (
-            <p className="font-body text-sm text-muted-foreground mt-1">
-              <span className="font-heading text-lg font-bold text-primary">₹{product.price.toFixed(0)}</span>{' '}
-              {getPriceUnitLabel(product.pricingModel || 'weight_based')}
-            </p>
-          )}
         </Link>
-        {canAddToCart(availability) ? (
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            {seafood.isHidden(product.category) ? (
+              <SeafoodPriceNote message={seafood.message} />
+            ) : (
+              <p className="font-body text-sm text-muted-foreground">
+                <span className="font-heading text-lg font-bold text-primary">₹{product.price.toFixed(0)}</span>{' '}
+                {getPriceUnitLabel(product.pricingModel || 'weight_based')}
+              </p>
+            )}
+            {!canAddToCart(availability) && (
+              <span className="block text-xs font-medium text-muted-foreground">{AVAILABILITY_LABEL[availability]}</span>
+            )}
+          </div>
           <Button
-            size="sm"
+            size="icon"
             onClick={onAdd}
-            className="mt-3 w-full gap-1.5 rounded-full font-heading tracking-wide"
+            disabled={!canAddToCart(availability)}
+            aria-label={availability === 'preorder' ? 'Pre-order' : 'Add to cart'}
+            className="shrink-0"
           >
-            <Plus className="h-4 w-4" />
-            {availability === 'preorder' ? 'Reserve yours' : 'Add to basket'}
+            <ShoppingCart className="h-4 w-4" />
           </Button>
-        ) : (
-          <span className="mt-3 block text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {AVAILABILITY_LABEL[availability]}
-          </span>
-        )}
+        </div>
       </div>
     </div>
   );

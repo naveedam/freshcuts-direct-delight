@@ -59,7 +59,6 @@ export function TodaysCatchStrip() {
         <div className="flex items-center gap-2 mb-3">
           <Fish className="h-5 w-5 text-blue-700" />
           <h2 className="font-heading text-xl font-semibold text-blue-950">Today's Catch</h2>
-          <span className="font-body text-sm italic text-blue-700">Fresh off the boats this morning</span>
         </div>
         {/* Two copies side by side, moved left by one copy's width, so the roll never has a gap.
             The animation is defined here so it can't go missing with a stylesheet. */}

@@ -15,23 +15,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Shop-front names for the menu. A category not listed here keeps its own name.
-const MENU_LABELS: Record<string, string> = {
-  lamb: 'Prime Mutton',
-  poultry: 'Farm Poultry',
-  seafood: 'Ocean Fresh',
-  pantry: 'The Pantry',
-};
-const menuLabel = (cat: { slug: string; name: string }) =>
-  MENU_LABELS[cat.slug] || (/pantry/i.test(cat.name) ? 'The Pantry' : cat.name);
-
-// Serif, spaced capitals with a gold underline that draws in on hover.
+// Plain, readable menu links on one line each, with a gold underline that draws in on hover.
 const NAV_LINK =
-  "relative font-heading text-[13px] lg:text-[15px] font-semibold uppercase tracking-[0.1em] lg:tracking-[0.14em] text-foreground hover:text-primary transition-colors " +
-  "after:absolute after:left-0 after:-bottom-1.5 after:h-[2px] after:w-full after:origin-left after:scale-x-0 after:bg-gold " +
+  "relative whitespace-nowrap font-body text-[13px] xl:text-sm font-medium text-foreground hover:text-primary transition-colors " +
+  "after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:w-full after:origin-left after:scale-x-0 after:bg-gold " +
   "after:transition-transform after:duration-300 hover:after:scale-x-100";
-const MOBILE_LINK =
-  "font-heading text-base font-semibold uppercase tracking-[0.12em] text-foreground hover:text-primary transition-colors";
+const MOBILE_LINK = "font-body text-sm font-medium text-foreground hover:text-primary transition-colors";
 
 export function Header() {
   const { totalItems } = useCart();
@@ -46,7 +35,7 @@ export function Header() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center group" aria-label="Fresh Cuts Daily home">
+          <Link to="/" className="flex shrink-0 items-center group" aria-label="Fresh Cuts Daily home">
             {/* Sharp at any size; as tall as the bar allows, with a slight lift on hover. */}
             <img
               src={logo}
@@ -56,7 +45,7 @@ export function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-5 lg:gap-9">
+          <nav className="hidden md:flex min-w-0 flex-1 items-center justify-center gap-4 xl:gap-6 overflow-x-auto px-4 py-2 [scrollbar-width:none]">
             <Link to="/" className={NAV_LINK}>
               Home
             </Link>
@@ -73,7 +62,7 @@ export function Header() {
                   to={`/category/${cat.slug}`}
                   className={NAV_LINK}
                 >
-                  {menuLabel(cat)}
+                  {cat.name}
                 </Link>
               ))
             )}
@@ -179,7 +168,7 @@ export function Header() {
                   className={MOBILE_LINK}
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  {menuLabel(cat)}
+                  {cat.name}
                 </Link>
               ))}
               

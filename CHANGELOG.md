@@ -16,7 +16,7 @@ All notable changes to FreshCuts Daily are documented here.
 ### Changed
 - **Price check** flags only changes of 30% or more, up or down (all categories set to 30%).
 - **Expenses:** the "Spread over" dates are gone; packaging and overhead are shared out over the month of the expense date.
-- **Storefront:** classier menu (Prime Mutton, Farm Poultry, Ocean Fresh, The Pantry) in spaced serif capitals with a gold underline; product cards are larger, 4 to a row on desktop (2 on phones) with an "Add to basket" button; Today's Catch cards are larger with the fish photo on the left; the WhatsApp button is a small round button in the corner (label slides out on hover) with room left below the last row.
+- **Storefront:** menu keeps the category names in a plain, compact font on one line each (scrolls sideways if they don't all fit) with a gold underline on hover; product cards are larger, 4 to a row on desktop (2 on phones) with the cart button; Today's Catch cards are larger with the fish photo on the left; the WhatsApp button is a small round button in the corner (label slides out on hover) with room left below the last row.
 
 ## 2026-11-09 (Logo)
 
