@@ -33,13 +33,21 @@ export async function generatePdfFromElement(element: HTMLElement): Promise<Blob
 /**
  * Generate a PNG image from a pre-rendered DOM element (InvoiceShareView).
  */
+// Font CSS is embedded once and reused — re-downloading fonts on every render was the main slowdown.
+let fontEmbedCssPromise: Promise<string> | null = null;
+
 export async function generateImageFromElement(element: HTMLElement): Promise<Blob> {
-  const { toPng } = await import('html-to-image');
-  const dataUrl = await toPng(element, {
-    quality: 0.95,
-    pixelRatio: 3,
+  const { toJpeg, getFontEmbedCSS } = await import('html-to-image');
+  if (!fontEmbedCssPromise) {
+    fontEmbedCssPromise = getFontEmbedCSS(element).catch(() => '');
+  }
+  const fontEmbedCSS = await fontEmbedCssPromise;
+  // JPEG at 2x: sharp on WhatsApp, ~5-10x smaller/faster than PNG at 3x
+  const dataUrl = await toJpeg(element, {
+    quality: 0.9,
+    pixelRatio: Math.min(2, window.devicePixelRatio || 2),
     backgroundColor: '#ffffff',
-    cacheBust: true,
+    fontEmbedCSS,
   });
   const res = await fetch(dataUrl);
   return await res.blob();

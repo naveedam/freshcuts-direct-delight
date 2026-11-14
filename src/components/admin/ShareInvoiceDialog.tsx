@@ -100,8 +100,8 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
       await new Promise(r => setTimeout(r, 100));
       if (!shareViewRef.current) throw new Error('Invoice view not ready');
 
-      const blob = await generateImageFromElement(shareViewRef.current);
-      const fileName = `invoice-${invoiceNum}.png`;
+      const blob = preparedImage ?? await generateImageFromElement(shareViewRef.current);
+      const fileName = `invoice-${invoiceNum}.jpg`;
       downloadBlob(blob, fileName);
 
       // The file is downloaded: close the share and preview windows straight away, back to the
@@ -127,7 +127,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
       toast.error('Invoice image is still being prepared — try again in a second');
       return;
     }
-    const fileName = `invoice-${invoiceNum}.png`;
+    const fileName = `invoice-${invoiceNum}.jpg`;
     setLoading('whatsapp');
 
     shareInvoice({ blob, fileName, title: `Invoice ${invoiceNum}`, text: message, whatsappPhone: phone })
@@ -240,7 +240,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
 
             <Button onClick={handleDownloadImage} disabled={isLoading || !hasItems} variant="secondary" className="justify-start gap-2">
               {loading === 'image' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Image className="h-4 w-4" />}
-              Download Image (PNG)
+              Download Image
             </Button>
           </div>
 
