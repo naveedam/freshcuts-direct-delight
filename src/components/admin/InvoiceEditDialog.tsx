@@ -250,17 +250,17 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden [&>*]:min-w-0">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
+            <DialogTitle className="flex flex-wrap items-center gap-2 text-left text-base sm:text-lg">
               <FileText className="h-5 w-5" />
               Invoice Preview — #{order?.id?.slice(0, 8).toUpperCase()}
               {order?.invoice_number && (
                 <Badge variant="secondary" className="ml-2">{order.invoice_number}</Badge>
               )}
             </DialogTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {!editMode ? (
                 <Button size="sm" variant="outline" onClick={() => setEditMode(true)}>
                   <Pencil className="h-4 w-4 mr-1" /> Edit Invoice
@@ -294,7 +294,7 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
           </div>
         </DialogHeader>
 
-        <div className="border rounded-lg overflow-hidden">
+        <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -387,7 +387,7 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
 
         {/* Totals */}
         <div className="flex justify-end">
-          <div className="w-72 space-y-2 text-sm">
+          <div className="w-full sm:w-72 space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
               <span>{formatCurrency(totals.subtotal)}</span>
@@ -410,15 +410,15 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
         </div>
 
         {/* Generate Button */}
-        <div className="flex justify-end gap-2 pt-2 border-t">
+        <div className="sticky bottom-0 -mx-5 -mb-5 px-5 py-3 bg-background border-t flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button variant="outline" onClick={() => setShareOpen(true)} disabled={editMode}>
-            <Share2 className="h-4 w-4 mr-2" />
-            Share
-          </Button>
-          <Button onClick={handleGenerate} disabled={generating || editMode}>
+          <Button onClick={handleGenerate} disabled={generating || editMode} variant="outline">
             {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
             Generate Invoice PDF
+          </Button>
+          <Button onClick={() => setShareOpen(true)} disabled={editMode} className="bg-[#25D366] hover:bg-[#1ebe57] text-white h-11 sm:h-10">
+            <Share2 className="h-4 w-4 mr-2" />
+            Share Invoice
           </Button>
         </div>
 
