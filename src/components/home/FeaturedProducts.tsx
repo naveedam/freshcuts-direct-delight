@@ -1,5 +1,7 @@
+import type { Product } from '@/types/product';
 import { useFeaturedProducts } from '@/hooks/useProducts';
 import { ProductCard } from '@/components/products/ProductCard';
+import { groupBySize } from '@/lib/size-groups';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
@@ -30,7 +32,7 @@ export function FeaturedProducts() {
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {isLoading ? (
             [...Array(4)].map((_, i) => (
               <div key={i} className="bg-card rounded-xl border border-border p-4">
@@ -40,13 +42,13 @@ export function FeaturedProducts() {
               </div>
             ))
           ) : featuredProducts && featuredProducts.length > 0 ? (
-            featuredProducts.map((product, index) => (
+            groupBySize<Product>(featuredProducts).map((g, index) => (
               <div 
-                key={product.id} 
+                key={g.variants.map((v) => v.product.id).join('|')} 
                 className="animate-fade-in"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <ProductCard product={product} />
+                <ProductCard group={g} />
               </div>
             ))
           ) : (

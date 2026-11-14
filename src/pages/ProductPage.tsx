@@ -1,11 +1,13 @@
+import type { Product } from '@/types/product';
 import { useParams, Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { useProduct, useProductsByCategory } from '@/hooks/useProducts';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';
-import { ShoppingCart, Minus, Plus, ArrowLeft, Truck, Shield, Clock } from 'lucide-react';
+import { ShoppingCart, Minus, Plus, ArrowLeft, Shield, Clock } from 'lucide-react';
 import { useState } from 'react';
 import { ProductCard } from '@/components/products/ProductCard';
+import { groupBySize, sizeSiblings, splitSize } from '@/lib/size-groups';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatWeight, formatQuantityDisplay, getPriceUnitLabel, calculatePrice, isWeightBased } from '@/lib/weight-utils';
 import { useSeafoodStorefront } from '@/lib/seafood-rate';
@@ -67,8 +69,12 @@ const ProductPage = () => {
   const availability = availabilityOf(product);
   const plan = deliveryPlan(hours, availability === 'preorder');
 
+  // Other sizes of this item ("Black Pomfret - Small / Big") are offered as size buttons here,
+  // so they're left out of "You might also like".
+  const sizes = sizeSiblings(product, relatedProductsData || []);
+  const sizeIds = new Set(sizes.map((s) => s.product.id));
   const relatedProducts = relatedProductsData
-    ?.filter(p => p.id !== product.id)
+    ?.filter(p => p.id !== product.id && !sizeIds.has(p.id))
     .slice(0, 4) || [];
 
   const handleAddToCart = () => {
@@ -127,8 +133,35 @@ const ProductPage = () => {
 
             {/* Name */}
             <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-4">
-              {product.name}
+              {sizes.length ? splitSize(product.name)!.base : product.name}
             </h1>
+
+            {/* Sizes: each opens that size; several sizes can go into one order. */}
+            {sizes.length > 0 && (
+              <div className="mb-5">
+                <p className="font-body text-sm text-muted-foreground mb-2">Size</p>
+                <div className="flex flex-wrap gap-2">
+                  {sizes.map((s) => {
+                    const on = s.product.id === product.id;
+                    return (
+                      <Link
+                        key={s.product.id}
+                        to={`/product/${s.product.id}`}
+                        replace
+                        aria-current={on ? 'true' : undefined}
+                        className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                          on
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-border bg-background text-foreground hover:border-primary'
+                        } ${canAddToCart(availabilityOf(s.product)) ? '' : 'opacity-50 line-through'}`}
+                      >
+                        {s.size}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Price */}
             {seafood.isHidden(product.category) ? (
@@ -226,11 +259,7 @@ const ProductPage = () => {
             </Button>
 
             {/* Features */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-border">
-              <div className="flex items-center gap-3">
-                <Truck className="h-5 w-5 text-primary" />
-                <span className="font-body text-sm text-muted-foreground">Free delivery over ₹2000</span>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6 border-t border-border">
               <div className="flex items-center gap-3">
                 <Clock className="h-5 w-5 text-primary" />
                 <span className="font-body text-sm text-muted-foreground">Same day delivery</span>
@@ -249,9 +278,9 @@ const ProductPage = () => {
             <h2 className="font-heading text-2xl font-bold text-foreground mb-8">
               You Might Also Like
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {relatedProducts.map(product => (
-                <ProductCard key={product.id} product={product} />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+              {groupBySize<Product>(relatedProducts).map((g) => (
+                <ProductCard key={g.variants.map((v) => v.product.id).join('|')} group={g} />
               ))}
             </div>
           </section>

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Truck, Award, Clock } from 'lucide-react';
+import { ArrowRight, Award, Clock } from 'lucide-react';
 import { usePageContent, HeroContent } from '@/hooks/usePageContent';
 
 const defaultContent: HeroContent = {
@@ -80,15 +80,6 @@ export function HeroSection() {
             className="flex flex-wrap gap-6 md:gap-8 animate-fade-in"
             style={{ animationDelay: '400ms' }}
           >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary-foreground/10 rounded-lg">
-                <Truck className="h-5 w-5 text-gold" />
-              </div>
-              <div>
-                <p className="font-body text-sm font-semibold text-primary-foreground">Free Delivery</p>
-                <p className="font-body text-xs text-primary-foreground/60">On orders over ₹2000</p>
-              </div>
-            </div>
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary-foreground/10 rounded-lg">
                 <Clock className="h-5 w-5 text-gold" />

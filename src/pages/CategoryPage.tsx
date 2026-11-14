@@ -1,6 +1,8 @@
+import type { Product } from '@/types/product';
 import { useParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ProductCard } from '@/components/products/ProductCard';
+import { groupBySize } from '@/lib/size-groups';
 import { useProductsByCategory } from '@/hooks/useProducts';
 import { useCategory } from '@/hooks/useCategories';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -65,7 +67,7 @@ const CategoryPage = () => {
             {productsLoading ? (
               <Skeleton className="h-4 w-32 inline-block" />
             ) : (
-              `Showing ${products?.length || 0} product${products?.length !== 1 ? 's' : ''}`
+              `Showing ${groupBySize(products || []).length} item${groupBySize(products || []).length !== 1 ? 's' : ''}`
             )}
           </p>
 
@@ -80,13 +82,13 @@ const CategoryPage = () => {
                 </div>
               ))
             ) : products && products.length > 0 ? (
-              products.map((product, index) => (
+              groupBySize<Product>(products).map((g, index) => (
                 <div 
-                  key={product.id}
+                  key={g.variants.map((v) => v.product.id).join('|')}
                   className="animate-fade-in"
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <ProductCard product={product} />
+                  <ProductCard group={g} eager={index < 4} />
                 </div>
               ))
             ) : (

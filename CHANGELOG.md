@@ -2,6 +2,13 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-14 (evening)
+
+### Changed
+- **One product card everywhere:** the home page now uses the same card as the category pages, featured items and "You might also like", in a matching 2 (phone) / 4 (desktop) grid. Today's Catch is unchanged.
+- **Sizes on every screen:** items sold in sizes ("Black Pomfret - Small / Big") show as one card with size buttons on the home page, category pages, featured items and related items. The product page shows the item's other sizes as buttons. Each size is still its own product, so a customer can add several sizes to the same order (e.g. 1 kg Big and 500 g Small); sizes already in the basket show a tick.
+- **Free delivery messages removed** from the product page, the cart ("Add ₹… more for free shipping") and the old hero banner. The ₹99 delivery charge below ₹2000 at checkout is unchanged.
+
 ## 2026-11-14
 
 ### Added

@@ -21,8 +21,8 @@ export type SizedItem<T> = { base: string; variants: { size: string | null; prod
 
 // Groups a list (order kept by each group's first member). A name with a size suffix is grouped
 // only when another product in the same category shares its base name; otherwise it stays as is.
-export function groupBySize<T extends { name: string; categoryId?: string | null }>(list: T[]): SizedItem<T>[] {
-  const keyOf = (p: T, base: string) => `${p.categoryId ?? ''}|${base.toLowerCase()}`;
+export function groupBySize<T extends { name: string; categoryId?: string | null; category?: string | null }>(list: T[]): SizedItem<T>[] {
+  const keyOf = (p: T, base: string) => `${p.categoryId ?? p.category ?? ''}|${base.toLowerCase()}`;
   const counts = new Map<string, number>();
   list.forEach((p) => {
     const s = splitSize(p.name);
@@ -48,4 +48,21 @@ export function groupBySize<T extends { name: string; categoryId?: string | null
   });
   groups.forEach((g) => g.variants.sort((a, b) => sizeRank(a.size || '') - sizeRank(b.size || '')));
   return out;
+}
+
+/** Other sizes of the same item (same base name and category), the product itself included. */
+export function sizeSiblings<T extends { id: string; name: string; categoryId?: string | null; category?: string | null }>(
+  product: T,
+  all: T[],
+): { size: string; product: T }[] {
+  const mine = splitSize(product.name);
+  if (!mine) return [];
+  const cat = (p: T) => p.categoryId ?? p.category ?? '';
+  const list = all
+    .filter((p) => cat(p) === cat(product))
+    .map((p) => ({ s: splitSize(p.name), product: p }))
+    .filter((x) => x.s && x.s.base.toLowerCase() === mine.base.toLowerCase())
+    .map((x) => ({ size: x.s!.size, product: x.product }));
+  if (!list.some((x) => x.product.id === product.id)) list.push({ size: mine.size, product });
+  return list.length > 1 ? list.sort((a, b) => sizeRank(a.size) - sizeRank(b.size)) : [];
 }

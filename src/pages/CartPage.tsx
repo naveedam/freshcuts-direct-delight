@@ -11,7 +11,6 @@ const CartPage = () => {
   const { items, updateQuantity, removeFromCart, totalPrice, clearCart, hasUnpricedItems } = useCart();
   const seafood = useSeafoodStorefront();
   const shippingThreshold = 2000;
-  const remainingForFreeShipping = Math.max(0, shippingThreshold - totalPrice);
   const hasFreeShipping = totalPrice >= shippingThreshold;
   const shippingCost = hasFreeShipping ? 0 : 99;
   const orderTotal = totalPrice + shippingCost;
@@ -53,21 +52,6 @@ const CartPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Free Shipping Progress */}
-            {!hasFreeShipping && (
-              <div className="bg-gold/10 border border-gold/30 rounded-lg p-4 mb-6">
-                <p className="font-body text-sm text-foreground">
-                  Add <span className="font-semibold text-primary">₹{remainingForFreeShipping.toFixed(0)}</span> more for free shipping!
-                </p>
-                <div className="mt-2 bg-muted rounded-full h-2 overflow-hidden">
-                  <div 
-                    className="h-full bg-gold transition-all duration-300"
-                    style={{ width: `${Math.min(100, (totalPrice / shippingThreshold) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
             {/* Items */}
             {items.map(({ product, quantity }) => (
               <div 
