@@ -29,6 +29,8 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [business, setBusiness] = useState<any>(null);
   const shareViewRef = useRef<HTMLDivElement>(null);
+  const [preparedImage, setPreparedImage] = useState<Blob | null>(null);
+  const [preparing, setPreparing] = useState(false);
 
   const customerName = order?.customer_email?.split('@')[0] || 'Customer';
   const phone = (order?.phone || '').replace(/\D/g, '');
@@ -115,48 +117,34 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
     }
   };
 
-  const handleWhatsApp = async () => {
-    setLoading('whatsapp');
-    try {
-      await new Promise(r => setTimeout(r, 100));
-      if (!shareViewRef.current) throw new Error('Invoice view not ready');
+  const message = `Hi ${customerName}, please find your invoice #${invoiceNum} from Fresh Cuts Daily.\n\nThank you for your order!`;
 
-      const blob = await generateImageFromElement(shareViewRef.current);
-      const fileName = `invoice-${invoiceNum}.png`;
-
-      // Always archive to storage + documents
-      const url = await uploadInvoiceToStorage(blob, fileName, flatNumber);
-      await saveDocumentRecord({
-        flatNumber, buildingName, orderId: order.id,
-        documentType: 'invoice', fileUrl: url, fileName,
-        invoiceNumber: invoiceNum, customerName,
-      });
-
-      const message = `Hi ${customerName}, please find your invoice #${invoiceNum} from Fresh Cuts Daily.\n\nThank you for your order!`;
-      const result = await shareInvoice({
-        blob,
-        fileName,
-        title: `Invoice ${invoiceNum}`,
-        text: message,
-        whatsappPhone: phone,
-      });
-
-      if (result.method === 'native') {
-        toast.success('Opened native share — pick WhatsApp');
-      } else if (result.method === 'web') {
-        toast.success('Opened device share sheet');
-      } else {
-        // Fallback path: also download so user can attach manually
-        downloadBlob(blob, fileName);
-        toast.success('Image downloaded — attach it in WhatsApp');
-      }
-      onOpenChange(false);
-      onDone?.();
-    } catch (e: any) {
-      toast.error('Failed: ' + e.message);
-    } finally {
-      setLoading(null);
+  // Synchronous-start handler: the image is already prepared, so the share sheet / WhatsApp
+  // opens inside the tap. Archiving runs afterwards in the background.
+  const handleWhatsApp = () => {
+    const blob = preparedImage;
+    if (!blob) {
+      toast.error('Invoice image is still being prepared — try again in a second');
+      return;
     }
+    const fileName = `invoice-${invoiceNum}.png`;
+    setLoading('whatsapp');
+
+    shareInvoice({ blob, fileName, title: `Invoice ${invoiceNum}`, text: message, whatsappPhone: phone })
+      .then((result) => {
+        if (result.method === 'cancelled') return;
+        if (result.method === 'fallback') {
+          downloadBlob(blob, fileName);
+          toast.success('Image downloaded — attach it in the WhatsApp chat');
+        }
+        archiveInvoice(blob, fileName);
+        onOpenChange(false);
+        onDone?.();
+      })
+      .catch((e: any) => {
+        toast.error('Could not open WhatsApp: ' + (e?.message || e));
+      })
+      .finally(() => setLoading(null));
   };
 
   const handleEmail = async () => {
@@ -185,6 +173,27 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
 
   const isLoading = loading !== null;
   const hasItems = orderItems.length > 0 && business;
+
+  // Pre-generate the invoice image as soon as the dialog has its data, so the WhatsApp
+  // button can share instantly on tap (mobile browsers block delayed shares).
+  useEffect(() => {
+    if (!open) { setPreparedImage(null); return; }
+    if (!hasItems) return;
+    let cancelled = false;
+    setPreparing(true);
+    const t = setTimeout(async () => {
+      try {
+        if (!shareViewRef.current) throw new Error('Invoice view not ready');
+        const blob = await generateImageFromElement(shareViewRef.current);
+        if (!cancelled) setPreparedImage(blob);
+      } catch (e: any) {
+        if (!cancelled) toast.error('Could not prepare invoice image: ' + (e?.message || e));
+      } finally {
+        if (!cancelled) setPreparing(false);
+      }
+    }, 150);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [open, hasItems, orderItems, business]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setLoading(null); }}>
@@ -219,9 +228,9 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
               Download PDF
             </Button>
 
-            <Button onClick={handleWhatsApp} disabled={isLoading || !hasItems} className="justify-start gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white">
-              {loading === 'whatsapp' ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
-              Share on WhatsApp (Image)
+            <Button onClick={handleWhatsApp} disabled={isLoading || !hasItems || !preparedImage} className="justify-start gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white">
+              {(loading === 'whatsapp' || preparing) ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+              {preparing ? 'Preparing invoice…' : 'Share on WhatsApp (Image)'}
             </Button>
 
             <Button onClick={handleEmail} disabled={isLoading || !hasItems} variant="outline" className="justify-start gap-2">
@@ -237,8 +246,8 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
 
           <p className="text-xs text-muted-foreground pt-1">
             {isNative()
-              ? 'On mobile, WhatsApp opens with the invoice image pre-attached.'
-              : 'On desktop, the share sheet uses the device API when supported. Otherwise the image downloads and WhatsApp opens with the message.'}
+              ? 'Pick WhatsApp in the share sheet — the invoice image is attached.'
+              : 'On phones, the share sheet opens with the invoice image — pick WhatsApp. Where sharing files is not supported, WhatsApp opens with the message and the image downloads to attach.'}
           </p>
         </div>
 
