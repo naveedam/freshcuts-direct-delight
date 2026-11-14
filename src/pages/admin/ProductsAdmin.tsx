@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Loader2, Upload, Image as ImageIcon, X, Search, RotateCcw, ExternalLink } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Upload, Image as ImageIcon, X, Search, RotateCcw, ExternalLink, Minimize2 } from 'lucide-react';
+import { uploadProductImage, optimiseExistingImages } from '@/lib/image-optimize';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -97,8 +98,26 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
   const [statusFilter, setStatusFilter] = useState('active');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Get the Supabase URL for constructing public URLs
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const [optimising, setOptimising] = useState<string | null>(null);
+  const optimiseImages = async () => {
+    const list = (products || []).map((p: any) => ({ id: p.id, name: p.name, image_url: p.image_url }));
+    setOptimising('Starting…');
+    try {
+      const r = await optimiseExistingImages(list, (n, total) => setOptimising(`${n} of ${total}`));
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
+      const saved = r.savedKb > 1024 ? `${(r.savedKb / 1024).toFixed(1)} MB` : `${r.savedKb} KB`;
+      toast.success(`Optimised ${r.done} photo(s), saving ${saved}. ${r.skipped} already small.`);
+      if (r.failed.length) {
+        console.warn('Photos not optimised:', r.failed);
+        toast.error(`${r.failed.length} photo(s) couldn't be optimised: ${r.failed.slice(0, 3).map((f) => f.name).join(', ')}${r.failed.length > 3 ? '…' : ''}`);
+      }
+    } catch (e: any) {
+      toast.error('Optimising stopped: ' + (e?.message || e));
+    } finally {
+      setOptimising(null);
+    }
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -110,29 +129,17 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image size must be less than 5MB');
+    // Photos are shrunk before upload, so larger originals are fine.
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error('Image size must be less than 20MB');
       return;
     }
 
     setIsUploading(true);
     try {
-      // Generate unique filename
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `products/${fileName}`;
+      // Resized to 1000 px and saved as WebP so the storefront loads quickly.
+      const publicUrl = await uploadProductImage(file, form.name || 'product');
 
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const publicUrl = `${supabaseUrl}/storage/v1/object/public/product-images/${filePath}`;
-      
       setForm({ ...form, image_url: publicUrl });
       toast.success('Image uploaded successfully');
     } catch (error: any) {
@@ -379,6 +386,16 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
             <h1 className="font-heading text-3xl font-bold text-foreground">Products</h1>
             <p className="font-body text-muted-foreground">Product details and availability. Prices are set in Rate Management.</p>
           </div>
+          <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={optimiseImages}
+            disabled={!!optimising || !products?.length}
+            title="Shrink every product photo so the storefront loads faster (one-time; new uploads are shrunk automatically)"
+          >
+            {optimising ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Minimize2 className="h-4 w-4 mr-2" />}
+            {optimising ? `Optimising ${optimising}` : 'Optimise photos'}
+          </Button>
           <Dialog open={isOpen} onOpenChange={(open) => {
             setIsOpen(open);
             if (!open) resetForm();
@@ -609,6 +626,7 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* Filters */}

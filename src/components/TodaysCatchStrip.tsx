@@ -85,7 +85,7 @@ export function TodaysCatchStrip() {
                     >
                       <div className="shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden bg-blue-50 flex items-center justify-center">
                         {product.image_url ? (
-                          <img src={product.image_url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                          <img src={product.image_url} alt="" decoding="async" width={80} height={80} className="w-full h-full object-cover" />
                         ) : (
                           <Fish className="h-8 w-8 text-blue-300" />
                         )}

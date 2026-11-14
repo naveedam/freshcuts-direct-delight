@@ -1,6 +1,6 @@
 import logoLight from '@/assets/fresh-cuts-daily-logo-light.svg';
 import { Link } from 'react-router-dom';
-import { Phone, Mail, MapPin, Clock } from 'lucide-react';
+import { Phone, Mail, Clock } from 'lucide-react';
 import { usePageContent, FooterContent } from '@/hooks/usePageContent';
 
 const defaultContent: FooterContent = {
@@ -70,12 +70,6 @@ export function Footer() {
                 <Mail className="h-4 w-4 text-gold" />
                 <span className="font-body text-sm text-primary-foreground/70">{c.email}</span>
               </li>
-              <li className="flex items-start gap-3">
-                <MapPin className="h-4 w-4 text-gold mt-0.5" />
-                <span className="font-body text-sm text-primary-foreground/70">
-                  {c.address}
-                </span>
-              </li>
             </ul>
           </div>
 
@@ -90,9 +84,6 @@ export function Footer() {
                 </div>
               </li>
             </ul>
-            <p className="font-body text-xs text-primary-foreground/50 mt-4">
-              Free delivery on orders over ₹2000
-            </p>
           </div>
         </div>
 

@@ -109,7 +109,13 @@ export function DatedPricePanel({
         }]);
       if (res.skipped) throw new Error('Not saved: fix the price or give a reason.');
       if (selling != null && form.date <= today) {
-        await supabase.from('products').update({ awaiting_daily_price: false } as any).eq('id', editing.id);
+        // With a buying and a selling price in force today, switch the product on (Storefront,
+        // In stock, Orderable, Order form). You can switch any of them off again by hand.
+        const before = pricesFor(editing.id);
+        const hasBuy = purchase != null || before.purchase != null;
+        await supabase.from('products').update((hasBuy
+          ? { awaiting_daily_price: false, is_published: true, in_stock: true, is_orderable: true, show_in_order_form: true }
+          : { awaiting_daily_price: false }) as any).eq('id', editing.id);
       }
     },
     onSuccess: () => { setEditing(null); refresh(); toast.success('Price saved'); },

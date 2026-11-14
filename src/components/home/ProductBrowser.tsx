@@ -11,6 +11,7 @@ import { getPriceUnitLabel } from '@/lib/weight-utils';
 import { availabilityOf, canAddToCart, AVAILABILITY_LABEL } from '@/lib/availability';
 import { useSeafoodStorefront } from '@/lib/seafood-rate';
 import { SeafoodPriceNote } from '@/components/products/SeafoodPriceNote';
+import { groupBySize, type SizedItem } from '@/lib/size-groups';
 
 const EMOJI: Record<string, string> = { lamb: '🐑', poultry: '🐔', seafood: '🦐' };
 
@@ -22,22 +23,38 @@ function sortProducts(list: StorefrontProduct[]) {
 }
 
 function ProductRow({
-  product, emoji, inCart, onAdd,
-}: { product: StorefrontProduct; emoji: string; inCart: boolean; onAdd: () => void }) {
-  const hasImage = !!product.image && product.image !== '/placeholder.svg';
+  group, emoji, inCartIds, onAdd, eager = false,
+}: {
+  eager?: boolean;
+  group: SizedItem<StorefrontProduct>;
+  emoji: string;
+  inCartIds: Set<string>;
+  onAdd: (p: StorefrontProduct) => void;
+}) {
+  const sized = group.variants.length > 1;
+  // Start on the first size that can be ordered.
+  const [pickedId, setPickedId] = useState<string>(
+    () => (group.variants.find((v) => canAddToCart(availabilityOf(v.product))) || group.variants[0]).product.id,
+  );
+  const product = (group.variants.find((v) => v.product.id === pickedId) || group.variants[0]).product;
+  const hasImg = (p: StorefrontProduct) => !!p.image && p.image !== '/placeholder.svg';
+  const image = hasImg(product) ? product.image : group.variants.map((v) => v.product).find(hasImg)?.image;
   const seafood = useSeafoodStorefront();
   const availability = availabilityOf(product);
+  const inCart = group.variants.some((v) => inCartIds.has(v.product.id));
   return (
     <div className="group flex flex-col bg-card border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
       <Link
         to={`/product/${product.id}`}
         className="relative block aspect-[4/3] overflow-hidden bg-muted flex items-center justify-center text-5xl"
       >
-        {hasImage ? (
+        {image ? (
           <img
-            src={product.image}
-            alt={product.name}
-            loading="lazy"
+            src={image}
+            alt={group.base}
+            loading={eager ? 'eager' : 'lazy'}
+            decoding="async"
+            fetchPriority={eager ? 'high' : 'auto'}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
@@ -52,9 +69,33 @@ function ProductRow({
       <div className="flex flex-1 flex-col p-3 md:p-4">
         <Link to={`/product/${product.id}`} className="flex-1">
           <p className="font-heading text-base md:text-lg font-semibold text-foreground leading-snug line-clamp-2">
-            {product.name}
+            {group.base}
           </p>
         </Link>
+        {sized && (
+          <div className="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label={`${group.base} size`}>
+            {group.variants.map((v) => {
+              const on = v.product.id === product.id;
+              const orderable = canAddToCart(availabilityOf(v.product));
+              return (
+                <button
+                  key={v.product.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setPickedId(v.product.id)}
+                  className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                    on
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border bg-background text-foreground hover:border-primary'
+                  } ${orderable ? '' : 'opacity-50 line-through'}`}
+                >
+                  {v.size}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div className="mt-2 flex items-center justify-between gap-2">
           <div className="min-w-0">
             {seafood.isHidden(product.category) ? (
@@ -71,9 +112,9 @@ function ProductRow({
           </div>
           <Button
             size="icon"
-            onClick={onAdd}
+            onClick={() => onAdd(product)}
             disabled={!canAddToCart(availability)}
-            aria-label={availability === 'preorder' ? 'Pre-order' : 'Add to cart'}
+            aria-label={availability === 'preorder' ? `Pre-order ${product.name}` : `Add ${product.name} to cart`}
             className="shrink-0"
           >
             <ShoppingCart className="h-4 w-4" />
@@ -155,19 +196,20 @@ export function ProductBrowser() {
             {q ? `No items match "${query.trim()}".` : 'Nothing available in this category right now.'}
           </p>
         ) : (
-          sections.map((s) => (
+          sections.map((s, si) => (
             <div key={s.id}>
               {s.title && (
                 <h2 className="font-heading text-2xl font-bold text-foreground mb-4">{s.title}</h2>
               )}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
-                {s.list.map((p) => (
+                {groupBySize<StorefrontProduct>(s.list).map((g, gi) => (
                   <ProductRow
-                    key={p.id}
-                    product={p}
-                    emoji={EMOJI[slugById.get(p.categoryId || '') || ''] || '🍽️'}
-                    inCart={inCartIds.has(p.id)}
-                    onAdd={() => addToCart(p)}
+                    eager={si === 0 && gi < 4}
+                    key={g.variants.map((v) => v.product.id).join('|')}
+                    group={g}
+                    emoji={EMOJI[slugById.get(g.variants[0].product.categoryId || '') || ''] || '🍽️'}
+                    inCartIds={inCartIds}
+                    onAdd={addToCart}
                   />
                 ))}
               </div>

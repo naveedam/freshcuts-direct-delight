@@ -98,6 +98,8 @@ const ProductPage = () => {
               <img 
                 src={product.image} 
                 alt={product.name}
+                decoding="async"
+                fetchPriority="high"
                 className="w-full h-full object-cover"
               />
             ) : (

@@ -156,10 +156,22 @@ export function SeafoodSheetPanel({ products, vendors }: { products: RateProduct
       }
 
       if (date === today) {
-        // Fish on today's sheet are in stock; seafood not on it is out of stock (pre-orders aside).
-        if (onSheet.length) await db.from('products').update({ in_stock: true, awaiting_daily_price: false }).in('id', onSheet);
+        // Fish on today's sheet with both prices are switched on; fish not on it are switched off
+        // (Storefront, In stock, Orderable, Order form, Pre-order), so they don't show as "Out of stock".
+        const pricedFully = onSheet.filter((id) =>
+          inputs.some((i) => i.product_id === id && i.purchase_price != null)
+          && inputs.some((i) => i.product_id === id && i.selling_price != null));
+        if (pricedFully.length) {
+          await db.from('products').update({
+            is_published: true, in_stock: true, is_orderable: true, show_in_order_form: true, awaiting_daily_price: false,
+          }).in('id', pricedFully);
+        }
         const off = productIds.filter((id) => !onSheet.includes(id));
-        if (off.length) await db.from('products').update({ in_stock: false }).in('id', off);
+        if (off.length) {
+          await db.from('products').update({
+            is_published: false, in_stock: false, is_orderable: false, show_in_order_form: false, preorder_enabled: false,
+          }).in('id', off);
+        }
         // The storefront still waits for this until the storefront step replaces it.
         await db.from('seafood_price_publications').upsert(
           { publish_date: today, published_at: new Date().toISOString(), changed_count: inputs.length },
@@ -243,7 +255,8 @@ export function SeafoodSheetPanel({ products, vendors }: { products: RateProduct
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((r) => {
+                  {/* Always A–Z by fish name, whatever was added or removed. */}
+                  {[...rows].sort((a, b) => nameOf(a.product_id).localeCompare(nameOf(b.product_id))).map((r) => {
                     const p = products.find((x) => x.id === r.product_id);
                     return (
                       <TableRow key={r.key}>

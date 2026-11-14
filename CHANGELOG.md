@@ -2,6 +2,21 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-14
+
+### Added
+- **Sizes on one card:** products named "<fish> - Small / Medium / Big" (also Baby, Mini, Regular, Large, Jumbo, XL) show on the home page as one card with size buttons. Picking a size changes the price and what the cart button adds. They stay separate products for pricing, stock and invoices. A size that can't be ordered is greyed out.
+
+### Changed
+- **Seafood daily sheet** is always listed A–Z by fish name.
+- **Products switched on and off from prices:**
+  - Seafood: saving today's sheet switches on every fish with a buying and a selling price, and switches off (all five switches) every fish not on the sheet, so it isn't shown as "Out of stock". A fish taken off today's sheet is switched off at once. At 00:10 each night all fish go off until that day's sheet is saved.
+  - Mutton and other products: saving a price that's in force today, with both a buying and a selling price, switches the product on. Switches you turn off by hand stay off.
+
+### Storefront (later on 14 Nov)
+- Footer no longer shows the street address or "Free delivery on orders over ₹2000".
+- **Faster photos:** new product photos are shrunk in the browser to 1000 px WebP (typically 60–150 KB) and cached by browsers for a year. Admin → Products has an **Optimise photos** button that does the same once for every existing photo; the old files are left in storage. Storefront images load lazily below the first row, and the first row loads first.
+
 ## 2026-11-10
 
 ### Fixed
