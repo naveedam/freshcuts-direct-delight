@@ -158,3 +158,6 @@
 @media (min-width: 768px) {
   .home-search-sticky { top: calc(5rem + var(--home-hero-h, 0px)); }
 }
+
+/* Never let wide tables widen the page on phones (that makes Chrome zoom out and pushes dialogs off-screen) */
+html, body { max-width: 100%; overflow-x: clip; }
