@@ -2,42 +2,51 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { lazy, Suspense } from "react";
+import { Loader2 } from "lucide-react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
 import Index from "./pages/Index";
-import CategoryPage from "./pages/CategoryPage";
-import ProductPage from "./pages/ProductPage";
-import CartPage from "./pages/CartPage";
-import AuthPage from "./pages/AuthPage";
-import CheckoutPage from "./pages/CheckoutPage";
+const CategoryPage = lazy(() => import("./pages/CategoryPage"));
+const ProductPage = lazy(() => import("./pages/ProductPage"));
+const CartPage = lazy(() => import("./pages/CartPage"));
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
 import NotFound from "./pages/NotFound";
-import AdminDashboard from "./pages/admin/Dashboard";
-import ProductManagementAdmin from "./pages/admin/ProductManagementAdmin";
-import VendorManagementAdmin from "./pages/admin/VendorManagementAdmin";
-import ExpensesManagementAdmin from "./pages/admin/ExpensesManagementAdmin";
-import RateManagementAdmin from "./pages/admin/RateManagementAdmin";
-import OrdersAdmin from "./pages/admin/OrdersAdmin";
-import ContentAdmin from "./pages/admin/ContentAdmin";
-import BusinessSettings from "./pages/admin/BusinessSettings";
-import ShippingSettings from "./pages/admin/ShippingSettings";
-import GSTConfigAdmin from "./pages/admin/GSTConfigAdmin";
-import GSTReportsAdmin from "./pages/admin/GSTReportsAdmin";
-import DocumentsAdmin from "./pages/admin/DocumentsAdmin";
-import BulkUploadAdmin from "./pages/admin/BulkUploadAdmin";
-import FinancialYearsAdmin from "./pages/admin/FinancialYearsAdmin";
-import DeliveryRunsAdmin from "./pages/admin/DeliveryRunsAdmin";
-import SearchAdmin from "./pages/admin/SearchAdmin";
-import OrderHistory from "./pages/account/OrderHistory";
-import OrderDetails from "./pages/account/OrderDetails";
-import ProfileSettings from "./pages/account/ProfileSettings";
-import UserDashboard from "./pages/account/UserDashboard";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
+const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
+const ProductManagementAdmin = lazy(() => import("./pages/admin/ProductManagementAdmin"));
+const VendorManagementAdmin = lazy(() => import("./pages/admin/VendorManagementAdmin"));
+const ExpensesManagementAdmin = lazy(() => import("./pages/admin/ExpensesManagementAdmin"));
+const RateManagementAdmin = lazy(() => import("./pages/admin/RateManagementAdmin"));
+const OrdersAdmin = lazy(() => import("./pages/admin/OrdersAdmin"));
+const ContentAdmin = lazy(() => import("./pages/admin/ContentAdmin"));
+const BusinessSettings = lazy(() => import("./pages/admin/BusinessSettings"));
+const ShippingSettings = lazy(() => import("./pages/admin/ShippingSettings"));
+const GSTConfigAdmin = lazy(() => import("./pages/admin/GSTConfigAdmin"));
+const GSTReportsAdmin = lazy(() => import("./pages/admin/GSTReportsAdmin"));
+const DocumentsAdmin = lazy(() => import("./pages/admin/DocumentsAdmin"));
+const BulkUploadAdmin = lazy(() => import("./pages/admin/BulkUploadAdmin"));
+const FinancialYearsAdmin = lazy(() => import("./pages/admin/FinancialYearsAdmin"));
+const DeliveryRunsAdmin = lazy(() => import("./pages/admin/DeliveryRunsAdmin"));
+const SearchAdmin = lazy(() => import("./pages/admin/SearchAdmin"));
+const OrderHistory = lazy(() => import("./pages/account/OrderHistory"));
+const OrderDetails = lazy(() => import("./pages/account/OrderDetails"));
+const ProfileSettings = lazy(() => import("./pages/account/ProfileSettings"));
+const UserDashboard = lazy(() => import("./pages/account/UserDashboard"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 import { RequireAdmin } from "./components/auth/RequireAdmin";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
+
+// Each screen is downloaded only when it is opened, so the first load stays small on phones.
+const PageLoading = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
 
 const App = () => (
   <ErrorBoundary>
@@ -48,6 +57,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <Suspense fallback={<PageLoading />}>
               <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/category/:categoryId" element={<CategoryPage />} />
@@ -95,6 +105,7 @@ const App = () => (
               
               <Route path="*" element={<NotFound />} />
               </Routes>
+              </Suspense>
             </BrowserRouter>
           </CartProvider>
         </AuthProvider>

@@ -1,4 +1,5 @@
-import ExcelJS from 'exceljs';
+// ExcelJS is large (~1 MB), so it is only downloaded when a spreadsheet is actually read or written.
+const loadExcelJS = async () => (await import('exceljs')).default;
 
 /**
  * Utility functions wrapping ExcelJS to replace the vulnerable xlsx (SheetJS) package.
@@ -6,6 +7,7 @@ import ExcelJS from 'exceljs';
 
 /** Read an Excel/CSV file buffer and return rows as JSON objects */
 export async function readExcelFile(buffer: ArrayBuffer): Promise<{ headers: string[]; rows: Record<string, unknown>[] }> {
+  const ExcelJS = await loadExcelJS();
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
   const sheet = workbook.worksheets[0];
@@ -41,6 +43,7 @@ export async function writeExcelFile(
   fileName: string,
   sheets: { name: string; data: Record<string, unknown>[] }[]
 ): Promise<void> {
+  const ExcelJS = await loadExcelJS();
   const workbook = new ExcelJS.Workbook();
 
   for (const sheet of sheets) {
