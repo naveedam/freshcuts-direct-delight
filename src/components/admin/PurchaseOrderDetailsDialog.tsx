@@ -186,7 +186,7 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
   return (
     <>
     <Dialog open={!!purchaseOrder} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="max-w-4xl max-h-[90dvh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <span>Purchase Order: {purchaseOrder.po_number}</span>

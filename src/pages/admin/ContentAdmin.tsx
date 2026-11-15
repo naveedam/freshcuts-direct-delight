@@ -484,7 +484,7 @@ function GoogleReviewsEditor() {
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Author Name</Label>
                   <Input
@@ -556,7 +556,7 @@ export default function ContentAdmin() {
         </div>
 
         <Tabs defaultValue="hero" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="flex flex-wrap h-auto w-full sm:grid sm:grid-cols-5">
             <TabsTrigger value="hero">Hero</TabsTrigger>
             <TabsTrigger value="why">Why Choose Us</TabsTrigger>
             <TabsTrigger value="reviews">Reviews</TabsTrigger>

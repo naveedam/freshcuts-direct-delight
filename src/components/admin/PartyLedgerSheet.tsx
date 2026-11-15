@@ -165,7 +165,7 @@ export function PartyLedgerSheet({ open, onOpenChange, party, title }: Props) {
           <Stat label="Outstanding" value={formatCurrency(totals.outstanding)} tone={totals.outstanding > 0 ? 'red' : 'green'} />
         </div>
 
-        <div className="grid grid-cols-4 gap-2 mt-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
           {Object.entries(ageing).map(([k, v]) => (
             <div key={k} className="border rounded-md p-2 text-center">
               <p className="text-[10px] text-muted-foreground uppercase">{k} days</p>

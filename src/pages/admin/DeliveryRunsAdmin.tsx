@@ -309,7 +309,7 @@ export default function DeliveryRunsAdmin() {
 
         {/* Create/Edit Dialog */}
         <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) resetForm(); setDialogOpen(open); }}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[90dvh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Truck className="h-5 w-5" />

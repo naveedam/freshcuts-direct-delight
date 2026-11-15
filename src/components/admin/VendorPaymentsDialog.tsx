@@ -166,14 +166,14 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Payments — {vendor.name}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Financial Summary */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Payable</CardTitle>

@@ -731,7 +731,7 @@ export default function GSTReportsAdmin() {
                     <CardTitle>Table 3.1(c): Exempt / Nil-Rated / Non-GST Supplies</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="p-4 bg-blue-50 rounded-lg">
                         <p className="text-sm text-blue-700">Nil Rated</p>
                         <p className="text-xl font-bold text-blue-900">{formatCurrency(gstr3b.table_3_1_c.nil_rated)}</p>

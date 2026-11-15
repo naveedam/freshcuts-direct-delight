@@ -407,7 +407,7 @@ export default function ProductsAdmin({ embedded = false }: { embedded?: boolean
               </Button>
             </DialogTrigger>
             {/* Header and footer stay put; only the fields scroll, so Save is always in reach */}
-            <DialogContent className="max-w-xl max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+            <DialogContent className="max-w-xl max-h-[90dvh] flex flex-col gap-0 p-0 overflow-hidden">
               <DialogHeader className="px-5 pt-5 pb-3 border-b">
                 <DialogTitle>{editingId ? 'Edit Product' : 'Add New Product'}</DialogTitle>
               </DialogHeader>

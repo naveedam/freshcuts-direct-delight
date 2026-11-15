@@ -250,7 +250,7 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden [&>*]:min-w-0">
+      <DialogContent className="max-w-4xl max-h-[90dvh] overflow-y-auto overflow-x-hidden [&>*]:min-w-0">
         <DialogHeader>
           <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
             <DialogTitle className="flex flex-wrap items-center gap-2 text-left text-base sm:text-lg">

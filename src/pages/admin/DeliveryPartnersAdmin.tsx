@@ -380,7 +380,7 @@ function SettleDialog({ partner, balance, today, onClose, onDone }: {
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
         <DialogHeader><DialogTitle>Settle delivery days: {partner.name}</DialogTitle></DialogHeader>
         {done ? (
           <div className="space-y-3">
@@ -487,7 +487,7 @@ function LedgerDialog({ partner, today, onClose, onChanged }: {
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-[min(96vw,1000px)] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[min(96vw,1000px)] max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{partner.name}: ledger</DialogTitle>
           <DialogDescription>Every entry with the balance after it. Entries aren't edited; remove a wrong one and add it again.</DialogDescription>

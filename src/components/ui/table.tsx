@@ -2,12 +2,54 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
-  ({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-auto">
-      <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
-    </div>
-  ),
+type TableProps = React.HTMLAttributes<HTMLTableElement> & {
+  /** On phones each row becomes a labelled card. Set false for grid-like tables that must stay tables. */
+  mobileCards?: boolean;
+};
+
+// Copies each column heading onto its cells (data-label) so the phone card layout in index.css can
+// show "Heading: value" pairs. Re-runs when rows change.
+function useColumnLabels(tableRef: React.RefObject<HTMLTableElement>, enabled: boolean) {
+  React.useEffect(() => {
+    const table = tableRef.current;
+    if (!enabled || !table) return;
+    const apply = () => {
+      const headRows = table.tHead?.rows;
+      if (!headRows || headRows.length === 0) return;
+      const labels: string[] = [];
+      Array.from(headRows[headRows.length - 1].cells).forEach((th) => {
+        const span = th.colSpan || 1;
+        for (let i = 0; i < span; i++) labels.push((th.textContent || '').trim());
+      });
+      Array.from(table.tBodies).forEach((tb) =>
+        Array.from(tb.rows).forEach((tr) => {
+          let col = 0;
+          Array.from(tr.cells).forEach((td) => {
+            const label = td.colSpan > 1 ? '' : labels[col] || '';
+            if (td.getAttribute('data-label') !== label) td.setAttribute('data-label', label);
+            col += td.colSpan || 1;
+          });
+        }),
+      );
+    };
+    apply();
+    const obs = new MutationObserver(apply);
+    obs.observe(table, { childList: true, subtree: true, characterData: true });
+    return () => obs.disconnect();
+  }, [tableRef, enabled]);
+}
+
+const Table = React.forwardRef<HTMLTableElement, TableProps>(
+  ({ className, mobileCards = true, ...props }, ref) => {
+    const innerRef = React.useRef<HTMLTableElement>(null);
+    React.useImperativeHandle(ref, () => innerRef.current as HTMLTableElement);
+    useColumnLabels(innerRef, mobileCards);
+    return (
+      <div className={cn("relative w-full overflow-auto", mobileCards && "rt-cards")}>
+        <table ref={innerRef} className={cn("w-full caption-bottom text-sm", className)} {...props} />
+      </div>
+    );
+  },
 );
 Table.displayName = "Table";
 

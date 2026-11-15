@@ -310,7 +310,7 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
 
   return (
     <Dialog open={!!purchaseOrder} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-5xl max-h-[90vh]">
+      <DialogContent className="max-w-5xl max-h-[90dvh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PackageCheck className="h-5 w-5" />

@@ -126,7 +126,7 @@ export function BulkUploadStep3({ rawData, columnMapping, categories, existingSk
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-center">
                 <CheckCircle className="h-6 w-6 mx-auto text-emerald-600 mb-1" />
                 <p className="text-2xl font-bold text-emerald-700">{validCount}</p>

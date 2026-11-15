@@ -197,7 +197,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setLoading(null); }}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Share Invoice #{invoiceNum}</DialogTitle>
         </DialogHeader>

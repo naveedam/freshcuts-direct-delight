@@ -577,7 +577,7 @@ export function NewOrderDialog({ open, onOpenChange, prefill }: NewOrderDialogPr
       if (!isOpen) resetForm();
       onOpenChange(isOpen);
     }}>
-      <DialogContent className="max-w-[min(96vw,1200px)] max-h-[92vh] overflow-y-auto gap-3 p-4 sm:p-5">
+      <DialogContent className="max-w-[min(96vw,1200px)] max-h-[92dvh] overflow-y-auto gap-3 p-4 sm:p-5">
         <DialogHeader>
           <DialogTitle>Create New Order</DialogTitle>
         </DialogHeader>

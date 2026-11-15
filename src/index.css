@@ -161,3 +161,46 @@
 
 /* Never let wide tables widen the page on phones (that makes Chrome zoom out and pushes dialogs off-screen) */
 html, body { max-width: 100%; overflow-x: clip; }
+
+/* ---------- Phone layout for data tables (portrait phones, and landscape phones by their short height) ----------
+   Each row becomes a card: "Heading ........ value". Opt out per table with <Table mobileCards={false}>. */
+@media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
+  .rt-cards { overflow: visible; }
+  .rt-cards > table,
+  .rt-cards > table > tbody,
+  .rt-cards > table > tbody > tr,
+  .rt-cards > table > tbody > tr > td { display: block; width: 100%; }
+  .rt-cards > table > thead { display: none; }
+  .rt-cards > table > tbody { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
+  .rt-cards > table > tbody > tr {
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.875rem;
+    background: hsl(var(--card));
+  }
+  /* Label in a left column; everything in the cell stacks, right-aligned, in the right column */
+  .rt-cards > table > tbody > tr > td {
+    display: grid; grid-template-columns: minmax(5rem, auto) minmax(0, 1fr); column-gap: 0.75rem; row-gap: 0.15rem;
+    align-items: center; padding: 0.4rem 0; text-align: right; min-width: 0; border: 0;
+  }
+  .rt-cards > table > tbody > tr > td > * { grid-column: 2; justify-self: end; min-width: 0; max-width: 100%; }
+  .rt-cards > table > tbody > tr > td::before {
+    content: attr(data-label);
+    grid-column: 1; grid-row: 1; align-self: center;
+    text-align: left; font-size: 0.75rem; font-weight: 500;
+    color: hsl(var(--muted-foreground));
+  }
+  .rt-cards > table > tbody > tr > td[data-label=""] { grid-template-columns: minmax(0, 1fr); text-align: left; }
+  .rt-cards > table > tbody > tr > td[data-label=""]::before { display: none; }
+  .rt-cards > table > tbody > tr > td[data-label=""] > * { grid-column: 1; justify-self: start; }
+  .rt-cards > table > tbody > tr > td[colspan] { grid-template-columns: minmax(0, 1fr); text-align: center; }
+  .rt-cards > table > tbody > tr > td[colspan] > * { grid-column: 1; justify-self: center; }
+  /* Actions (last cell): full-width row of large, wrapping buttons */
+  .rt-cards > table > tbody > tr > td:last-child:not(:only-child) {
+    border-top: 1px dashed hsl(var(--border)); margin-top: 0.25rem; padding-top: 0.6rem;
+  }
+  .rt-cards > table > tbody > tr > td:last-child button { min-height: 2.5rem; min-width: 2.5rem; }
+  .rt-cards > table > tbody > tr > td:last-child > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.25rem; }
+  .rt-cards > table > tfoot { display: block; }
+  .rt-cards > table > tfoot > tr { display: flex; flex-wrap: wrap; justify-content: space-between; padding: 0.5rem 0.875rem; }
+}

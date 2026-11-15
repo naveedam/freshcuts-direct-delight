@@ -245,13 +245,13 @@ export default function VendorsAdmin({ embedded = false }: { embedded?: boolean 
                 Add Vendor
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingId ? 'Edit Vendor' : 'Add New Vendor'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <Tabs defaultValue="basic" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="flex flex-wrap h-auto w-full sm:grid sm:grid-cols-3">
                     <TabsTrigger value="basic">Basic Info</TabsTrigger>
                     <TabsTrigger value="contact">Contact & Address</TabsTrigger>
                     <TabsTrigger value="banking">Banking & Tax</TabsTrigger>
@@ -346,7 +346,7 @@ export default function VendorsAdmin({ embedded = false }: { embedded?: boolean 
                         rows={2}
                       />
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="city">City</Label>
                         <Input
