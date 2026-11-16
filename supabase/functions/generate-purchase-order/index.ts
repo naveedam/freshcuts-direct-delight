@@ -73,6 +73,7 @@ function formatCurrency(amount: number): string {
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-IN', {
+    timeZone: 'Asia/Kolkata',
     year: 'numeric',
     month: 'long',
     day: 'numeric'

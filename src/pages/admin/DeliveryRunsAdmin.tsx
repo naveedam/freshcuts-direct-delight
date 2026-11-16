@@ -1,4 +1,5 @@
 import { StickyTop } from '@/components/admin/TabbedAdminPage';
+import { formatIST, istToday } from '@/lib/ist';
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,7 +16,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from 'sonner';
 import { Truck, Plus, Loader2, Trash2, Edit, IndianRupee } from 'lucide-react';
-import { format } from 'date-fns';
 
 interface DeliveryRun {
   id: string;
@@ -33,7 +33,7 @@ export default function DeliveryRunsAdmin() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRun, setEditingRun] = useState<DeliveryRun | null>(null);
-  const [runDate, setRunDate] = useState(new Date().toISOString().split('T')[0]);
+  const [runDate, setRunDate] = useState(istToday());
   const [driverName, setDriverName] = useState('');
   const [vehicle, setVehicle] = useState('');
   const [totalCost, setTotalCost] = useState('');
@@ -94,7 +94,7 @@ export default function DeliveryRunsAdmin() {
   }, [availableOrders, assignedOrderIds]);
 
   const resetForm = () => {
-    setRunDate(new Date().toISOString().split('T')[0]);
+    setRunDate(istToday());
     setDriverName('');
     setVehicle('');
     setTotalCost('');
@@ -218,7 +218,7 @@ export default function DeliveryRunsAdmin() {
   const costPerOrder = selectedOrderIds.size > 0 ? (parseFloat(totalCost) || 0) / selectedOrderIds.size : 0;
 
   // Stats
-  const todayRuns = deliveryRuns?.filter(r => r.run_date === new Date().toISOString().split('T')[0]) || [];
+  const todayRuns = deliveryRuns?.filter(r => r.run_date === istToday()) || [];
   const todayTotalCost = todayRuns.reduce((s, r) => s + Number(r.total_cost), 0);
   const todayTotalOrders = todayRuns.reduce((s, r) => s + (r.orders?.length || 0), 0);
 
@@ -275,7 +275,7 @@ export default function DeliveryRunsAdmin() {
                 ) : deliveryRuns && deliveryRuns.length > 0 ? (
                   deliveryRuns.map(run => (
                     <TableRow key={run.id}>
-                      <TableCell>{format(new Date(run.run_date), 'dd MMM yyyy')}</TableCell>
+                      <TableCell>{formatIST(run.run_date, 'dd MMM yyyy')}</TableCell>
                       <TableCell>{run.driver_name || '-'}</TableCell>
                       <TableCell>{run.vehicle || '-'}</TableCell>
                       <TableCell className="text-right font-medium">{formatCurrency(run.total_cost)}</TableCell>

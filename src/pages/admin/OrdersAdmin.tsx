@@ -33,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFinancialYears } from '@/hooks/useFinancialYears';
 import { fetchAllRows } from '@/lib/supabase-paginate';
+import { istMidnight, istToday } from '@/lib/ist';
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
@@ -198,9 +199,7 @@ export default function OrdersAdmin() {
 
   // Dashboard widgets — global
   const widgets = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayMs = today.getTime();
+    const todayMs = istMidnight(istToday()).getTime();
     // Payments are dated by when they were received, in IST; settlements aren't money received.
     const todayStr = istDateString();
     const todaysCollection = (allPayments || [])
@@ -870,7 +869,7 @@ export default function OrdersAdmin() {
                 <SummaryStat label="Invoice Value" value={formatCurrency(partySummary.billed)} />
                 <SummaryStat label="Paid" value={formatCurrency(partySummary.paid)} tone="green" />
                 <SummaryStat label="Outstanding" value={formatCurrency(partySummary.outstanding)} tone={partySummary.outstanding > 0 ? 'red' : 'green'} />
-                <SummaryStat label="Last Payment" value={partySummary.lastPayment ? partySummary.lastPayment.toLocaleDateString('en-IN') : '—'} />
+                <SummaryStat label="Last Payment" value={partySummary.lastPayment ? partySummary.lastPayment.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'} />
               </div>
               {(() => {
                 if (buildingFilter) {
@@ -966,7 +965,7 @@ export default function OrdersAdmin() {
                           <p className="text-xs text-primary font-medium">{order.invoice_number}</p>
                         )}
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
-                          {new Date(order.created_at).toLocaleDateString()}
+                          {new Date(order.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}
                           {getOrderSourceBadge(order.order_source)}
                         </div>
                       </div>
@@ -1257,7 +1256,7 @@ export default function OrdersAdmin() {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Date</p>
-                    <p>{new Date(selectedOrder.created_at).toLocaleString()}</p>
+                    <p>{new Date(selectedOrder.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Source</p>

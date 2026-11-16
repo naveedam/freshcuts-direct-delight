@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { formatIST } from '@/lib/ist';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PageFrame } from '@/components/admin/TabbedAdminPage';
@@ -10,7 +11,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
-import { format } from 'date-fns';
 import { Plus, Trash2, Loader2, IndianRupee, Download } from 'lucide-react';
 import { writeExcelFile } from '@/lib/excel-utils';
 import { istDateString } from '@/lib/live-rate';
@@ -161,7 +161,7 @@ export default function ExpensesAdmin({ embedded = false }: { embedded?: boolean
     writeExcelFile('Expenses_' + filterMonth + '.xlsx', [{
       name: 'Expenses',
       data: filtered.map((e: any) => ({
-        Date: format(new Date(e.expense_date), 'dd MMM yyyy'),
+        Date: formatIST(e.expense_date, 'dd MMM yyyy'),
         Category: e.category,
         'Sub Category': e.sub_category || '',
         Amount: Number(e.amount),
@@ -371,7 +371,7 @@ export default function ExpensesAdmin({ embedded = false }: { embedded?: boolean
                 <TableBody>
                   {filtered.map((e: any) => (
                     <TableRow key={e.id}>
-                      <TableCell className="text-sm">{format(new Date(e.expense_date), 'dd MMM yyyy')}</TableCell>
+                      <TableCell className="text-sm">{formatIST(e.expense_date, 'dd MMM yyyy')}</TableCell>
                       <TableCell>
                         <div>
                           <p className="text-sm font-medium">{e.category}</p>
@@ -381,7 +381,7 @@ export default function ExpensesAdmin({ embedded = false }: { embedded?: boolean
                           )}
                           {e.spread_from && (
                             <p className="text-xs text-muted-foreground">
-                              Spread {format(new Date(e.spread_from), 'dd MMM')} – {format(new Date(e.spread_to), 'dd MMM')}
+                              Spread {formatIST(e.spread_from, 'dd MMM')} – {formatIST(e.spread_to, 'dd MMM')}
                             </p>
                           )}
                         </div>

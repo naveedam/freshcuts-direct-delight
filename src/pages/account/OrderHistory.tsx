@@ -91,7 +91,7 @@ export default function OrderHistory() {
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <p className="text-sm text-muted-foreground">
-                          {new Date(order.created_at).toLocaleDateString('en-IN', {
+                          {new Date(order.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata',
                             year: 'numeric',
                             month: 'long',
                             day: 'numeric'

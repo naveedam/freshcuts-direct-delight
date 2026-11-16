@@ -12,6 +12,7 @@ import { PurchaseOrder } from '@/types/vendor';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { istDayStart, istToday } from '@/lib/ist';
 
 interface OrderItemRef {
   order_item_id: string;
@@ -55,7 +56,7 @@ interface ReceiveOrderDialogProps {
 export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialogProps) {
   const queryClient = useQueryClient();
   const [items, setItems] = useState<ReceivedItem[]>([]);
-  const [receivedDate, setReceivedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [receivedDate, setReceivedDate] = useState(istToday());
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
 
   const { data: products } = useQuery({
@@ -154,7 +155,7 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
           orderBreakdown: breakdown,
         };
       }));
-      setReceivedDate(new Date().toISOString().split('T')[0]);
+      setReceivedDate(istToday());
       // Auto-expand products that have breakdown
       const expanded = new Set<string>();
       purchaseOrder.items.forEach(item => {
@@ -251,7 +252,7 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
 
       const updates: Record<string, any> = { status: newStatus };
       if (newStatus === 'received') {
-        updates.received_date = receivedDate;
+        updates.received_date = istDayStart(receivedDate);
       }
 
       const actualTotalValue = items.reduce((sum, item) => {

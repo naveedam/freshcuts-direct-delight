@@ -2,6 +2,27 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-15
+
+### Added
+- **Vendor Management → Statements & Payments** tab:
+  - Pick a vendor (or all) and a period (this/last week Sun–Sat, this/last month, or any dates).
+  - Every order line the vendor supplied: date, apartment, flat, item, vendor quantity and vendor rate taken from the order (the same figures the invoice and PO use), amount, linked invoice, linked PO and payment status.
+  - Totals for the period (statement total, paid, outstanding) and the vendor ledger (opening, POs, payments, closing).
+  - Reconciliation checks: lines not on a PO, PO lines that differ from the order, missing vendor rates, PO lines with no order line, and the ledger sum. A **Fix purchase orders** button adds missing PO lines and aligns PO lines to the orders (orders and invoices aren't changed).
+  - **Record payment** for the period: shared out over the period's POs, oldest first, so Purchase Orders, Vendor Ledger and the vendor's Payments dialog all show it; anything extra is kept as an advance. Each payment can be undone.
+  - Download the statement as **Excel** or **PDF**.
+- Database: `vendor_payments` gains `batch_id`, `period_from`, `period_to`; functions `record_vendor_settlement`, `undo_vendor_settlement`, `refresh_po_payment` (migration 20261115100000).
+
+### IST everywhere (15 Nov)
+- New `src/lib/ist.ts`: today, day/week/month boundaries and date formatting in India Standard Time, whatever timezone the browser or phone is set to.
+- Admin screens show dates in IST (Purchase Orders, Vendor Ledger, Vendor payments/details, Documents, Expenses, Financial Years, Delivery Runs, Orders, Party ledger, Shipments, GST reconciliation) and customer pages (order history, order details, account) show order dates in IST.
+- Dashboard "today / this week / this month" and the Orders widgets use IST midnight; GST report months and financial-year defaults use IST months.
+- Date filters (Vendor Ledger, Vendor Profitability, Purchase Orders, Documents, vendor daily summary) cover the full IST day.
+- New daily purchase orders are dated by the order's IST day (an order at 12:30 AM IST no longer lands on the previous day's PO); existing POs are found as before.
+- Server-generated invoice, PO and shipping-label dates use IST.
+- Database timezone set to Asia/Kolkata (migration 20261115120000); stored timestamps are unchanged.
+
 ## 2026-11-14 (evening)
 
 ### Changed

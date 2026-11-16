@@ -65,7 +65,7 @@ function normalizeGst(raw: string): string {
 const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
   ({ order, items, business }, ref) => {
     const invoiceNum = order.invoice_number || order.id.slice(0, 8).toUpperCase();
-    const invoiceDate = new Date(order.created_at).toLocaleDateString('en-IN', {
+    const invoiceDate = new Date(order.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata',
       year: 'numeric', month: 'short', day: 'numeric',
     });
 

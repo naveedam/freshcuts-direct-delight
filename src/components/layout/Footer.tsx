@@ -2,6 +2,7 @@ import logoLight from '@/assets/fresh-cuts-daily-logo-light.svg';
 import { Link } from 'react-router-dom';
 import { Phone, Mail, Clock } from 'lucide-react';
 import { usePageContent, FooterContent } from '@/hooks/usePageContent';
+import { istParts } from '@/lib/ist';
 
 const defaultContent: FooterContent = {
   companyName: 'FreshCuts',
@@ -90,7 +91,7 @@ export function Footer() {
         <div className="border-t border-primary-foreground/10 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="font-body text-sm text-primary-foreground/50">
-              © {new Date().getFullYear()} {brandName} Daily. All rights reserved.
+              © {istParts().year} {brandName} Daily. All rights reserved.
             </p>
             <div className="flex gap-6">
               <Link to="#" className="font-body text-xs text-primary-foreground/50 hover:text-gold transition-colors">

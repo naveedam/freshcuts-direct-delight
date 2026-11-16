@@ -254,7 +254,7 @@ Deno.serve(async (req) => {
     const subtotal = gstSummary.total_exempt_value + gstSummary.total_nil_rated_value + gstSummary.total_taxable_value;
     const grandTotalWithDiscount = gstSummary.grand_total - discountAmount;
 
-    const invoiceDate = new Date(order.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' });
+    const invoiceDate = new Date(order.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: 'long', day: 'numeric' });
 
     // Build structured delivery address for Bill To
     const deliveryAddressLines: string[] = [];

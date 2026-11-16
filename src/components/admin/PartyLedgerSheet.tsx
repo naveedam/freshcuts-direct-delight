@@ -194,7 +194,7 @@ export function PartyLedgerSheet({ open, onOpenChange, party, title }: Props) {
               <TableBody>
                 {rows.map((r, i) => (
                   <TableRow key={i}>
-                    <TableCell className="text-xs whitespace-nowrap">{new Date(r.date).toLocaleDateString('en-IN')}</TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">{new Date(r.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</TableCell>
                     <TableCell>
                       {r.type === 'invoice' ? (
                         <Badge variant="outline" className="text-[10px]">Invoice</Badge>

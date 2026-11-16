@@ -1,9 +1,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { formatIST } from '@/lib/ist';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Building2, Phone, Mail, MapPin, CreditCard, FileText, Calendar } from 'lucide-react';
 import { Vendor } from '@/types/vendor';
-import { format } from 'date-fns';
 
 interface VendorDetailsDialogProps {
   vendor: Vendor;
@@ -149,11 +149,11 @@ export function VendorDetailsDialog({ vendor, open, onOpenChange }: VendorDetail
           <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-4">
             <div className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              Created: {format(new Date(vendor.created_at), 'dd MMM yyyy')}
+              Created: {formatIST(vendor.created_at, 'dd MMM yyyy')}
             </div>
             <div className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              Updated: {format(new Date(vendor.updated_at), 'dd MMM yyyy')}
+              Updated: {formatIST(vendor.updated_at, 'dd MMM yyyy')}
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatIST, istParts } from '@/lib/ist';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -12,7 +13,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { CalendarDays, Plus, Pencil, CheckCircle2, Lock, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
 import { useFinancialYears, FinancialYear } from '@/hooks/useFinancialYears';
 
 interface FYForm {
@@ -23,20 +23,20 @@ interface FYForm {
 }
 
 function getDefaultFYName(): string {
-  const now = new Date();
-  const year = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  const now = istParts();
+  const year = now.month >= 4 ? now.year : now.year - 1;
   return `FY ${year}–${String(year + 1).slice(2)}`;
 }
 
 function getDefaultStartDate(): string {
-  const now = new Date();
-  const year = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  const now = istParts();
+  const year = now.month >= 4 ? now.year : now.year - 1;
   return `${year}-04-01`;
 }
 
 function getDefaultEndDate(): string {
-  const now = new Date();
-  const year = now.getMonth() >= 3 ? now.getFullYear() + 1 : now.getFullYear();
+  const now = istParts();
+  const year = now.month >= 4 ? now.year + 1 : now.year;
   return `${year}-03-31`;
 }
 
@@ -189,8 +189,8 @@ export default function FinancialYearsAdmin() {
                   {financialYears.map((fy) => (
                     <TableRow key={fy.id}>
                       <TableCell className="font-medium">{fy.name}</TableCell>
-                      <TableCell>{format(new Date(fy.start_date), 'dd MMM yyyy')}</TableCell>
-                      <TableCell>{format(new Date(fy.end_date), 'dd MMM yyyy')}</TableCell>
+                      <TableCell>{formatIST(fy.start_date, 'dd MMM yyyy')}</TableCell>
+                      <TableCell>{formatIST(fy.end_date, 'dd MMM yyyy')}</TableCell>
                       <TableCell>
                         {fy.is_active ? (
                           <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">Active</Badge>

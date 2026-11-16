@@ -150,7 +150,7 @@ export default function OrderDetails() {
               Order #{order.id.slice(0, 8)}
             </h1>
             <p className="text-muted-foreground mt-1">
-              Placed on {new Date(order.created_at).toLocaleDateString('en-IN', {
+              Placed on {new Date(order.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata',
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',

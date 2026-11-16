@@ -245,7 +245,7 @@ Deno.serve(async (req) => {
       <div class="order-ref">${escapeHtml(orderRef)}</div>
       <div class="barcode">*${order.id.slice(0, 12).toUpperCase()}*</div>
       <div class="barcode-text">${order.id.toUpperCase()}</div>
-      <div class="date">Generated: ${new Date().toLocaleDateString('en-IN')}</div>
+      <div class="date">Generated: ${new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</div>
     </div>
     <div class="privacy-note">Customer contact details withheld for privacy</div>
   </div>

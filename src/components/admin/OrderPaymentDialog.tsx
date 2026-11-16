@@ -203,7 +203,7 @@ export function OrderPaymentDialog({ open, onOpenChange, order }: OrderPaymentDi
               <TableBody>
                 {payments.map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell className="text-xs">{new Date(p.payment_date).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-xs">{new Date(p.payment_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs capitalize">
                         {p.payment_method === 'settlement' ? `Settled${p.notes ? `: ${p.notes}` : ''}` : p.payment_method.replace('_', ' ')}

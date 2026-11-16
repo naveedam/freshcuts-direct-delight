@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { formatIST, istDayEnd, istDayStart } from '@/lib/ist';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabase-paginate';
@@ -11,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, FileText, Wallet, IndianRupee, TrendingUp, Clock } from 'lucide-react';
-import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/currency';
 import { writeExcelFile } from '@/lib/excel-utils';
 import { PO_STATUS_LABELS, PO_STATUS_STYLES } from '@/lib/po-lifecycle';
@@ -44,8 +44,8 @@ export default function VendorLedger({ embedded = false }: { embedded?: boolean 
         .order('order_date', { ascending: false });
       if (vendorId !== 'all') q = q.eq('vendor_id', vendorId);
       if (statusFilter !== 'all') q = q.eq('status', statusFilter);
-      if (fromDate) q = q.gte('order_date', `${fromDate}T00:00:00`);
-      if (toDate) q = q.lte('order_date', `${toDate}T23:59:59.999`);
+      if (fromDate) q = q.gte('order_date', istDayStart(fromDate));
+      if (toDate) q = q.lte('order_date', istDayEnd(toDate));
       return await fetchAllRows<any>(() => q);
     },
   });
@@ -69,7 +69,7 @@ export default function VendorLedger({ embedded = false }: { embedded?: boolean 
     const paid = activeRows.reduce((s: number, r: any) => s + Number(r.paid_amount || 0), 0);
     const openPOs = activeRows.filter((r: any) => r.status !== 'paid').length;
     const lastPaymentDate = vendorId !== 'all' && lastPayments?.[vendorId]
-      ? format(new Date(lastPayments[vendorId]), 'dd MMM yyyy') : '—';
+      ? formatIST(lastPayments[vendorId], 'dd MMM yyyy') : '—';
     return { purchase, paid, outstanding: purchase - paid, openPOs, lastPaymentDate };
   }, [rows, lastPayments, vendorId]);
 
@@ -78,7 +78,7 @@ export default function VendorLedger({ embedded = false }: { embedded?: boolean 
     const data = rows.map((r: any) => {
       const orderMatch = r.notes?.match(/Order #([a-f0-9]{8})/i);
       return {
-        Date: format(new Date(r.order_date), 'dd MMM yyyy'),
+        Date: formatIST(r.order_date, 'dd MMM yyyy'),
         'PO Number': r.po_number,
         Vendor: r.vendor?.name || '',
         'Customer Order': orderMatch ? orderMatch[1] : '',
@@ -88,7 +88,7 @@ export default function VendorLedger({ embedded = false }: { embedded?: boolean 
         Status: PO_STATUS_LABELS[r.status] || r.status,
       };
     });
-    writeExcelFile(`Vendor_Ledger_${format(new Date(), 'yyyy-MM-dd')}.xlsx`, [
+    writeExcelFile(`Vendor_Ledger_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx`, [
       { name: 'Ledger', data },
     ]);
     toast.success('Exported');
@@ -173,7 +173,7 @@ export default function VendorLedger({ embedded = false }: { embedded?: boolean 
                   const outstanding = Number(r.total_amount || 0) - Number(r.paid_amount || 0);
                   return (
                     <TableRow key={r.id}>
-                      <TableCell>{format(new Date(r.order_date), 'dd MMM yyyy')}</TableCell>
+                      <TableCell>{formatIST(r.order_date, 'dd MMM yyyy')}</TableCell>
                       <TableCell className="font-mono">{r.po_number}</TableCell>
                       <TableCell>{r.vendor?.name || '—'}</TableCell>
                       <TableCell className="font-mono text-xs">{orderMatch ? orderMatch[1] : '—'}</TableCell>

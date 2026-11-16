@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatIST, istDayEnd, istDayStart } from '@/lib/ist';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabase-paginate';
@@ -17,7 +18,6 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import { PurchaseOrder, Vendor } from '@/types/vendor';
-import { format } from 'date-fns';
 import { PurchaseOrderDialog } from '@/components/admin/PurchaseOrderDialog';
 import { PurchaseOrderDetailsDialog } from '@/components/admin/PurchaseOrderDetailsDialog';
 import { ReceiveOrderDialog } from '@/components/admin/ReceiveOrderDialog';
@@ -59,8 +59,8 @@ export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: b
           vendor:vendors(id, name, contact_person, email, phone)
         `)
         .order('order_date', { ascending: false });
-      if (fromDate) query = query.gte('order_date', fromDate);
-      if (toDate) query = query.lte('order_date', toDate);
+      if (fromDate) query = query.gte('order_date', istDayStart(fromDate));
+      if (toDate) query = query.lte('order_date', istDayEnd(toDate));
       if (vendorFilter !== 'all') query = query.eq('vendor_id', vendorFilter);
       
       if (statusFilter !== 'all') {
@@ -131,7 +131,7 @@ export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: b
       await supabase.from('vendor_payments').insert({
         vendor_id: vendorFilter,
         amount: payAmount,
-        payment_date: new Date().toISOString().split('T')[0],
+        payment_date: new Date().toISOString(),
         payment_method: weeklyPayMethod,
         reference_number: weeklyPayRef || null,
         notes: weeklyPayNotes || null,
@@ -192,9 +192,9 @@ export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: b
     const exportData = purchaseOrders.map(po => ({
       'PO Number': po.po_number,
       'Vendor': po.vendor?.name || 'Unknown',
-      'Order Date': format(new Date(po.order_date), 'dd MMM yyyy'),
+      'Order Date': formatIST(po.order_date, 'dd MMM yyyy'),
       'Expected Delivery': po.expected_delivery_date 
-        ? format(new Date(po.expected_delivery_date), 'dd MMM yyyy') 
+        ? formatIST(po.expected_delivery_date, 'dd MMM yyyy') 
         : '-',
       'Status': po.status.replace('_', ' ').toUpperCase(),
       'Payment Status': po.payment_status.toUpperCase(),
@@ -205,7 +205,7 @@ export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: b
       'Notes': po.notes || '',
     }));
 
-    writeExcelFile(`Purchase_Orders_${format(new Date(), 'yyyy-MM-dd')}.xlsx`, [
+    writeExcelFile(`Purchase_Orders_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx`, [
       { name: 'Purchase Orders', data: exportData }
     ]);
     toast.success('Purchase orders exported successfully');
@@ -442,10 +442,10 @@ export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: b
                           'Unknown'
                         )}
                       </TableCell>
-                      <TableCell>{format(new Date(po.order_date), 'dd MMM yyyy')}</TableCell>
+                      <TableCell>{formatIST(po.order_date, 'dd MMM yyyy')}</TableCell>
                       <TableCell>
                         {po.expected_delivery_date 
-                          ? format(new Date(po.expected_delivery_date), 'dd MMM yyyy')
+                          ? formatIST(po.expected_delivery_date, 'dd MMM yyyy')
                           : '-'}
                       </TableCell>
                       <TableCell>{getStatusBadge(po.status)}</TableCell>

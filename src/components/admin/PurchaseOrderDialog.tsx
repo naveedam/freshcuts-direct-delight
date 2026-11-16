@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
 import { PurchaseOrder, Vendor, PurchaseOrderItem } from '@/types/vendor';
 import { format } from 'date-fns';
+import { istDayStart, istToday } from '@/lib/ist';
 
 interface POLineItem {
   product_id: string | null;
@@ -173,7 +174,7 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
           po_number: poNumber,
           vendor_id: vendorId,
           status,
-          order_date: new Date().toISOString().split('T')[0],
+          order_date: istDayStart(istToday()),
           expected_delivery_date: expectedDelivery || null,
           subtotal,
           tax_amount: taxAmount,

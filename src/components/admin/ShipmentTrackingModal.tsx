@@ -12,6 +12,7 @@ import { Loader2, Package, Truck, MapPin, Phone, User, ExternalLink, Clock, Scal
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ShippingRateComparison, ShippingRate } from './ShippingRateComparison';
+import { istDateOf, istToday } from '@/lib/ist';
 
 interface ShipmentTrackingModalProps {
   open: boolean;
@@ -127,7 +128,7 @@ export function ShipmentTrackingModal({ open, onOpenChange, orderId }: ShipmentT
         setRiderPhone(data.rider_phone || '');
         setTrackingUrl(data.tracking_url || '');
         setShippingCost(data.shipping_cost?.toString() || '');
-        setEstimatedDelivery(data.estimated_delivery ? data.estimated_delivery.split('T')[0] : '');
+        setEstimatedDelivery(data.estimated_delivery ? (istDateOf(data.estimated_delivery) || '') : '');
       }
       
       return data as Shipment | null;
@@ -257,7 +258,7 @@ export function ShipmentTrackingModal({ open, onOpenChange, orderId }: ShipmentT
   const handleRateSelected = (selectedProviderId: string, rate: ShippingRate) => {
     setProviderId(selectedProviderId);
     setShippingCost(rate.baseRate.toString());
-    setEstimatedDelivery(rate.estimatedDelivery.toISOString().split('T')[0]);
+    setEstimatedDelivery(istToday(rate.estimatedDelivery));
     setShowRateComparison(false);
     setIsEditing(true);
     toast.success(`Selected ${rate.providerName} at ₹${rate.baseRate}`);
@@ -464,7 +465,7 @@ export function ShipmentTrackingModal({ open, onOpenChange, orderId }: ShipmentT
                 <div>
                   <p className="text-muted-foreground">Estimated Delivery</p>
                   <p className="font-medium">
-                    {new Date(shipment!.estimated_delivery).toLocaleDateString()}
+                    {new Date(shipment!.estimated_delivery).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}
                   </p>
                 </div>
               )}
@@ -558,7 +559,7 @@ export function ShipmentTrackingModal({ open, onOpenChange, orderId }: ShipmentT
                       <div className="flex-1 pb-3">
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Clock className="h-3 w-3" />
-                          {new Date(event.event_timestamp).toLocaleString()}
+                          {new Date(event.event_timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
                           {event.location && (
                             <>
                               <MapPin className="h-3 w-3 ml-2" />

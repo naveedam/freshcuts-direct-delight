@@ -11,22 +11,23 @@ import type {
   InvoiceItemForReport,
   MonthOption,
 } from '@/types/gst-reports';
+import { istParts } from '@/lib/ist';
 
 /**
  * Generate last 12 months for month selector
  */
 export function generateMonthOptions(): MonthOption[] {
   const options: MonthOption[] = [];
-  const now = new Date();
-  
+  const now = istParts(); // months counted in IST
+
   for (let i = 0; i < 12; i++) {
-    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const month = date.getMonth() + 1;
-    const year = date.getFullYear();
-    
+    const date = new Date(Date.UTC(now.year, now.month - 1 - i, 15));
+    const month = date.getUTCMonth() + 1;
+    const year = date.getUTCFullYear();
+
     options.push({
       value: `${month.toString().padStart(2, '0')}${year}`,
-      label: date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+      label: date.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', month: 'long', year: 'numeric' }),
       month,
       year,
     });

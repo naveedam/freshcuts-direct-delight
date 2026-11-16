@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { formatIST } from '@/lib/ist';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabase-paginate';
@@ -6,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/currency';
-import { format } from 'date-fns';
 import { Users, Building2, ShoppingCart, IndianRupee, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -85,7 +85,7 @@ export function ExecutiveSummaryContent() {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([month, b]) => ({
         month,
-        monthLabel: format(new Date(month + '-01'), 'MMM yyyy'),
+        monthLabel: formatIST(month + '-01', 'MMM yyyy'),
         customers: b.customers.size,
         apartments: b.apartments.size,
         orders: b.orders,

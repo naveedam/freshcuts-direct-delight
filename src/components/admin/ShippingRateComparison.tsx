@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Truck, Clock, IndianRupee, Star, Check, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { addDays, istToday } from '@/lib/ist';
 
 interface ShippingRateComparisonProps {
   orderId: string;
@@ -155,16 +156,14 @@ export function ShippingRateComparison({
   };
 
   const formatDeliveryDate = (date: Date) => {
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    if (date.toDateString() === today.toDateString()) {
+    const today = istToday();
+    const day = istToday(date);
+    if (day === today) {
       return 'Today';
-    } else if (date.toDateString() === tomorrow.toDateString()) {
+    } else if (day === addDays(today, 1)) {
       return 'Tomorrow';
     } else {
-      return date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+      return date.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short' });
     }
   };
 

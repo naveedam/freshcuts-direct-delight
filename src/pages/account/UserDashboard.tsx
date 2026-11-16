@@ -273,7 +273,7 @@ export default function UserDashboard() {
                             Order #{order.id.slice(0, 8)}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {new Date(order.created_at).toLocaleDateString('en-IN', {
+                            {new Date(order.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata',
                               day: 'numeric',
                               month: 'short',
                               year: 'numeric'

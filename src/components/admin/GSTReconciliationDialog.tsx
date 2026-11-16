@@ -97,7 +97,7 @@ export function GSTReconciliationDialog({ open, onOpenChange, startDate, endDate
     ];
     const rowsSheet = data.rows.map(r => ({
       'Invoice Number': r.invoice_number,
-      'Invoice Date': new Date(r.invoice_date).toLocaleDateString('en-IN'),
+      'Invoice Date': new Date(r.invoice_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
       Customer: r.customer,
       'Invoice Total': r.invoice_total,
       'GSTR-1 Amount': r.gstr1_amount,
@@ -210,7 +210,7 @@ export function GSTReconciliationDialog({ open, onOpenChange, startDate, endDate
                       <TableRow key={r.order_id}>
                         <TableCell className="font-mono text-xs">{r.invoice_number}</TableCell>
                         <TableCell className="text-xs">
-                          {new Date(r.invoice_date).toLocaleDateString('en-IN')}
+                          {new Date(r.invoice_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}
                         </TableCell>
                         <TableCell className="text-xs">{r.customer}</TableCell>
                         <TableCell className="text-right">{formatCurrency(r.invoice_total)}</TableCell>

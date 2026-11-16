@@ -173,7 +173,7 @@ export function ShipmentTimeline({ orderId }: ShipmentTimelineProps) {
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">Expected by</p>
                 <p className="font-medium text-foreground">
-                  {new Date(shipment.estimated_delivery).toLocaleDateString('en-US', {
+                  {new Date(shipment.estimated_delivery).toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata',
                     month: 'short',
                     day: 'numeric'
                   })}
@@ -255,7 +255,7 @@ export function ShipmentTimeline({ orderId }: ShipmentTimelineProps) {
                     <p className="text-sm text-foreground">{event.description}</p>
                     <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" />
-                      {new Date(event.event_timestamp).toLocaleString('en-US', {
+                      {new Date(event.event_timestamp).toLocaleString('en-US', { timeZone: 'Asia/Kolkata',
                         month: 'short',
                         day: 'numeric',
                         hour: '2-digit',

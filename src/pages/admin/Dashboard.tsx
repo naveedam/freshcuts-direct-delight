@@ -20,6 +20,7 @@ import {
 } from 'recharts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ExecutiveSummaryContent } from './ExecutiveDashboard';
+import { addDays, istMidnight, istMonthStart, istToday, istWeekStartMonday } from '@/lib/ist';
 
 const periodOptions = [
   { label: 'Today', value: 'today' },
@@ -29,10 +30,11 @@ const periodOptions = [
 
 type Period = typeof periodOptions[number]['value'];
 
-function startOfDay(d: Date) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
-function startOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1); }
-function startOfWeek(d: Date) { const day = d.getDay(); const diff = d.getDate() - day + (day === 0 ? -6 : 1); return new Date(d.getFullYear(), d.getMonth(), diff); }
-function daysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return startOfDay(d); }
+// Day, week (Mon–Sun) and month boundaries are IST, whatever the browser's timezone.
+function startOfDay(d: Date) { return istMidnight(istToday(d)); }
+function startOfMonth(d: Date) { return istMidnight(istMonthStart(istToday(d))); }
+function startOfWeek(d: Date) { return istMidnight(istWeekStartMonday(istToday(d))); }
+function daysAgo(n: number) { return istMidnight(addDays(istToday(), -n)); }
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -286,7 +288,7 @@ export default function AdminDashboard() {
     const filtered = orders.filter(o => new Date(o.created_at) >= start && !o.invoice_cancelled && o.converted_to_sale);
     const dayMap: Record<string, number> = {};
     filtered.forEach(o => {
-      const day = new Date(o.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+      const day = new Date(o.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short' });
       dayMap[day] = (dayMap[day] || 0) + Number(o.total_amount);
     });
     return Object.entries(dayMap).map(([day, sales]) => ({ day, sales: Math.round(sales) })).reverse();
@@ -318,7 +320,7 @@ export default function AdminDashboard() {
       <div className="space-y-4">
         <div>
           <h1 className="font-heading text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="font-body text-muted-foreground">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p className="font-body text-muted-foreground">{new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
 
         <Tabs defaultValue="daily" className="w-full">

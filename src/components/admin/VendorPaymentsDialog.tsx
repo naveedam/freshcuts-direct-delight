@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatIST } from '@/lib/ist';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -15,7 +16,6 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import { Vendor, VendorPayment } from '@/types/vendor';
-import { format } from 'date-fns';
 import { markPOPaidIfSettled } from '@/lib/po-lifecycle';
 
 interface VendorPaymentsDialogProps {
@@ -319,7 +319,7 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
                     const linkedPO = vendorPOs?.find(po => po.id === payment.purchase_order_id);
                     return (
                       <TableRow key={payment.id}>
-                        <TableCell>{format(new Date(payment.payment_date), 'dd MMM yyyy')}</TableCell>
+                        <TableCell>{formatIST(payment.payment_date, 'dd MMM yyyy')}</TableCell>
                         <TableCell className="font-mono text-sm">
                           {linkedPO?.po_number || '-'}
                         </TableCell>

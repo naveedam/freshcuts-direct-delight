@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatIST } from '@/lib/ist';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,6 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { formatCurrency } from '@/lib/currency';
 import { PurchaseOrder } from '@/types/vendor';
-import { format } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { VendorPaymentsDialog } from '@/components/admin/VendorPaymentsDialog';
 import { PO_STATUS_LABELS, PO_STATUS_STYLES } from '@/lib/po-lifecycle';
@@ -75,7 +75,7 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const updates: Record<string, any> = { status };
       if (status === 'received') {
-        updates.received_date = new Date().toISOString().split('T')[0];
+        updates.received_date = new Date().toISOString();
       }
       const { error } = await supabase
         .from('purchase_orders')
@@ -214,18 +214,18 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
               <div className="space-y-2">
                 <div>
                   <h4 className="font-medium text-sm text-muted-foreground">Order Date</h4>
-                  <p>{format(new Date(purchaseOrder.order_date), 'dd MMM yyyy')}</p>
+                  <p>{formatIST(purchaseOrder.order_date, 'dd MMM yyyy')}</p>
                 </div>
                 {purchaseOrder.expected_delivery_date && (
                   <div>
                     <h4 className="font-medium text-sm text-muted-foreground">Expected Delivery</h4>
-                    <p>{format(new Date(purchaseOrder.expected_delivery_date), 'dd MMM yyyy')}</p>
+                    <p>{formatIST(purchaseOrder.expected_delivery_date, 'dd MMM yyyy')}</p>
                   </div>
                 )}
                 {purchaseOrder.received_date && (
                   <div>
                     <h4 className="font-medium text-sm text-muted-foreground">Received Date</h4>
-                    <p>{format(new Date(purchaseOrder.received_date), 'dd MMM yyyy')}</p>
+                    <p>{formatIST(purchaseOrder.received_date, 'dd MMM yyyy')}</p>
                   </div>
                 )}
               </div>

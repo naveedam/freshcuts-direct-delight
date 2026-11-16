@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { formatIST, istDayEnd, istDayStart } from '@/lib/ist';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/supabase-paginate';
@@ -9,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, TrendingUp } from 'lucide-react';
-import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/currency';
 import { writeExcelFile } from '@/lib/excel-utils';
 import { toast } from 'sonner';
@@ -26,8 +26,8 @@ export default function VendorProfitability({ embedded = false }: { embedded?: b
       let q = supabase
         .from('orders')
         .select('id, status, converted_to_sale, invoice_cancelled, created_at');
-      if (fromDate) q = q.gte('created_at', `${fromDate}T00:00:00`);
-      if (toDate) q = q.lte('created_at', `${toDate}T23:59:59.999`);
+      if (fromDate) q = q.gte('created_at', istDayStart(fromDate));
+      if (toDate) q = q.lte('created_at', istDayEnd(toDate));
       return await fetchAllRows<any>(() => q);
     },
   });
@@ -82,7 +82,7 @@ export default function VendorProfitability({ embedded = false }: { embedded?: b
 
   const handleExport = () => {
     if (!rows.length) { toast.error('Nothing to export'); return; }
-    writeExcelFile(`Vendor_Profitability_${format(new Date(), 'yyyy-MM-dd')}.xlsx`, [
+    writeExcelFile(`Vendor_Profitability_${formatIST(new Date(), 'yyyy-MM-dd')}.xlsx`, [
       { name: 'Profitability', data: rows.map(r => ({
         Vendor: r.vendor,
         'Sales Value': r.sales,

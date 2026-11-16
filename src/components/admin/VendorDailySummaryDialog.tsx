@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { formatIST, istDayEnd, istDayStart } from '@/lib/ist';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -7,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Printer, MessageCircle, Download } from 'lucide-react';
-import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/currency';
 
 interface Props {
@@ -24,13 +24,13 @@ interface VendorGroup {
 }
 
 export function VendorDailySummaryDialog({ open, onOpenChange }: Props) {
-  const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [date, setDate] = useState(() => formatIST(new Date(), 'yyyy-MM-dd'));
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'vendor-daily-summary', date],
     queryFn: async () => {
-      const start = `${date}T00:00:00`;
-      const end = `${date}T23:59:59.999`;
+      const start = istDayStart(date);
+      const end = istDayEnd(date);
       const { data: pos, error } = await supabase
         .from('purchase_orders')
         .select(`
@@ -74,7 +74,7 @@ export function VendorDailySummaryDialog({ open, onOpenChange }: Props) {
 
   const buildWhatsAppText = (g: VendorGroup) => {
     const lines = [
-      `*Daily Procurement — ${format(new Date(date), 'dd MMM yyyy')}*`,
+      `*Daily Procurement — ${formatIST(date, 'dd MMM yyyy')}*`,
       `Vendor: ${g.vendorName}`,
       '',
       ...g.items.map(i => `• ${i.product} — ${i.qty.toFixed(2)} ${i.unit}`),

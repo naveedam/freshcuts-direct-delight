@@ -41,6 +41,7 @@ import { writeExcelFile } from '@/lib/excel-utils';
 import { useFinancialYears } from '@/hooks/useFinancialYears';
 import { GSTReconciliationDialog } from '@/components/admin/GSTReconciliationDialog';
 import { Search } from 'lucide-react';
+import { istDayEnd, istDayStart } from '@/lib/ist';
 
 export default function GSTReportsAdmin() {
   const monthOptions = useMemo(() => generateMonthOptions(), []);
@@ -74,9 +75,13 @@ export default function GSTReportsAdmin() {
     if (!selectedMonth) return { startDate: null, endDate: null };
     const month = parseInt(selectedMonth.substring(0, 2));
     const year = parseInt(selectedMonth.substring(2));
-    const start = new Date(year, month - 1, 1);
-    const end = new Date(year, month, 0, 23, 59, 59);
-    return { startDate: start.toISOString(), endDate: end.toISOString() };
+    // The month in IST: 1st 00:00 to last day 23:59:59.999 IST.
+    const mm = String(month).padStart(2, '0');
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    return {
+      startDate: new Date(istDayStart(`${year}-${mm}-01`)).toISOString(),
+      endDate: new Date(istDayEnd(`${year}-${mm}-${String(lastDay).padStart(2, '0')}`)).toISOString(),
+    };
   }, [selectedMonth]);
 
   // Fetch invoices for the selected period

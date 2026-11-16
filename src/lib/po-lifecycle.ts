@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { istDateOf, istDayEnd, istDayStart, istToday } from '@/lib/ist';
 import { fetchAllRows } from '@/lib/supabase-paginate';
 
 /**
@@ -56,7 +57,8 @@ async function getOrCreateDailyPO(
     .from('purchase_orders')
     .select('id')
     .eq('vendor_id', vendorId)
-    .eq('order_date', date)
+    .gte('order_date', istDayStart(date))
+    .lte('order_date', istDayEnd(date))
     .ilike('notes', `%${noteKey}%`)
     .neq('status', 'cancelled')
     .limit(1)
@@ -70,7 +72,8 @@ async function getOrCreateDailyPO(
     .from('purchase_orders')
     .select('id')
     .eq('vendor_id', vendorId)
-    .eq('order_date', date)
+    .gte('order_date', istDayStart(date))
+    .lte('order_date', istDayEnd(date))
     .neq('status', 'cancelled')
     .order('created_at', { ascending: true })
     .limit(1)
@@ -91,7 +94,7 @@ async function getOrCreateDailyPO(
       po_number: poNumber,
       vendor_id: vendorId,
       status: 'draft',
-      order_date: date,
+      order_date: istDayStart(date), // midnight IST of the PO's day
       subtotal: 0,
       tax_amount: 0,
       total_amount: 0,
@@ -112,7 +115,7 @@ async function getOrCreateDailyPO(
  * Recompute and update the subtotal/total of a daily PO
  * by summing all its current line items.
  */
-async function refreshPOTotals(poId: string): Promise<void> {
+export async function refreshPOTotals(poId: string): Promise<void> {
   const { data: items } = await supabase
     .from('purchase_order_items')
     .select('total_cost, tax_amount')
@@ -155,8 +158,9 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<{ su
       .select('created_at')
       .eq('id', orderId)
       .single();
-    const poDate = (orderRow?.created_at ? new Date(orderRow.created_at) : new Date())
-      .toISOString().split('T')[0];
+    // The order's IST calendar day (an order at 12:30 AM IST belongs to that day, not the
+    // previous UTC day).
+    const poDate = istDateOf(orderRow?.created_at) || istToday();
 
     // Group by vendor
     const byVendor: Record<string, typeof orderItems> = {};

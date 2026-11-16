@@ -1,4 +1,5 @@
 import { StickyTop } from '@/components/admin/TabbedAdminPage';
+import { formatIST, istDayEnd, istDayStart } from '@/lib/ist';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,7 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, Download, Eye, Search, Receipt, ClipboardList, Loader2, Building2, Home } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
-import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 interface DocumentRecord {
@@ -108,8 +108,8 @@ export default function DocumentsAdmin() {
         `)
         .order('sale_date', { ascending: false });
 
-      if (dateFrom) query = query.gte('sale_date', dateFrom);
-      if (dateTo) query = query.lte('sale_date', dateTo);
+      if (dateFrom) query = query.gte('sale_date', istDayStart(dateFrom));
+      if (dateTo) query = query.lte('sale_date', istDayEnd(dateTo));
       if (searchQuery) query = query.ilike('invoice_number', `%${searchQuery}%`);
 
       const { data, error } = await query;
@@ -138,8 +138,8 @@ export default function DocumentsAdmin() {
         .select(`id, po_number, order_date, total_amount, status, payment_status, vendor:vendors(name)`)
         .order('order_date', { ascending: false });
 
-      if (dateFrom) query = query.gte('order_date', dateFrom);
-      if (dateTo) query = query.lte('order_date', dateTo);
+      if (dateFrom) query = query.gte('order_date', istDayStart(dateFrom));
+      if (dateTo) query = query.lte('order_date', istDayEnd(dateTo));
       if (searchQuery) query = query.ilike('po_number', `%${searchQuery}%`);
 
       const { data, error } = await query;
@@ -397,7 +397,7 @@ export default function DocumentsAdmin() {
                                   <TableCell>{getTypeBadge(doc.document_type)}</TableCell>
                                   <TableCell className="font-mono text-sm">{doc.file_name}</TableCell>
                                   <TableCell>{doc.invoice_number || '-'}</TableCell>
-                                  <TableCell>{format(new Date(doc.created_at), 'dd MMM yyyy')}</TableCell>
+                                  <TableCell>{formatIST(doc.created_at, 'dd MMM yyyy')}</TableCell>
                                   <TableCell className="text-right">
                                     <Button
                                       variant="ghost" size="sm"
@@ -482,7 +482,7 @@ export default function DocumentsAdmin() {
                               <span className="text-sm">{inv.flat_number}{inv.building_name ? `, ${inv.building_name}` : ''}</span>
                             ) : '-'}
                           </TableCell>
-                          <TableCell>{format(new Date(inv.sale_date), 'dd MMM yyyy')}</TableCell>
+                          <TableCell>{formatIST(inv.sale_date, 'dd MMM yyyy')}</TableCell>
                           <TableCell>{inv.customer_email || '-'}</TableCell>
                           <TableCell>{getPaymentBadge(inv.payment_status)}</TableCell>
                           <TableCell className="text-right font-medium">{formatCurrency(inv.total_amount)}</TableCell>
@@ -528,7 +528,7 @@ export default function DocumentsAdmin() {
                       {purchaseOrders.map((po) => (
                         <TableRow key={po.id}>
                           <TableCell className="font-mono font-medium">{po.po_number}</TableCell>
-                          <TableCell>{format(new Date(po.order_date), 'dd MMM yyyy')}</TableCell>
+                          <TableCell>{formatIST(po.order_date, 'dd MMM yyyy')}</TableCell>
                           <TableCell>{po.vendor_name}</TableCell>
                           <TableCell>{getStatusBadge(po.status)}</TableCell>
                           <TableCell>{getPaymentBadge(po.payment_status)}</TableCell>
