@@ -2,6 +2,11 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-16
+
+### Changed
+- **Statements & Payments:** the Linked Invoice and Linked PO numbers are links. An invoice opens in a view-only window (with a PDF button); a purchase order opens in the usual PO details window. Closing either returns to the statement, with the same vendor, dates and scroll position.
+
 ## 2026-11-15
 
 ### Added

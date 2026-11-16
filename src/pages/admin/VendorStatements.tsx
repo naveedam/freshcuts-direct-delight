@@ -18,6 +18,8 @@ import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
 import { LOGO_PNG_DATA_URL } from '@/lib/brand-logo';
 import { refreshPOTotals, syncPOsFromWeightAdjustment } from '@/lib/po-lifecycle';
+import { InvoiceViewDialog } from '@/components/admin/InvoiceViewDialog';
+import { PurchaseOrderDetailsDialog } from '@/components/admin/PurchaseOrderDetailsDialog';
 import {
   downloadStatementExcel, downloadStatementPdf, fmtDay, loadVendorStatement, STATUS_LABEL, todayIST, weekOf,
   type LineStatus, type Settlement, type VendorStatement,
@@ -61,6 +63,23 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
   const [fixOpen, setFixOpen] = useState(false);
   const [undoFor, setUndoFor] = useState<Settlement | null>(null);
   const [exporting, setExporting] = useState<'xlsx' | 'pdf' | null>(null);
+  // Invoice / PO opened from a line; closing it returns to this statement.
+  const [invoiceOrderId, setInvoiceOrderId] = useState<string | null>(null);
+  const [viewingPO, setViewingPO] = useState<any>(null);
+  const [openingPO, setOpeningPO] = useState<string | null>(null);
+  const openPO = async (poId: string) => {
+    setOpeningPO(poId);
+    try {
+      const { data, error } = await db.from('purchase_orders')
+        .select('*, vendor:vendors(id, name, contact_person, email, phone)').eq('id', poId).single();
+      if (error) throw error;
+      setViewingPO(data);
+    } catch (e: any) {
+      toast.error(`Couldn't open the purchase order: ${e?.message || e}`);
+    } finally {
+      setOpeningPO(null);
+    }
+  };
 
   const { data: vendors = [] } = useQuery({
     queryKey: ['vendor-statements', 'vendors'],
@@ -304,9 +323,30 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
                           {l.rateMissing ? 'missing' : l.rate}
                         </TableCell>
                         <TableCell className="text-right tabular-nums font-medium">{formatCurrency(l.amount)}</TableCell>
-                        <TableCell className="font-mono text-xs">{l.invoice || '—'}</TableCell>
                         <TableCell className="font-mono text-xs">
-                          {l.po?.number || '—'}
+                          {l.invoice ? (
+                            <button
+                              type="button"
+                              onClick={() => setInvoiceOrderId(l.orderId)}
+                              className="text-primary underline underline-offset-2 hover:text-primary/80"
+                              title="Open the invoice"
+                            >
+                              {l.invoice}
+                            </button>
+                          ) : '—'}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {l.po ? (
+                            <button
+                              type="button"
+                              onClick={() => openPO(l.po!.id)}
+                              disabled={openingPO === l.po.id}
+                              className="text-primary underline underline-offset-2 hover:text-primary/80 disabled:opacity-60"
+                              title="Open the purchase order"
+                            >
+                              {openingPO === l.po.id ? 'Opening…' : l.po.number}
+                            </button>
+                          ) : '—'}
                           {l.mismatch && (
                             <span className="ml-1 text-amber-700" title={`PO line: ${l.po!.qty} × ${l.po!.rate} = ${formatCurrency(l.po!.amount)}`}>
                               ≠ {formatCurrency(l.po!.amount)}
@@ -403,6 +443,11 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
         <FixDialog open={fixOpen} onOpenChange={setFixOpen} statement={st} reload={async () => (await refetch()).data!} onDone={invalidateAll} />
       )}
       <UndoDialog settlement={undoFor} onClose={() => setUndoFor(null)} onDone={invalidateAll} />
+      <InvoiceViewDialog orderId={invoiceOrderId} onClose={() => setInvoiceOrderId(null)} />
+      <PurchaseOrderDetailsDialog
+        purchaseOrder={viewingPO}
+        onClose={() => { setViewingPO(null); invalidateAll(); }}
+      />
     </PageFrame>
   );
 }
