@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/currency';
+import { SalesPurchaseExpense } from '@/components/admin/SalesPurchaseExpense';
 import { Users, Building2, ShoppingCart, IndianRupee, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -178,6 +179,8 @@ export function ExecutiveSummaryContent() {
           <CardHeader className="pb-2"><CardDescription>Avg Order Value</CardDescription><CardTitle className="text-2xl">{formatCurrency(totals.avgOrderValue)}</CardTitle></CardHeader>
         </Card>
       </div>
+
+      <SalesPurchaseExpense />
 
       {currMonth && (
         <Card>

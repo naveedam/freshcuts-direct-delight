@@ -2,6 +2,13 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-17 — Sales, Purchase & Expense on the Exec Dashboard
+
+- New section on Exec Dashboard: Sales, Purchase, Expense, Gross margin and Net profit for a chosen period (this/last month, last 30 days, this/last quarter, this/last financial year, last 12 months, custom dates).
+- Chart and table by day (ranges up to 45 days) or by month, plus expenses by category.
+- Same basis as the rest of the app: sales = invoiced orders by order date; purchase = purchase orders by PO date; expense = as counted in profit on the Expenses page.
+- Vendor reconciliation adjustments in the period are shown, with a switch to leave them out.
+
 ## 2026-11-17 — Fix purchase orders leaves paid POs alone
 
 - "Fix purchase orders" no longer changes POs that already have payments (those periods are settled); a checkbox lets you include them if you really want to.
