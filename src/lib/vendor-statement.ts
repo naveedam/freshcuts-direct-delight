@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { fetchAllRows } from '@/lib/supabase-paginate';
+import { fetchAllRowsFast, mapLimit } from '@/lib/supabase-paginate';
 
 // Vendor statement for a date range: every order line supplied by the vendor, with the vendor's
 // quantity and rate taken from the order (the same figures the invoice and PO are built from),
@@ -141,47 +141,60 @@ export const todayIST = () => istDate(new Date().toISOString());
 
 export async function loadVendorStatement(vendorId: string | 'all', from: string, to: string,
   vendorNames: Record<string, string>): Promise<VendorStatement> {
-  // 1. Order lines supplied by the vendor, for orders placed in the range (IST).
-  const items = await fetchAllRows<any>(() => {
-    let q = db.from('order_items')
-      .select(`id, order_id, vendor_id, product_name, quantity, actual_weight, vendor_supplied_weight, vendor_cost,
-        orders!inner(id, created_at, invoice_number, building_name, flat_number, shipping_address, status, invoice_cancelled, weight_finalized)`)
-      .not('vendor_id', 'is', null)
-      .gte('orders.created_at', `${from}T00:00:00+05:30`)
-      .lte('orders.created_at', `${to}T23:59:59.999+05:30`)
-      .order('id');
-    if (vendorId !== 'all') q = q.eq('vendor_id', vendorId);
-    return q;
-  });
+  // 1–3 run together: order lines in the range, every PO of the vendor(s), and their payments.
+  const [items, allPOs, payRows] = await Promise.all([
+    // Order lines supplied by the vendor, for orders placed in the range (IST).
+    fetchAllRowsFast<any>(() => {
+      let q = db.from('order_items')
+        .select(`id, order_id, vendor_id, product_name, quantity, actual_weight, vendor_supplied_weight, vendor_cost,
+          orders!inner(id, created_at, invoice_number, building_name, flat_number, shipping_address, status, invoice_cancelled, weight_finalized)`)
+        .not('vendor_id', 'is', null)
+        .gte('orders.created_at', `${from}T00:00:00+05:30`)
+        .lte('orders.created_at', `${to}T23:59:59.999+05:30`)
+        .order('id');
+      if (vendorId !== 'all') q = q.eq('vendor_id', vendorId);
+      return q;
+    }),
+    fetchAllRowsFast<any>(() => {
+      let q = db.from('purchase_orders')
+        .select('id, po_number, vendor_id, order_date, total_amount, paid_amount, status, payment_status')
+        .neq('status', 'cancelled').order('order_date').order('id');
+      if (vendorId !== 'all') q = q.eq('vendor_id', vendorId);
+      return q;
+    }),
+    fetchAllRowsFast<any>(() => {
+      let q = db.from('vendor_payments')
+        .select('id, vendor_id, purchase_order_id, amount, payment_date, payment_method, reference_number, notes, batch_id, period_from, period_to')
+        .order('payment_date').order('id');
+      if (vendorId !== 'all') q = q.eq('vendor_id', vendorId);
+      return q;
+    }),
+  ]);
   const live = items.filter((i) => i.orders && i.orders.status !== 'cancelled' && !i.orders.invoice_cancelled);
-  const itemIds = live.map((i) => i.id);
-
-  // 2. Their purchase order lines.
-  const poLines: any[] = [];
-  for (const ids of chunk(itemIds)) {
-    const { data, error } = await db.from('purchase_order_items').select('*').in('order_item_id', ids);
-    if (error) throw error;
-    poLines.push(...(data || []));
-  }
-  const lineByItem = new Map<string, any>();
-  poLines.forEach((l) => lineByItem.set(l.order_item_id, l));
-
-  // 3. Every PO of the vendor(s): the ones on this statement, plus the ledger.
-  const allPOs = await fetchAllRows<any>(() => {
-    let q = db.from('purchase_orders')
-      .select('id, po_number, vendor_id, order_date, total_amount, paid_amount, status, payment_status')
-      .neq('status', 'cancelled').order('order_date').order('id');
-    if (vendorId !== 'all') q = q.eq('vendor_id', vendorId);
-    return q;
-  });
   const poById = new Map<string, any>(allPOs.map((p) => [p.id, p]));
 
-  // 4. Payments of the vendor(s).
-  const payRows = await fetchAllRows<any>(() => {
-    let q = db.from('vendor_payments').select('*').order('payment_date').order('id');
-    if (vendorId !== 'all') q = q.eq('vendor_id', vendorId);
-    return q;
-  });
+  // PO lines: everything on the POs dated in the range (a few requests, run together), then any order
+  // line whose PO is dated outside the range.
+  const PO_LINE_COLS = 'id, purchase_order_id, order_item_id, product_name, quantity, unit_cost, total_cost, tax_amount';
+  const linesById = new Map<string, any>();
+  const fetchLines = async (col: 'purchase_order_id' | 'order_item_id', ids: string[]) => {
+    const pages = await mapLimit(chunk(ids, 150), 6, async (part) => {
+      const { data, error } = await db.from('purchase_order_items').select(PO_LINE_COLS).in(col, part);
+      if (error) throw error;
+      return data || [];
+    });
+    pages.flat().forEach((l: any) => linesById.set(l.id, l));
+  };
+  const datedInRange = allPOs.filter((p) => { const d = poDay(p.order_date); return d >= from && d <= to; }).map((p) => p.id);
+  await fetchLines('purchase_order_id', datedInRange);
+  const lineByItem = new Map<string, any>();
+  linesById.forEach((l) => { if (l.order_item_id) lineByItem.set(l.order_item_id, l); });
+  const missing = live.map((i) => i.id).filter((id) => !lineByItem.has(id));
+  if (missing.length) {
+    await fetchLines('order_item_id', missing);
+    linesById.forEach((l) => { if (l.order_item_id && !lineByItem.has(l.order_item_id)) lineByItem.set(l.order_item_id, l); });
+  }
+
   const payments: VendorPayment[] = payRows.map((p) => ({
     id: p.id, vendorId: p.vendor_id, poId: p.purchase_order_id, amount: Number(p.amount) || 0,
     date: istDate(p.payment_date), method: p.payment_method, reference: p.reference_number, notes: p.notes,
@@ -239,27 +252,22 @@ export async function loadVendorStatement(vendorId: string | 'all', from: string
   const pos = [...posOnStatement.values()].sort((a, b) => a.date.localeCompare(b.date));
 
   // PO lines that sit in those POs, or in POs dated in the range, but match no order line here.
-  const rangePOIds = new Set([
-    ...pos.map((p) => p.id),
-    ...allPOs.filter((p) => { const d = poDay(p.order_date); return d >= from && d <= to; }).map((p) => p.id),
-  ]);
+  const rangePOIds = new Set([...datedInRange, ...pos.map((p) => p.id)]);
+  const notYetFetched = pos.map((p) => p.id).filter((id) => !datedInRange.includes(id));
+  if (notYetFetched.length) await fetchLines('purchase_order_id', notYetFetched);
   const orphans: OrphanPOLine[] = [];
   const known = new Set(lines.map((l) => l.po?.lineId).filter(Boolean));
-  for (const ids of chunk([...rangePOIds])) {
-    const { data, error } = await db.from('purchase_order_items').select('*').in('purchase_order_id', ids);
-    if (error) throw error;
-    (data || []).forEach((pl: any) => {
-      if (known.has(pl.id)) return;
-      const po = poById.get(pl.purchase_order_id);
-      const onOther = items.find((i) => i.id === pl.order_item_id);
-      orphans.push({
-        poNumber: po?.po_number || '—', item: pl.product_name, amount: Number(pl.total_cost) || 0,
-        reason: !pl.order_item_id ? 'Added to the PO by hand (no order line)'
-          : onOther ? 'Order is cancelled or its invoice was cancelled'
-          : 'Order is outside this date range or no longer exists',
-      });
+  const itemIdsAll = new Set(items.map((i) => i.id));
+  linesById.forEach((pl: any) => {
+    if (!rangePOIds.has(pl.purchase_order_id) || known.has(pl.id)) return;
+    const po = poById.get(pl.purchase_order_id);
+    orphans.push({
+      poNumber: po?.po_number || '—', item: pl.product_name, amount: Number(pl.total_cost) || 0,
+      reason: !pl.order_item_id ? 'Added to the PO by hand (no order line)'
+        : itemIdsAll.has(pl.order_item_id) ? 'Order is cancelled or its invoice was cancelled'
+        : 'Order is outside this date range or no longer exists',
     });
-  }
+  });
 
   // Ledger: what's owed on purchase orders up to the end of the range, and on all of them.
   const poAmt = (p: any) => Number(p.total_amount) || 0;

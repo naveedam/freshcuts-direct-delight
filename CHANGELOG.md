@@ -2,6 +2,13 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-17 — Faster Statements & Payments for long date ranges
+
+- Order lines, purchase orders and payments load at the same time, pages are requested several at once, and PO lines are fetched per purchase order (a handful of requests instead of dozens).
+- Long statements draw 300 lines first, with "Show 1,000 more" / "Show all"; totals, reconciliation, Excel and PDF still cover every line.
+- A statement isn't reloaded when you return to the tab within a minute.
+- Migration `20261117110000_vendor_statement_indexes.sql` adds indexes for these queries.
+
 ## 2026-11-17 — Whole rupees on vendor screens
 
 - Vendor payments dialog and the Purchase Orders / Vendor Ledger Excel exports show amounts in whole rupees (weights keep their decimals).

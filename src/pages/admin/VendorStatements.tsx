@@ -97,7 +97,16 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
     queryKey: ['vendor-statements', selected, range.from, range.to, vendors.length],
     enabled: vendors.length > 0 && range.from <= range.to,
     queryFn: () => loadVendorStatement(selected, range.from, range.to, names),
+    staleTime: 60_000,            // don't reload when you come back to the tab within a minute
+    refetchOnWindowFocus: false,
   });
+
+  // Long ranges have thousands of lines: draw them in batches so the page stays quick.
+  const PAGE = 300;
+  const [shown, setShown] = useState(PAGE);
+  const lineKey = `${selected}|${range.from}|${range.to}`;
+  const [shownKey, setShownKey] = useState(lineKey);
+  if (shownKey !== lineKey) { setShownKey(lineKey); setShown(PAGE); }
 
   const choosePreset = (p: Preset) => {
     setPreset(p);
@@ -311,7 +320,7 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
                           No orders for {vendorLabel} in this period
                         </TableCell>
                       </TableRow>
-                    ) : st.lines.map((l) => (
+                    ) : st.lines.slice(0, shown).map((l) => (
                       <TableRow key={l.orderItemId}>
                         <TableCell className="whitespace-nowrap">{fmtDay(l.date)}</TableCell>
                         {selected === 'all' && <TableCell>{l.vendorName}</TableCell>}
@@ -369,6 +378,13 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
                     </TableFooter>
                   )}
                 </Table>
+                {st.lines.length > shown && (
+                  <div className="flex items-center justify-center gap-3 py-4 text-sm text-muted-foreground border-t">
+                    Showing {shown.toLocaleString('en-IN')} of {st.lines.length.toLocaleString('en-IN')} lines
+                    <Button variant="outline" size="sm" onClick={() => setShown((n) => n + 1000)}>Show 1,000 more</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setShown(st.lines.length)}>Show all</Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
