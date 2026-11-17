@@ -2,6 +2,11 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-17 — Fix purchase orders leaves paid POs alone
+
+- "Fix purchase orders" no longer changes POs that already have payments (those periods are settled); a checkbox lets you include them if you really want to.
+- Reconciliation counts PO/order differences only on POs not yet paid; differences on paid POs are noted as "left as billed".
+
 ## 2026-11-17 — Faster Statements & Payments for long date ranges
 
 - Order lines, purchase orders and payments load at the same time, pages are requested several at once, and PO lines are fetched per purchase order (a handful of requests instead of dozens).

@@ -112,8 +112,9 @@ export interface VendorStatement {
     outstanding: number;
     noPoAmount: number;
     noPoCount: number;
-    mismatchCount: number;
+    mismatchCount: number;   // PO lines that differ from the order, on POs not yet paid
     mismatchDelta: number;
+    settledMismatchCount: number; // differences on POs that already have payments (left as billed)
     rateMissingCount: number;
     orphanAmount: number;
   };
@@ -125,6 +126,9 @@ export const istDate = (iso: string) =>
 const poDay = (iso: string) => istDate(iso);
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const chunk = <T,>(a: T[], n = 200) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
+
+/** True when the line's purchase order already has money paid against it. */
+export const onPaidPO = (l: { status: LineStatus }) => l.status === 'paid' || l.status === 'partial';
 
 export const vendorQty = (oi: any) =>
   Number(oi.vendor_supplied_weight ?? oi.actual_weight ?? oi.quantity ?? 0) || 0;
@@ -299,7 +303,9 @@ export async function loadVendorStatement(vendorId: string | 'all', from: string
   const paid = round2(pos.reduce((s, p) => s + Math.min(p.paid, p.total), 0));
   const noPoAmount = round2(noPo.reduce((s, l) => s + l.amount, 0));
   const payable = round2(poTotal + noPoAmount);
-  const mism = lines.filter((l) => l.mismatch);
+  // Differences on POs that already have payments are left as billed (that period is settled).
+  const mism = lines.filter((l) => l.mismatch && !onPaidPO(l));
+  const settledMism = lines.filter((l) => l.mismatch && onPaidPO(l));
 
   return {
     from, to, lines, pos, orphans,
@@ -312,6 +318,7 @@ export async function loadVendorStatement(vendorId: string | 'all', from: string
       statement, payable, paid, outstanding: round2(payable - paid),
       noPoAmount, noPoCount: noPo.length,
       mismatchCount: mism.length,
+      settledMismatchCount: settledMism.length,
       mismatchDelta: round2(mism.reduce((s, l) => s + (l.po!.amount - l.amount), 0)),
       rateMissingCount: lines.filter((l) => l.rateMissing).length,
       orphanAmount: round2(orphans.reduce((s, o) => s + o.amount, 0)),

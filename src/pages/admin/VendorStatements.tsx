@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PageFrame, StickyTop } from '@/components/admin/TabbedAdminPage';
@@ -21,7 +22,7 @@ import { refreshPOTotals, syncPOsFromWeightAdjustment } from '@/lib/po-lifecycle
 import { InvoiceViewDialog } from '@/components/admin/InvoiceViewDialog';
 import { PurchaseOrderDetailsDialog } from '@/components/admin/PurchaseOrderDetailsDialog';
 import {
-  downloadStatementExcel, downloadStatementPdf, fmtDay, loadVendorStatement, STATUS_LABEL, todayIST, weekOf,
+  downloadStatementExcel, downloadStatementPdf, fmtDay, loadVendorStatement, onPaidPO, STATUS_LABEL, todayIST, weekOf,
   type LineStatus, type Settlement, type VendorStatement,
 } from '@/lib/vendor-statement';
 
@@ -281,6 +282,11 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
                 <Check ok={t!.mismatchCount === 0}
                   text={t!.mismatchCount === 0 ? 'Purchase orders match the order quantities and vendor rates'
                     : `${t!.mismatchCount} PO line(s) differ from the order (PO is ${t!.mismatchDelta >= 0 ? 'higher' : 'lower'} by ${formatCurrency(Math.abs(t!.mismatchDelta))})`} />
+                {t!.settledMismatchCount > 0 && (
+                  <p className="text-xs text-muted-foreground pl-6">
+                    {t!.settledMismatchCount} line(s) on purchase orders that are already paid differ slightly from the order; they're left as billed and paid.
+                  </p>
+                )}
                 <Check ok={t!.rateMissingCount === 0}
                   text={t!.rateMissingCount === 0 ? 'Every line has a vendor rate'
                     : `${t!.rateMissingCount} line(s) have no vendor rate — set it on the order (Edit order) and refresh`} />
@@ -581,8 +587,12 @@ function FixDialog({ open, onOpenChange, statement, reload, onDone }: {
 }) {
   const missing = statement.lines.filter((l) => l.status === 'no_po');
   const waiting = statement.lines.filter((l) => l.status === 'awaiting_weights');
-  const mism = statement.lines.filter((l) => l.mismatch);
-  const paidPOs = new Set(mism.filter((l) => l.status === 'paid' || l.status === 'partial').map((l) => l.po!.number));
+  // POs that already have payments are left as billed unless you choose to include them.
+  const [includePaid, setIncludePaid] = useState(false);
+  const allMism = statement.lines.filter((l) => l.mismatch);
+  const mism = allMism.filter((l) => includePaid || !onPaidPO(l));
+  const paidMism = allMism.filter((l) => onPaidPO(l));
+  const paidPOs = new Set(paidMism.map((l) => l.po!.number));
 
   const run = useMutation({
     mutationFn: async () => {
@@ -593,7 +603,7 @@ function FixDialog({ open, onOpenChange, statement, reload, onDone }: {
       }
       const fresh = orders.length ? await reload() : statement;
       const touched = new Set<string>();
-      for (const l of fresh.lines.filter((x) => x.mismatch && x.po)) {
+      for (const l of fresh.lines.filter((x) => x.mismatch && x.po && (includePaid || !onPaidPO(x)))) {
         const patch: Record<string, unknown> = { quantity: l.qty, unit_cost: l.rate, total_cost: l.amount };
         if (l.po!.taxAmount != null && l.po!.amount > 0) {
           patch.tax_amount = Math.round((l.po!.taxAmount * l.amount / l.po!.amount) * 100) / 100;
@@ -627,12 +637,18 @@ function FixDialog({ open, onOpenChange, statement, reload, onDone }: {
           {missing.length > 0 && <li>Add {missing.length} missing line(s) to the purchase orders.</li>}
           {mism.length > 0 && <li>Set {mism.length} PO line(s) to the order's quantity and vendor rate, and update the PO totals.</li>}
           {waiting.length > 0 && <li className="text-muted-foreground">{waiting.length} line(s) wait for weights to be finalised on the order; they'll join a PO then.</li>}
-          {paidPOs.size > 0 && (
-            <li className="text-amber-700">
-              {[...paidPOs].join(', ')} already has payments. Its paid status is recalculated from the new total.
-            </li>
-          )}
         </ul>
+        {paidPOs.size > 0 && (
+          <label className="flex items-start gap-2 text-sm rounded-md border p-3">
+            <Checkbox checked={includePaid} onCheckedChange={(v) => setIncludePaid(v === true)} className="mt-0.5" />
+            <span>
+              Also change {paidMism.length} line(s) on {paidPOs.size} purchase order(s) that are already paid or part paid
+              <span className="block text-xs text-muted-foreground">
+                Off by default: those periods are settled. Changing them makes the PO total differ from what was paid, so it shows as owed again.
+              </span>
+            </span>
+          </label>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={() => run.mutate()} disabled={run.isPending || (missing.length + mism.length === 0)}>
