@@ -2,6 +2,12 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-17 — One outstanding figure on every vendor screen
+
+- Outstanding everywhere (Vendors, Purchase Orders, Vendor Ledger, Statements, vendor dialogs) = for each purchase order, its total less what has been applied to it. Money paid but not yet on a PO is shown separately as "paid in advance".
+- Statements & Payments: "Ledger balance" replaced by "Owed overall" (matches the other tabs) with the amount owed on POs up to the To date; Paid/Outstanding cards are labelled "this period". Excel and PDF follow.
+- Purchase Orders "Unpaid" no longer skips POs marked paid whose paid amount is short.
+
 ## 2026-11-16 — Vendor totals audit
 
 - Vendors, Vendor Ledger, Purchase Orders, Statements and Profitability now read every row (not just the first 1,000), so totals no longer drop rows as payment history grows.

@@ -221,7 +221,7 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription>Paid</CardDescription>
+                  <CardDescription>Paid this period</CardDescription>
                   <CardTitle className="text-xl text-green-700">{formatCurrency(t!.paid)}</CardTitle>
                   <p className="text-xs text-muted-foreground">against {st.pos.length} PO(s)</p>
                 </CardHeader>
@@ -229,7 +229,7 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
               <Card>
                 <CardHeader className="pb-2">
                   <CardDescription className="flex items-center gap-2">
-                    Outstanding {overall && <Badge variant="outline" className={overall.cls}>{overall.label}</Badge>}
+                    Outstanding this period {overall && <Badge variant="outline" className={overall.cls}>{overall.label}</Badge>}
                   </CardDescription>
                   <CardTitle className={`text-xl ${t!.outstanding > 0.5 ? 'text-destructive' : ''}`}>{formatCurrency(t!.outstanding)}</CardTitle>
                   <p className="text-xs text-muted-foreground">for {fmtDay(st.from)} to {fmtDay(st.to)}</p>
@@ -237,10 +237,10 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription className="flex items-center gap-1"><Wallet className="h-3 w-3" /> Ledger balance</CardDescription>
-                  <CardTitle className="text-xl">{formatCurrency(st.ledger.closing)}</CardTitle>
+                  <CardDescription className="flex items-center gap-1"><Wallet className="h-3 w-3" /> Owed overall</CardDescription>
+                  <CardTitle className={`text-xl ${st.ledger.owedAllDates > 0.5 ? 'text-destructive' : ''}`}>{formatCurrency(st.ledger.owedAllDates)}</CardTitle>
                   <p className="text-xs text-muted-foreground">
-                    owed on {fmtDay(st.to)} (opening {formatCurrency(st.ledger.opening)})
+                    all dates, same as the other vendor tabs · up to {fmtDay(st.to)}: {formatCurrency(st.ledger.owedToDate)}
                   </p>
                 </CardHeader>
               </Card>
@@ -280,8 +280,8 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
                     : `${st.orphans.length} PO line(s) in this period's POs aren't on this statement (${formatCurrency(t!.orphanAmount)}): ${
                       st.orphans.slice(0, 3).map((o) => `${o.poNumber} ${o.item} — ${o.reason}`).join('; ')}${st.orphans.length > 3 ? '…' : ''}`} />
                 <Check ok
-                  text={`Vendor ledger: opening ${formatCurrency(st.ledger.opening)} + POs ${formatCurrency(st.ledger.purchases)} − payments ${formatCurrency(st.ledger.payments)} = ${formatCurrency(st.ledger.closing)} owed on ${fmtDay(st.to)}${
-                    st.ledger.unallocated > 0 ? ` (includes ${formatCurrency(st.ledger.unallocated)} paid without a PO link)` : ''}`} />
+                  text={`Vendor ledger: POs up to ${fmtDay(st.to)} ${formatCurrency(st.ledger.posToDate)} − paid against them ${formatCurrency(st.ledger.paidToDate)} = ${formatCurrency(st.ledger.owedToDate)} owed; ${formatCurrency(st.ledger.owedAllDates)} owed across all dates${
+                    st.ledger.advance > 0 ? ` (plus ${formatCurrency(st.ledger.advance)} paid in advance, not yet on a PO)` : ''}`} />
               </CardContent>
             </Card>
 

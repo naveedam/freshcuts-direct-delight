@@ -24,7 +24,7 @@ export function VendorLedgerSheet({ open, onOpenChange, vendorId, vendorName }: 
       if (!vendorId) return { pos: [], payments: [] };
       const pos = await fetchAllRows<any>(() => supabase
         .from('purchase_orders')
-        .select('id, po_number, order_date, total_amount, status, notes')
+        .select('id, po_number, order_date, total_amount, paid_amount, status, notes')
         .eq('vendor_id', vendorId)
         .neq('status', 'cancelled')
         .order('order_date', { ascending: true })
@@ -74,7 +74,11 @@ export function VendorLedgerSheet({ open, onOpenChange, vendorId, vendorName }: 
   const totals = useMemo(() => {
     const purchased = (data?.pos || []).reduce((s, po) => s + (Number(po.total_amount) || 0), 0);
     const paid = (data?.payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
-    return { purchased, paid, outstanding: purchased - paid, poCount: data?.pos?.length || 0 };
+    // Outstanding = what's still owed on each PO, as on every vendor tab; paid beyond that is advance.
+    const applied = (data?.pos || []).reduce((s, po) => s + Math.min(Number(po.paid_amount) || 0, Number(po.total_amount) || 0), 0);
+    const outstanding = Math.round((purchased - applied) * 100) / 100;
+    const advance = Math.max(0, Math.round((paid - applied) * 100) / 100);
+    return { purchased, paid, outstanding, advance, poCount: data?.pos?.length || 0 };
   }, [data]);
 
   return (
@@ -92,6 +96,7 @@ export function VendorLedgerSheet({ open, onOpenChange, vendorId, vendorName }: 
           <Stat label="Purchased" value={formatCurrency(totals.purchased)} />
           <Stat label="Paid" value={formatCurrency(totals.paid)} tone="green" />
           <Stat label="Outstanding" value={formatCurrency(totals.outstanding)} tone={totals.outstanding > 0 ? 'red' : 'green'} />
+          {totals.advance > 0.5 && <Stat label="Paid in advance" value={formatCurrency(totals.advance)} />}
         </div>
 
         <div className="border rounded-lg overflow-hidden mt-4">

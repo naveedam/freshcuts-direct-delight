@@ -77,18 +77,22 @@ export default function VendorsAdmin({ embedded = false }: { embedded?: boolean 
     queryFn: async () => {
       // Every row (not just the first 1,000), so these match the Vendor Ledger and Purchase Orders tabs.
       const [pos, payments] = await Promise.all([
-        fetchAllRows<any>(() => supabase.from('purchase_orders').select('id, vendor_id, total_amount').neq('status', 'cancelled').order('id')),
+        fetchAllRows<any>(() => supabase.from('purchase_orders').select('id, vendor_id, total_amount, paid_amount').neq('status', 'cancelled').order('id')),
         fetchAllRows<any>(() => supabase.from('vendor_payments').select('id, vendor_id, amount').order('id')),
       ]);
       const totalPayable = pos.reduce((sum, po) => sum + (Number(po.total_amount) || 0), 0);
       const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-      // Outstanding is what's owed vendor by vendor; one vendor's advance doesn't reduce another's dues.
-      const byVendor = new Map<string, number>();
-      pos.forEach((po) => byVendor.set(po.vendor_id, (byVendor.get(po.vendor_id) || 0) + (Number(po.total_amount) || 0)));
-      payments.forEach((p) => byVendor.set(p.vendor_id, (byVendor.get(p.vendor_id) || 0) - (Number(p.amount) || 0)));
-      let outstanding = 0;
-      byVendor.forEach((bal) => { if (bal > 0.009) outstanding += bal; });
-      return { totalPayable, totalPaid, outstanding };
+      // Outstanding: what's still owed on each purchase order, the same figure as the Purchase Orders,
+      // Vendor Ledger and Statements tabs. Money paid but not yet applied to a PO is shown as advance.
+      let outstanding = 0, applied = 0;
+      pos.forEach((po) => {
+        const total = Number(po.total_amount) || 0;
+        const paid = Math.min(Number(po.paid_amount) || 0, total);
+        applied += paid;
+        outstanding += total - paid;
+      });
+      const advance = Math.max(0, Math.round((totalPaid - applied) * 100) / 100);
+      return { totalPayable, totalPaid, outstanding: Math.round(outstanding * 100) / 100, advance };
     }
   });
 
@@ -508,6 +512,11 @@ export default function VendorsAdmin({ embedded = false }: { embedded?: boolean 
               <div className={`text-2xl font-bold ${(financialStats?.outstanding || 0) > 0 ? 'text-destructive' : 'text-green-600'}`}>
                 {formatCurrency(Math.max(0, financialStats?.outstanding || 0))}
               </div>
+              {(financialStats?.advance || 0) > 0.5 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formatCurrency(financialStats!.advance)} paid in advance, not yet on a PO
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>

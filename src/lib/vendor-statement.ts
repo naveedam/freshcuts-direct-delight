@@ -87,12 +87,14 @@ export interface Settlement {
   poCount: number;
 }
 
+// What's still owed, worked out the same way as the Vendors, Purchase Orders and Vendor Ledger tabs:
+// for each purchase order, its total less what has been applied to it (never below zero).
 export interface LedgerSummary {
-  opening: number;
-  purchases: number;
-  payments: number;
-  closing: number;
-  unallocated: number; // payments not linked to any PO, all time up to the end of the range
+  posToDate: number;      // purchase orders dated up to the end of the range
+  paidToDate: number;     // paid against those purchase orders
+  owedToDate: number;     // still owed on them
+  owedAllDates: number;   // still owed on every purchase order, whatever its date
+  advance: number;        // paid but not yet applied to any purchase order
 }
 
 export interface VendorStatement {
@@ -185,8 +187,9 @@ export async function loadVendorStatement(vendorId: string | 'all', from: string
     date: istDate(p.payment_date), method: p.payment_method, reference: p.reference_number, notes: p.notes,
     batchId: p.batch_id ?? null, periodFrom: p.period_from ?? null, periodTo: p.period_to ?? null,
   }));
+  // Paid on each PO: the PO's own paid amount, the figure every other vendor screen uses.
   const paidByPO = new Map<string, number>();
-  payments.forEach((p) => { if (p.poId) paidByPO.set(p.poId, (paidByPO.get(p.poId) || 0) + p.amount); });
+  allPOs.forEach((po) => paidByPO.set(po.id, Number(po.paid_amount) || 0));
 
   // Build statement lines.
   const lines: StatementLine[] = live.map((oi) => {
@@ -258,14 +261,14 @@ export async function loadVendorStatement(vendorId: string | 'all', from: string
     });
   }
 
-  // Ledger (purchase orders by PO date, payments by payment date), as on the Vendor Ledger tab.
+  // Ledger: what's owed on purchase orders up to the end of the range, and on all of them.
   const poAmt = (p: any) => Number(p.total_amount) || 0;
-  const opening = allPOs.filter((p) => poDay(p.order_date) < from).reduce((s, p) => s + poAmt(p), 0)
-    - payments.filter((p) => p.date < from).reduce((s, p) => s + p.amount, 0);
-  const purchases = allPOs.filter((p) => { const d = poDay(p.order_date); return d >= from && d <= to; })
-    .reduce((s, p) => s + poAmt(p), 0);
-  const paymentsInRange = payments.filter((p) => p.date >= from && p.date <= to).reduce((s, p) => s + p.amount, 0);
-  const unallocated = payments.filter((p) => !p.poId && p.date <= to).reduce((s, p) => s + p.amount, 0);
+  const poPaid = (p: any) => Math.min(Number(p.paid_amount) || 0, poAmt(p));
+  const upTo = allPOs.filter((p) => poDay(p.order_date) <= to);
+  const posToDate = upTo.reduce((s, p) => s + poAmt(p), 0);
+  const paidToDate = upTo.reduce((s, p) => s + poPaid(p), 0);
+  const owedAllDates = allPOs.reduce((s, p) => s + (poAmt(p) - poPaid(p)), 0);
+  const advance = payments.filter((p) => !p.poId).reduce((s, p) => s + p.amount, 0);
 
   // Settlements touching this range: paid for an overlapping period, or paid within it.
   const groups = new Map<string, Settlement>();
@@ -294,8 +297,8 @@ export async function loadVendorStatement(vendorId: string | 'all', from: string
     from, to, lines, pos, orphans,
     settlements: [...groups.values()].sort((a, b) => b.date.localeCompare(a.date)),
     ledger: {
-      opening: round2(opening), purchases: round2(purchases), payments: round2(paymentsInRange),
-      closing: round2(opening + purchases - paymentsInRange), unallocated: round2(unallocated),
+      posToDate: round2(posToDate), paidToDate: round2(paidToDate), owedToDate: round2(posToDate - paidToDate),
+      owedAllDates: round2(owedAllDates), advance: round2(advance),
     },
     totals: {
       statement, payable, paid, outstanding: round2(payable - paid),
@@ -358,10 +361,11 @@ export async function downloadStatementExcel(st: VendorStatement, vendorLabel: s
   sum('Outstanding', st.totals.outstanding).font = bold;
   ws.addRow([]);
   ws.addRow(['Vendor ledger']).font = bold;
-  sum(`Opening balance on ${fmtDay(st.from)}`, st.ledger.opening);
-  sum('Purchase orders in the period', st.ledger.purchases);
-  sum('Payments in the period', st.ledger.payments);
-  sum(`Closing balance on ${fmtDay(st.to)}`, st.ledger.closing).font = bold;
+  sum(`Purchase orders up to ${fmtDay(st.to)}`, st.ledger.posToDate);
+  sum('Paid against them', st.ledger.paidToDate);
+  sum(`Owed up to ${fmtDay(st.to)}`, st.ledger.owedToDate).font = bold;
+  sum('Owed on all purchase orders (any date)', st.ledger.owedAllDates);
+  if (st.ledger.advance > 0) sum('Paid in advance (not yet on a PO)', st.ledger.advance);
 
   if (st.settlements.length) {
     const ps = wb.addWorksheet('Payments');
@@ -412,7 +416,7 @@ export async function downloadStatementPdf(st: VendorStatement, vendorLabel: str
       <table style="border-collapse:collapse;min-width:260px"><tr><td colspan="2" style="font-weight:700;color:#6D281A;padding:3px 8px">For this period</td></tr>
         ${kv('Payable', st.totals.payable)}${kv('Paid', st.totals.paid)}${kv('Outstanding', st.totals.outstanding, true)}</table>
       <table style="border-collapse:collapse;min-width:260px"><tr><td colspan="2" style="font-weight:700;color:#6D281A;padding:3px 8px">Vendor ledger</td></tr>
-        ${kv('Opening balance', st.ledger.opening)}${kv('Purchase orders', st.ledger.purchases)}${kv('Payments', st.ledger.payments)}${kv('Closing balance', st.ledger.closing, true)}</table>
+        ${kv(`POs up to ${fmtDay(st.to)}`, st.ledger.posToDate)}${kv('Paid against them', st.ledger.paidToDate)}${kv(`Owed up to ${fmtDay(st.to)}`, st.ledger.owedToDate, true)}${kv('Owed, all dates', st.ledger.owedAllDates)}</table>
     </div>
     ${st.settlements.length ? `<div style="margin-top:12px"><div style="font-weight:700;color:#6D281A;margin-bottom:4px">Payments</div>
       ${st.settlements.map((s) => `<div>${fmtDay(s.date)} · ${inr(s.amount)} · ${esc(s.method)}${s.reference ? ` · ${esc(s.reference)}` : ''}${s.periodFrom && s.periodTo ? ` · for ${fmtDay(s.periodFrom)} to ${fmtDay(s.periodTo)}` : ''}</div>`).join('')}</div>` : ''}

@@ -71,8 +71,11 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
   const stats = (() => {
     const totalPayable = vendorPOs?.reduce((sum, po) => sum + Number(po.total_amount), 0) || 0;
     const totalPaid = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
-    const balance = totalPayable - totalPaid;
-    return { totalPayable, totalPaid, balance };
+    // Outstanding = what's still owed on each PO, as on every vendor tab; anything paid beyond that is advance.
+    const applied = vendorPOs?.reduce((s, po) => s + Math.min(Number(po.paid_amount) || 0, Number(po.total_amount) || 0), 0) || 0;
+    const balance = Math.round((totalPayable - applied) * 100) / 100;
+    const advance = Math.max(0, Math.round((totalPaid - applied) * 100) / 100);
+    return { totalPayable, totalPaid, balance, advance };
   })();
 
   // Get max payable for selected PO
@@ -189,6 +192,11 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
               <CardContent>
                 <div className={`text-2xl font-bold ${stats.balance > 0 ? 'text-destructive' : 'text-green-600'}`}>
                   {formatCurrency(Math.max(0, stats.balance), { showDecimals: true })}
+                  {stats.advance > 0.5 && (
+                    <p className="text-xs font-normal text-muted-foreground mt-1">
+                      {formatCurrency(stats.advance, { showDecimals: true })} paid in advance
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>

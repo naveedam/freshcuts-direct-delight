@@ -95,9 +95,8 @@ export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: b
         // Fully paid POs, whatever their delivery status.
         paid: active.filter(po => po.payment_status === 'paid').length,
         totalValue: active.reduce((sum, po) => sum + (Number(po.total_amount) || 0), 0),
-        // What's still owed: unpaid and part-paid POs, less what's already been paid on them.
+        // What's still owed on each PO (total less what's been applied to it), as on every vendor tab.
         unpaid: active
-          .filter(po => po.payment_status !== 'paid')
           .reduce((sum, po) => sum + Math.max(0, (Number(po.total_amount) || 0) - (Number(po.paid_amount) || 0)), 0),
       };
     }

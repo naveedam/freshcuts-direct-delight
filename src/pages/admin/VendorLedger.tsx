@@ -74,14 +74,15 @@ export default function VendorLedger({ embedded = false }: { embedded?: boolean 
     if (!rows) return null;
     const activeRows = rows.filter((r: any) => r.status !== 'cancelled');
     const purchase = activeRows.reduce((s: number, r: any) => s + Number(r.total_amount || 0), 0);
-    const paid = activeRows.reduce((s: number, r: any) => s + Number(r.paid_amount || 0), 0);
+    // Paid against these POs (never more than a PO's total), so Purchase − Paid = Outstanding.
+    const paid = activeRows.reduce((s: number, r: any) =>
+      s + Math.min(Number(r.paid_amount || 0), Number(r.total_amount || 0)), 0);
     // POs not fully paid yet.
     const openPOs = activeRows.filter((r: any) => r.payment_status !== 'paid').length;
     const lastPaymentDate = vendorId !== 'all' && lastPayments?.[vendorId]
       ? formatIST(lastPayments[vendorId], 'dd MMM yyyy') : '—';
     // Same definition as the Purchase Orders "Unpaid" card: what's still owed on each PO.
-    const outstanding = activeRows.reduce((s: number, r: any) =>
-      s + Math.max(0, Number(r.total_amount || 0) - Number(r.paid_amount || 0)), 0);
+    const outstanding = purchase - paid;
     return { purchase, paid, outstanding, openPOs, lastPaymentDate };
   }, [rows, lastPayments, vendorId]);
 
@@ -182,7 +183,7 @@ export default function VendorLedger({ embedded = false }: { embedded?: boolean 
                   <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No purchase orders</TableCell></TableRow>
                 ) : rows.map((r: any) => {
                   const orderMatch = r.notes?.match(/Order #([a-f0-9]{8})/i);
-                  const outstanding = Number(r.total_amount || 0) - Number(r.paid_amount || 0);
+                  const outstanding = Math.max(0, Number(r.total_amount || 0) - Number(r.paid_amount || 0));
                   return (
                     <TableRow key={r.id}>
                       <TableCell>{formatIST(r.order_date, 'dd MMM yyyy')}</TableCell>
