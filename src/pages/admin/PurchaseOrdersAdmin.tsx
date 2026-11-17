@@ -89,7 +89,8 @@ export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: b
 
       const active = data.filter(po => po.status !== 'cancelled');
       return {
-        total: active.length,
+        // Still in progress: not cancelled and not yet paid off.
+        total: active.filter(po => ACTIVE_PO_STATUSES.includes(po.status)).length,
         received: active.filter(po => po.status === 'received').length,
         payable: active.filter(po => po.status === 'payable').length,
         // Fully paid POs, whatever their delivery status.

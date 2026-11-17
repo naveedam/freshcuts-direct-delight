@@ -2,6 +2,12 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-17 — Purchase order statuses follow payments
+
+- A PO's payment status is recalculated whenever its total changes (weights finalised, rates edited, Fix purchase orders), not only when a payment is recorded.
+- A fully paid PO that was Received or Payable now moves to Paid (archived), and back to Payable if its total later rises above what was paid. Migration `20261117100000_po_status_sync.sql` also brings existing POs up to date.
+- Purchase Orders "Active POs" counts POs still in progress (not paid off or cancelled).
+
 ## 2026-11-17 — One outstanding figure on every vendor screen
 
 - Outstanding everywhere (Vendors, Purchase Orders, Vendor Ledger, Statements, vendor dialogs) = for each purchase order, its total less what has been applied to it. Money paid but not yet on a PO is shown separately as "paid in advance".
