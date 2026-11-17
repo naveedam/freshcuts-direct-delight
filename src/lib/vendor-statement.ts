@@ -168,7 +168,7 @@ export async function loadVendorStatement(vendorId: string | 'all', from: string
   const allPOs = await fetchAllRows<any>(() => {
     let q = db.from('purchase_orders')
       .select('id, po_number, vendor_id, order_date, total_amount, paid_amount, status, payment_status')
-      .neq('status', 'cancelled').order('order_date');
+      .neq('status', 'cancelled').order('order_date').order('id');
     if (vendorId !== 'all') q = q.eq('vendor_id', vendorId);
     return q;
   });
@@ -176,7 +176,7 @@ export async function loadVendorStatement(vendorId: string | 'all', from: string
 
   // 4. Payments of the vendor(s).
   const payRows = await fetchAllRows<any>(() => {
-    let q = db.from('vendor_payments').select('*').order('payment_date');
+    let q = db.from('vendor_payments').select('*').order('payment_date').order('id');
     if (vendorId !== 'all') q = q.eq('vendor_id', vendorId);
     return q;
   });

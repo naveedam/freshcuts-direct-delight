@@ -35,27 +35,35 @@ export default function VendorLedger({ embedded = false }: { embedded?: boolean 
   const { data: rows, isLoading } = useQuery({
     queryKey: ['vendor-ledger', vendorId, statusFilter, fromDate, toDate],
     queryFn: async () => {
-      let q = supabase
-        .from('purchase_orders')
-        .select(`
-          id, po_number, vendor_id, status, order_date, total_amount, paid_amount, notes,
-          vendor:vendors(id, name)
-        `)
-        .order('order_date', { ascending: false });
-      if (vendorId !== 'all') q = q.eq('vendor_id', vendorId);
-      if (statusFilter !== 'all') q = q.eq('status', statusFilter);
-      if (fromDate) q = q.gte('order_date', istDayStart(fromDate));
-      if (toDate) q = q.lte('order_date', istDayEnd(toDate));
-      return await fetchAllRows<any>(() => q);
+      const build = () => {
+        let q = supabase
+          .from('purchase_orders')
+          .select(`
+            id, po_number, vendor_id, status, order_date, total_amount, paid_amount, payment_status, notes,
+            vendor:vendors(id, name)
+          `)
+          .order('order_date', { ascending: false })
+          .order('id', { ascending: true });
+        if (vendorId !== 'all') q = q.eq('vendor_id', vendorId);
+        if (statusFilter !== 'all') q = q.eq('status', statusFilter);
+        if (fromDate) q = q.gte('order_date', istDayStart(fromDate));
+        if (toDate) q = q.lte('order_date', istDayEnd(toDate));
+        return q;
+      };
+      return await fetchAllRows<any>(build);
     },
   });
 
   const { data: lastPayments } = useQuery({
     queryKey: ['vendor-ledger', 'last-payment', vendorId],
     queryFn: async () => {
-      let q = supabase.from('vendor_payments').select('vendor_id, payment_date').order('payment_date', { ascending: false });
-      if (vendorId !== 'all') q = q.eq('vendor_id', vendorId);
-      const data = await fetchAllRows<any>(() => q);
+      const build = () => {
+        let q = supabase.from('vendor_payments').select('id, vendor_id, payment_date')
+          .order('payment_date', { ascending: false }).order('id', { ascending: true });
+        if (vendorId !== 'all') q = q.eq('vendor_id', vendorId);
+        return q;
+      };
+      const data = await fetchAllRows<any>(build);
       const map: Record<string, string> = {};
       (data || []).forEach((p: any) => { if (!map[p.vendor_id]) map[p.vendor_id] = p.payment_date; });
       return map;
@@ -67,10 +75,14 @@ export default function VendorLedger({ embedded = false }: { embedded?: boolean 
     const activeRows = rows.filter((r: any) => r.status !== 'cancelled');
     const purchase = activeRows.reduce((s: number, r: any) => s + Number(r.total_amount || 0), 0);
     const paid = activeRows.reduce((s: number, r: any) => s + Number(r.paid_amount || 0), 0);
-    const openPOs = activeRows.filter((r: any) => r.status !== 'paid').length;
+    // POs not fully paid yet.
+    const openPOs = activeRows.filter((r: any) => r.payment_status !== 'paid').length;
     const lastPaymentDate = vendorId !== 'all' && lastPayments?.[vendorId]
       ? formatIST(lastPayments[vendorId], 'dd MMM yyyy') : '—';
-    return { purchase, paid, outstanding: purchase - paid, openPOs, lastPaymentDate };
+    // Same definition as the Purchase Orders "Unpaid" card: what's still owed on each PO.
+    const outstanding = activeRows.reduce((s: number, r: any) =>
+      s + Math.max(0, Number(r.total_amount || 0) - Number(r.paid_amount || 0)), 0);
+    return { purchase, paid, outstanding, openPOs, lastPaymentDate };
   }, [rows, lastPayments, vendorId]);
 
   const handleExport = () => {

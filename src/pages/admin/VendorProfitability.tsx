@@ -23,12 +23,16 @@ export default function VendorProfitability({ embedded = false }: { embedded?: b
   const { data: orders } = useQuery({
     queryKey: ['vendor-profit', 'orders', fromDate, toDate],
     queryFn: async () => {
-      let q = supabase
-        .from('orders')
-        .select('id, status, converted_to_sale, invoice_cancelled, created_at');
-      if (fromDate) q = q.gte('created_at', istDayStart(fromDate));
-      if (toDate) q = q.lte('created_at', istDayEnd(toDate));
-      return await fetchAllRows<any>(() => q);
+      const build = () => {
+        let q = supabase
+          .from('orders')
+          .select('id, status, converted_to_sale, invoice_cancelled, created_at')
+          .order('id');
+        if (fromDate) q = q.gte('created_at', istDayStart(fromDate));
+        if (toDate) q = q.lte('created_at', istDayEnd(toDate));
+        return q;
+      };
+      return await fetchAllRows<any>(build);
     },
   });
 
@@ -36,7 +40,7 @@ export default function VendorProfitability({ embedded = false }: { embedded?: b
     queryKey: ['vendor-profit', 'items'],
     queryFn: async () => {
       return await fetchAllRows<any>(() =>
-        supabase.from('order_items').select('order_id, vendor_id, quantity, actual_weight, unit_price, total_price, vendor_cost')
+        supabase.from('order_items').select('id, order_id, vendor_id, quantity, actual_weight, vendor_supplied_weight, unit_price, total_price, vendor_cost').order('id')
       );
     },
   });
@@ -60,9 +64,10 @@ export default function VendorProfitability({ embedded = false }: { embedded?: b
     const byVendor = new Map<string, { sales: number; cost: number }>();
     for (const it of items as any[]) {
       if (!it.vendor_id || !invoicedIds.has(it.order_id)) continue;
-      const qty = Number(it.actual_weight ?? it.quantity) || 0;
+      // Cost at the vendor's weight and rate, the same figures as the purchase orders and statements.
+      const vendorQty = Number(it.vendor_supplied_weight ?? it.actual_weight ?? it.quantity) || 0;
       const sales = Number(it.total_price) || 0;
-      const cost = qty * (Number(it.vendor_cost) || 0);
+      const cost = vendorQty * (Number(it.vendor_cost) || 0);
       const cur = byVendor.get(it.vendor_id) || { sales: 0, cost: 0 };
       cur.sales += sales;
       cur.cost += cost;

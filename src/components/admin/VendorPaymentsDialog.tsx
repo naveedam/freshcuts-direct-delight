@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { formatIST } from '@/lib/ist';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabase-paginate';
+import { groupPayments } from '@/lib/vendor-payments';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +18,6 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import { Vendor, VendorPayment } from '@/types/vendor';
-import { markPOPaidIfSettled } from '@/lib/po-lifecycle';
 
 interface VendorPaymentsDialogProps {
   vendor: Vendor;
@@ -38,13 +39,12 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
   const { data: payments, isLoading } = useQuery({
     queryKey: ['vendor-payments', vendor.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      return await fetchAllRows<VendorPayment>(() => supabase
         .from('vendor_payments')
         .select('*')
         .eq('vendor_id', vendor.id)
-        .order('payment_date', { ascending: false });
-      if (error) throw error;
-      return data as VendorPayment[];
+        .order('payment_date', { ascending: false })
+        .order('id', { ascending: true }));
     },
     enabled: open
   });
@@ -53,17 +53,19 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
   const { data: vendorPOs } = useQuery({
     queryKey: ['vendor-pos', vendor.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      return await fetchAllRows<any>(() => supabase
         .from('purchase_orders')
         .select('id, po_number, total_amount, paid_amount, payment_status, status')
         .eq('vendor_id', vendor.id)
         .neq('status', 'cancelled')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: true }));
     },
     enabled: open
   });
+
+  // One line per payment made, even when it was shared across several POs.
+  const groupedPayments = groupPayments((payments || []) as any);
 
   // Compute financial stats
   const stats = (() => {
@@ -106,25 +108,10 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
       });
       if (error) throw error;
 
-      // Update PO payment status if linked
+      // A payment for a PO: recalculate that PO's paid amount and status from its payments.
+      // A payment without a PO is applied by the database to the oldest unpaid POs.
       if (selectedPoId) {
-        const po = vendorPOs?.find(p => p.id === selectedPoId);
-        if (po) {
-          const currentPaid = payments
-            ?.filter(p => p.purchase_order_id === selectedPoId)
-            .reduce((sum, p) => sum + Number(p.amount), 0) || 0;
-          const newPaid = currentPaid + payAmount;
-          const poTotal = Number(po.total_amount);
-          const newStatus = newPaid >= poTotal ? 'paid' : newPaid > 0 ? 'partial' : 'pending';
-          
-          await supabase.from('purchase_orders').update({
-            paid_amount: newPaid,
-            payment_status: newStatus
-          }).eq('id', selectedPoId);
-
-          // If fully settled, transition PO status to 'paid' (auto-archive).
-          await markPOPaidIfSettled(selectedPoId);
-        }
+        await (supabase as any).rpc('refresh_po_payment', { p_po_id: selectedPoId });
       }
     },
     onSuccess: () => {
@@ -191,7 +178,7 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.totalPaid, { showDecimals: true })}</div>
-                <p className="text-xs text-muted-foreground">{payments?.length || 0} transactions</p>
+                <p className="text-xs text-muted-foreground">{groupedPayments.length} payment(s)</p>
               </CardContent>
             </Card>
             <Card>
@@ -314,14 +301,14 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
                       ))}
                     </TableRow>
                   ))
-                ) : payments && payments.length > 0 ? (
-                  payments.map((payment) => {
-                    const linkedPO = vendorPOs?.find(po => po.id === payment.purchase_order_id);
+                ) : groupedPayments.length > 0 ? (
+                  groupedPayments.map((payment) => {
+                    const linked = payment.poIds.map((id) => vendorPOs?.find(po => po.id === id)?.po_number).filter(Boolean);
                     return (
                       <TableRow key={payment.id}>
                         <TableCell>{formatIST(payment.payment_date, 'dd MMM yyyy')}</TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {linkedPO?.po_number || '-'}
+                        <TableCell className="font-mono text-sm" title={linked.join(', ')}>
+                          {linked.length === 0 ? '-' : linked.length === 1 ? linked[0] : `${linked.length} POs`}
                         </TableCell>
                         <TableCell className="font-medium">{formatCurrency(payment.amount)}</TableCell>
                         <TableCell>{getPaymentMethodBadge(payment.payment_method)}</TableCell>

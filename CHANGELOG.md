@@ -2,10 +2,23 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-16 — Vendor totals audit
+
+- Vendors, Vendor Ledger, Purchase Orders, Statements and Profitability now read every row (not just the first 1,000), so totals no longer drop rows as payment history grows.
+- Outstanding means the same thing everywhere: what is still owed on each purchase order (never reduced by another vendor's advance).
+- Vendor Ledger "Open POs" counts POs not yet fully paid.
+- A payment that covered several POs shows once (with its full amount) in the vendor ledger and payments list.
+- Vendor Profitability costs use the vendor's supplied weight, matching purchase orders and statements.
+
 ## 2026-11-16
 
 ### Changed
 - **Statements & Payments:** the Linked Invoice and Linked PO numbers are links. An invoice opens in a view-only window (with a PDF button); a purchase order opens in the usual PO details window. Closing either returns to the statement, with the same vendor, dates and scroll position.
+
+### Purchase Orders (16 Nov, later)
+- **Unpaid** card now shows what's still owed: unpaid and part-paid POs, less what's been paid on them (it used to add up only POs with no payment at all).
+- **Paid** card counts fully paid POs (it counted a status that is never set, so always showed 0).
+- Recording a vendor payment no longer updates PO paid amounts in the browser: the database applies it (to the chosen PO, or to the oldest unpaid POs) so a payment is never counted twice.
 
 ## 2026-11-15
 

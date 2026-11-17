@@ -25,7 +25,7 @@ import { VendorPaymentsDialog } from '@/components/admin/VendorPaymentsDialog';
 import { VendorDailySummaryDialog } from '@/components/admin/VendorDailySummaryDialog';
 import { VendorLedgerSheet } from '@/components/admin/VendorLedgerSheet';
 import { writeExcelFile } from '@/lib/excel-utils';
-import { PO_STATUS_LABELS, PO_STATUS_STYLES, ACTIVE_PO_STATUSES, ARCHIVED_PO_STATUSES, markPOsPayableOnInvoice, markPOPaidIfSettled } from '@/lib/po-lifecycle';
+import { PO_STATUS_LABELS, PO_STATUS_STYLES, ACTIVE_PO_STATUSES, ARCHIVED_PO_STATUSES, markPOsPayableOnInvoice } from '@/lib/po-lifecycle';
 
 export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: boolean } = {}) {
   const queryClient = useQueryClient();
@@ -52,27 +52,30 @@ export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: b
   const { data: purchaseOrders, isLoading } = useQuery({
     queryKey: ['admin', 'purchase-orders', statusFilter, paymentFilter, showArchived, fromDate, toDate, vendorFilter],
     queryFn: async () => {
-      let query = supabase
-        .from('purchase_orders')
-        .select(`
-          *,
-          vendor:vendors(id, name, contact_person, email, phone)
-        `)
-        .order('order_date', { ascending: false });
-      if (fromDate) query = query.gte('order_date', istDayStart(fromDate));
-      if (toDate) query = query.lte('order_date', istDayEnd(toDate));
-      if (vendorFilter !== 'all') query = query.eq('vendor_id', vendorFilter);
-      
-      if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
-      } else if (!showArchived) {
-        query = query.in('status', ACTIVE_PO_STATUSES);
-      }
-      if (paymentFilter !== 'all') {
-        query = query.eq('payment_status', paymentFilter);
-      }
-      
-      const data = await fetchAllRows<any>(() => query);
+      // A fresh query per page, with a unique tie-breaker, so paging never skips or repeats rows.
+      const build = () => {
+        let query = supabase
+          .from('purchase_orders')
+          .select(`
+            *,
+            vendor:vendors(id, name, contact_person, email, phone)
+          `)
+          .order('order_date', { ascending: false })
+          .order('id', { ascending: true });
+        if (fromDate) query = query.gte('order_date', istDayStart(fromDate));
+        if (toDate) query = query.lte('order_date', istDayEnd(toDate));
+        if (vendorFilter !== 'all') query = query.eq('vendor_id', vendorFilter);
+        if (statusFilter !== 'all') {
+          query = query.eq('status', statusFilter);
+        } else if (!showArchived) {
+          query = query.in('status', ACTIVE_PO_STATUSES);
+        }
+        if (paymentFilter !== 'all') {
+          query = query.eq('payment_status', paymentFilter);
+        }
+        return query;
+      };
+      const data = await fetchAllRows<any>(build);
       return data as unknown as PurchaseOrder[];
     }
   });
@@ -81,7 +84,7 @@ export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: b
     queryKey: ['admin', 'purchase-order-stats'],
     queryFn: async () => {
       const data = await fetchAllRows<any>(() =>
-        supabase.from('purchase_orders').select('status, payment_status, total_amount')
+        supabase.from('purchase_orders').select('status, payment_status, total_amount, paid_amount').order('id')
       );
 
       const active = data.filter(po => po.status !== 'cancelled');
@@ -89,9 +92,13 @@ export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: b
         total: active.length,
         received: active.filter(po => po.status === 'received').length,
         payable: active.filter(po => po.status === 'payable').length,
-        paid: active.filter(po => po.status === 'paid').length,
-        totalValue: active.reduce((sum, po) => sum + (po.total_amount || 0), 0),
-        unpaid: active.filter(po => po.payment_status === 'pending').reduce((sum, po) => sum + (po.total_amount || 0), 0),
+        // Fully paid POs, whatever their delivery status.
+        paid: active.filter(po => po.payment_status === 'paid').length,
+        totalValue: active.reduce((sum, po) => sum + (Number(po.total_amount) || 0), 0),
+        // What's still owed: unpaid and part-paid POs, less what's already been paid on them.
+        unpaid: active
+          .filter(po => po.payment_status !== 'paid')
+          .reduce((sum, po) => sum + Math.max(0, (Number(po.total_amount) || 0) - (Number(po.paid_amount) || 0)), 0),
       };
     }
   });
@@ -137,42 +144,11 @@ export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: b
         notes: weeklyPayNotes || null,
       });
 
-      // Allocate the entered amount across this vendor's outstanding POs,
-      // oldest first, up to (but never exceeding) what was actually paid.
-      // Previously this blanket-marked every filtered pending PO as fully
-      // paid regardless of the amount entered — fixed so a PO can only be
-      // marked paid/partial up to its real allocated share.
-      const outstandingPOs = (purchaseOrders || [])
-        .filter(p => p.payment_status !== 'paid' && p.status !== 'cancelled')
-        .sort((a, b) => new Date(a.order_date).getTime() - new Date(b.order_date).getTime());
-
-      let remaining = payAmount;
-      let posUpdated = 0;
-      for (const po of outstandingPOs) {
-        if (remaining <= 0.001) break;
-        const alreadyPaid = Number(po.paid_amount) || 0;
-        const outstanding = Number(po.total_amount) - alreadyPaid;
-        if (outstanding <= 0.001) continue;
-        const applied = Math.min(remaining, outstanding);
-        const newPaid = alreadyPaid + applied;
-        const newStatus = newPaid >= Number(po.total_amount) ? 'paid' : 'partial';
-        await supabase.from('purchase_orders')
-          .update({ payment_status: newStatus, paid_amount: newPaid })
-          .eq('id', po.id);
-        if (newStatus === 'paid') {
-          await markPOPaidIfSettled(po.id);
-        }
-        remaining -= applied;
-        posUpdated++;
-      }
-
+      // The database applies a payment without a PO to this vendor's oldest unpaid POs (splitting it
+      // across several if needed) and updates their paid status, so nothing more is done here.
       queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-orders'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'purchase-order-stats'] });
-      if (remaining > 0.01) {
-        toast.success(`Payment recorded — ${posUpdated} PO(s) updated. ₹${remaining.toFixed(2)} exceeds outstanding POs in this filter and was not allocated.`);
-      } else {
-        toast.success('Payment recorded — ' + posUpdated + ' PO(s) updated');
-      }
+      toast.success('Payment recorded and applied to the oldest unpaid purchase orders');
       setWeeklyPaymentOpen(false);
       setWeeklyPayAmount('');
       setWeeklyPayRef('');

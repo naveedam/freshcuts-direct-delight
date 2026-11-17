@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabase-paginate';
 import { PageFrame, StickyTop } from '@/components/admin/TabbedAdminPage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,16 +75,20 @@ export default function VendorsAdmin({ embedded = false }: { embedded?: boolean 
   const { data: financialStats } = useQuery({
     queryKey: ['admin', 'vendor-financial-stats'],
     queryFn: async () => {
-      const [posRes, paymentsRes] = await Promise.all([
-        supabase.from('purchase_orders').select('total_amount').neq('status', 'cancelled'),
-        supabase.from('vendor_payments').select('amount')
+      // Every row (not just the first 1,000), so these match the Vendor Ledger and Purchase Orders tabs.
+      const [pos, payments] = await Promise.all([
+        fetchAllRows<any>(() => supabase.from('purchase_orders').select('id, vendor_id, total_amount').neq('status', 'cancelled').order('id')),
+        fetchAllRows<any>(() => supabase.from('vendor_payments').select('id, vendor_id, amount').order('id')),
       ]);
-      if (posRes.error) throw posRes.error;
-      if (paymentsRes.error) throw paymentsRes.error;
-      
-      const totalPayable = posRes.data.reduce((sum, po) => sum + Number(po.total_amount), 0);
-      const totalPaid = paymentsRes.data.reduce((sum, p) => sum + Number(p.amount), 0);
-      return { totalPayable, totalPaid, outstanding: totalPayable - totalPaid };
+      const totalPayable = pos.reduce((sum, po) => sum + (Number(po.total_amount) || 0), 0);
+      const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+      // Outstanding is what's owed vendor by vendor; one vendor's advance doesn't reduce another's dues.
+      const byVendor = new Map<string, number>();
+      pos.forEach((po) => byVendor.set(po.vendor_id, (byVendor.get(po.vendor_id) || 0) + (Number(po.total_amount) || 0)));
+      payments.forEach((p) => byVendor.set(p.vendor_id, (byVendor.get(p.vendor_id) || 0) - (Number(p.amount) || 0)));
+      let outstanding = 0;
+      byVendor.forEach((bal) => { if (bal > 0.009) outstanding += bal; });
+      return { totalPayable, totalPaid, outstanding };
     }
   });
 
