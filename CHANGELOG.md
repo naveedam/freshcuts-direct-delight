@@ -2,6 +2,13 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-17 — Faster Orders screen (especially on mobile)
+
+- Orders list draws 50 rows at a time ("Show 100 more" / "Show all") instead of every order at once; filters and totals still cover all orders.
+- Typing or deleting in the search box no longer freezes: the list catches up a moment after the keystroke.
+- Orders and customer payments load several pages at once.
+- Opening dialogs (payment, settle, edit) is quicker because far fewer rows re-draw behind them.
+
 ## 2026-11-17 — Sales, Purchase & Expense on the Exec Dashboard
 
 - New section on Exec Dashboard: Sales, Purchase, Expense, Gross margin and Net profit for a chosen period (this/last month, last 30 days, this/last quarter, this/last financial year, last 12 months, custom dates).

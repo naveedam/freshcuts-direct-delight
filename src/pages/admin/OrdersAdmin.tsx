@@ -2,7 +2,7 @@ import { StickyTop } from '@/components/admin/TabbedAdminPage';
 import { invoiceDues } from '@/lib/party-dues';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useDeferredValue, useEffect } from 'react';
 import { istDateString, istDateOf } from '@/lib/live-rate';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,7 +32,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFinancialYears } from '@/hooks/useFinancialYears';
-import { fetchAllRows } from '@/lib/supabase-paginate';
+import { fetchAllRowsFast } from '@/lib/supabase-paginate';
 import { istMidnight, istToday } from '@/lib/ist';
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
@@ -73,8 +73,9 @@ export default function OrdersAdmin() {
     // Reused for 30 s instead of reloading the full history on every visit and focus.
     staleTime: 30 * 1000,
     queryFn: async () => {
-      return await fetchAllRows<any>(() =>
-        supabase.from('orders').select('*').order('created_at', { ascending: false })
+      // Several pages at once instead of one after another (much quicker on mobile data).
+      return await fetchAllRowsFast<any>(() =>
+        supabase.from('orders').select('*').order('created_at', { ascending: false }).order('id', { ascending: true })
       );
     }
   });
@@ -85,8 +86,8 @@ export default function OrdersAdmin() {
     // Reused for 30 s instead of reloading the full history on every visit and focus.
     staleTime: 30 * 1000,
     queryFn: async () => {
-      return await fetchAllRows<any>(() =>
-        supabase.from('customer_payments').select('order_id, amount, payment_date, is_adjustment')
+      return await fetchAllRowsFast<any>(() =>
+        supabase.from('customer_payments').select('id, order_id, amount, payment_date, is_adjustment').order('id')
       );
     },
     refetchInterval: 60000,
@@ -113,6 +114,10 @@ export default function OrdersAdmin() {
     return due < (Number(o.total_amount) || 0) - 0.01 ? 'partial' : 'unpaid';
   };
 
+  // Typing stays instant: the list catches up with the search box a moment later instead of
+  // blocking each keystroke.
+  const deferredSearch = useDeferredValue(searchQuery);
+
   const filteredOrders = useMemo(() => {
     if (!orders) return [];
     let filtered = orders;
@@ -133,8 +138,8 @@ export default function OrdersAdmin() {
       const to = new Date(dateTo).getTime() + 24 * 60 * 60 * 1000 - 1;
       filtered = filtered.filter((o: any) => new Date(o.created_at).getTime() <= to);
     }
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
+    if (deferredSearch.trim()) {
+      const q = deferredSearch.trim().toLowerCase();
       filtered = filtered.filter((o: any) => {
         const blob = [
           o.invoice_number,
@@ -151,10 +156,16 @@ export default function OrdersAdmin() {
     }
     return filtered;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders, buildingFilter, fyFilter, paymentStatuses, invoiceDueMap, dateFrom, dateTo, searchQuery]);
+  }, [orders, buildingFilter, fyFilter, paymentStatuses, invoiceDueMap, dateFrom, dateTo, deferredSearch]);
+
+  // Only the first rows are drawn; thousands of rows at once made typing and dialogs slow.
+  const PAGE_SIZE = 50;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [buildingFilter, fyFilter, paymentStatuses, dateFrom, dateTo, deferredSearch]);
+  const visibleOrders = useMemo(() => filteredOrders.slice(0, visibleCount), [filteredOrders, visibleCount]);
 
   // Party summary — when any filter narrows the list
-  const filtersActive = !!(buildingFilter || searchQuery.trim() || paymentStatuses.length > 0 || dateFrom || dateTo);
+  const filtersActive = !!(buildingFilter || deferredSearch.trim() || paymentStatuses.length > 0 || dateFrom || dateTo);
 
   // Party outstanding map: aggregates unpaid balance across all invoices for the same party.
   // Key resolution priority: phone -> flat+building -> customer_email.
@@ -955,7 +966,7 @@ export default function OrdersAdmin() {
                   </TableRow>
                 ))
               ) : filteredOrders && filteredOrders.length > 0 ? (
-                filteredOrders.map((order: any) => (
+                visibleOrders.map((order: any) => (
                   <TableRow key={order.id}>
                     <TableCell>
                       {/* Order ID, date and source share one column to keep the table narrow */}
@@ -1239,6 +1250,15 @@ export default function OrdersAdmin() {
               )}
             </TableBody>
           </Table>
+          {!isLoading && filteredOrders.length > visibleCount && (
+            <div className="flex flex-wrap items-center justify-center gap-3 border-t py-4 text-sm text-muted-foreground">
+              Showing {visibleCount.toLocaleString('en-IN')} of {filteredOrders.length.toLocaleString('en-IN')} orders
+              <Button variant="outline" size="sm" onClick={() => setVisibleCount((n) => n + 100)}>Show 100 more</Button>
+              {filteredOrders.length <= 1000 && (
+                <Button variant="ghost" size="sm" onClick={() => setVisibleCount(filteredOrders.length)}>Show all</Button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Order Details Dialog */}
