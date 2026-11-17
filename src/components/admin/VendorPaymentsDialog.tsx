@@ -97,7 +97,7 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
       if (selectedPoId) {
         const maxPayable = getMaxPayableForPO(selectedPoId);
         if (payAmount > maxPayable) {
-          throw new Error(`Amount exceeds outstanding balance of ${formatCurrency(maxPayable, { showDecimals: true })} for this PO`);
+          throw new Error(`Amount exceeds outstanding balance of ${formatCurrency(maxPayable)} for this PO`);
         }
       }
 
@@ -170,7 +170,7 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(stats.totalPayable, { showDecimals: true })}</div>
+                <div className="text-2xl font-bold">{formatCurrency(stats.totalPayable)}</div>
                 <p className="text-xs text-muted-foreground">From {vendorPOs?.length || 0} POs</p>
               </CardContent>
             </Card>
@@ -180,7 +180,7 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
                 <IndianRupee className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.totalPaid, { showDecimals: true })}</div>
+                <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.totalPaid)}</div>
                 <p className="text-xs text-muted-foreground">{groupedPayments.length} payment(s)</p>
               </CardContent>
             </Card>
@@ -191,10 +191,10 @@ export function VendorPaymentsDialog({ vendor, open, onOpenChange, preselectedPo
               </CardHeader>
               <CardContent>
                 <div className={`text-2xl font-bold ${stats.balance > 0 ? 'text-destructive' : 'text-green-600'}`}>
-                  {formatCurrency(Math.max(0, stats.balance), { showDecimals: true })}
+                  {formatCurrency(Math.max(0, stats.balance))}
                   {stats.advance > 0.5 && (
                     <p className="text-xs font-normal text-muted-foreground mt-1">
-                      {formatCurrency(stats.advance, { showDecimals: true })} paid in advance
+                      {formatCurrency(stats.advance)} paid in advance
                     </p>
                   )}
                 </div>

@@ -2,6 +2,10 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-17 — Whole rupees on vendor screens
+
+- Vendor payments dialog and the Purchase Orders / Vendor Ledger Excel exports show amounts in whole rupees (weights keep their decimals).
+
 ## 2026-11-17 — Purchase order statuses follow payments
 
 - A PO's payment status is recalculated whenever its total changes (weights finalised, rates edited, Fix purchase orders), not only when a payment is recorded.

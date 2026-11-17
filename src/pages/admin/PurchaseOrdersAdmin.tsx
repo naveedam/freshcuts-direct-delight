@@ -174,10 +174,10 @@ export default function PurchaseOrdersAdmin({ embedded = false }: { embedded?: b
         : '-',
       'Status': po.status.replace('_', ' ').toUpperCase(),
       'Payment Status': po.payment_status.toUpperCase(),
-      'Subtotal': po.subtotal,
-      'Tax Amount': po.tax_amount,
-      'Total Amount': po.total_amount,
-      'Paid Amount': po.paid_amount || 0,
+      'Subtotal': Math.round(Number(po.subtotal) || 0),
+      'Tax Amount': Math.round(Number(po.tax_amount) || 0),
+      'Total Amount': Math.round(Number(po.total_amount) || 0),
+      'Paid Amount': Math.round(Number(po.paid_amount) || 0),
       'Notes': po.notes || '',
     }));
 

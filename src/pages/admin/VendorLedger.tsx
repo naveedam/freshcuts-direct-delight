@@ -95,9 +95,9 @@ export default function VendorLedger({ embedded = false }: { embedded?: boolean 
         'PO Number': r.po_number,
         Vendor: r.vendor?.name || '',
         'Customer Order': orderMatch ? orderMatch[1] : '',
-        'Purchase Amount': Number(r.total_amount || 0),
-        'Paid Amount': Number(r.paid_amount || 0),
-        Outstanding: Number(r.total_amount || 0) - Number(r.paid_amount || 0),
+        'Purchase Amount': Math.round(Number(r.total_amount || 0)),
+        'Paid Amount': Math.round(Math.min(Number(r.paid_amount || 0), Number(r.total_amount || 0))),
+        Outstanding: Math.round(Math.max(0, Number(r.total_amount || 0) - Number(r.paid_amount || 0))),
         Status: PO_STATUS_LABELS[r.status] || r.status,
       };
     });
