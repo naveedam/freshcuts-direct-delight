@@ -2,6 +2,12 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-19 — Checks on weights and prices when editing
+
+- Adjust Weights & Prices flags numbers that look wrong, under the line as you type: vendor weight far from the actual weight (e.g. 13 kg vs 1.3 kg, "looks like a decimal point slip"), actual weight far from what was ordered, a big change from the saved weight or price on a correction, and vendor cost above the sale on a line.
+- Saving with any of these asks for confirmation ("Go back and fix" / "Save anyway"); finalized-order corrections use the same dialog.
+- Editing a cost per unit on a purchase order asks for confirmation when it changes by 50% or more.
+
 ## 2026-11-19 — Purchase order lines show their own invoice, apartment and flat
 
 - A daily purchase order holds items from several customer orders. Each line now shows its own invoice, apartment and flat, lines are grouped by customer order, and the header lists every order on the PO (the single-order panel is kept when there's only one).

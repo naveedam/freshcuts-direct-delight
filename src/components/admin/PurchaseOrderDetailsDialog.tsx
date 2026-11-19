@@ -376,6 +376,14 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
                                       toast.error('Enter a valid cost');
                                       return;
                                     }
+                                    // Catch slips such as ₹8,500 typed for ₹850.
+                                    const old = Number(item.unit_cost) || 0;
+                                    if (old > 0 && parsed > 0 && Math.max(parsed, old) / Math.min(parsed, old) >= 1.5) {
+                                      const ok = window.confirm(
+                                        `The cost changes from ₹${old.toLocaleString('en-IN')} to ₹${parsed.toLocaleString('en-IN')} per unit. Is that right?`
+                                      );
+                                      if (!ok) return;
+                                    }
                                     updateItemCostMutation.mutate({ itemId: item.id, newUnitCost: parsed });
                                   }}
                                 >

@@ -1,4 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
+import { checkLine } from '@/lib/weight-checks';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -8,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Loader2, Scale, Check, AlertCircle, Percent, IndianRupee } from 'lucide-react';
+import { Loader2, Scale, Check, AlertCircle, AlertTriangle, Percent, IndianRupee } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 import { Badge } from '@/components/ui/badge';
 import { syncPOsFromWeightAdjustment } from '@/lib/po-lifecycle';
@@ -244,6 +249,33 @@ export function WeightAdjustmentDialog({
     setVendorWeights(prev => ({ ...prev, [itemId]: weight }));
   };
 
+  // Catch slips such as 13 kg typed for 1.3 kg before they reach the invoice, PO and margins.
+  const warnings = useMemo(() => {
+    const out: Record<string, string[]> = {};
+    for (const item of orderItems || []) {
+      const a = adjustedItems[item.id];
+      if (!a) continue;
+      const actual = parseFloat(a.weight) || item.quantity;
+      const vRaw = parseFloat(vendorWeights[item.id] ?? '');
+      const vendor = isFinite(vRaw) && vRaw > 0 ? vRaw : actual;
+      const list = checkLine({
+        ordered: Number(item.quantity) || 0,
+        actual,
+        vendor,
+        unitPrice: parseFloat(a.price) || Number(item.unit_price) || 0,
+        vendorCost: item.vendor_cost,
+        savedActual: order?.weight_finalized ? (item.actual_weight ?? null) : null,
+        savedVendor: order?.weight_finalized ? (item.vendor_supplied_weight ?? null) : null,
+        savedPrice: order?.weight_finalized ? Number(item.unit_price) : null,
+        isUnit: getItemPricingModel(item) === 'unit_based',
+      });
+      if (list.length) out[item.id] = list;
+    }
+    return out;
+  }, [orderItems, adjustedItems, vendorWeights, order?.weight_finalized]);
+  const warningCount = Object.values(warnings).reduce((s, l) => s + l.length, 0);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   if (!order) return null;
 
   return (
@@ -284,7 +316,8 @@ export function WeightAdjustmentDialog({
                   const pm = getItemPricingModel(item);
                   const isUnit = pm === 'unit_based';
                   return (
-                    <TableRow key={item.id}>
+                    <Fragment key={item.id}>
+                    <TableRow>
                       <TableCell className="px-2 py-2">
                         <div>
                           <p className="font-medium text-sm">{item.product_name}</p>
@@ -358,6 +391,18 @@ export function WeightAdjustmentDialog({
                         {formatCurrency(calculateItemTotal(item.id, item))}
                       </TableCell>
                     </TableRow>
+                    {warnings[item.id] && (
+                      <TableRow className="border-0 hover:bg-transparent">
+                        <TableCell colSpan={6} className="px-2 pt-0 pb-3">
+                          {warnings[item.id].map((w) => (
+                            <p key={w} className="flex items-center gap-1.5 text-xs text-amber-700">
+                              <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {w}
+                            </p>
+                          ))}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    </Fragment>
                   );
                 })}
               </TableBody>
@@ -445,12 +490,8 @@ export function WeightAdjustmentDialog({
             {(!order.weight_finalized || correctionMode) && (
               <Button 
                 onClick={() => {
-                  if (correctionMode) {
-                    const confirmed = window.confirm(
-                      'This order has already been finalized and may have been invoiced to the customer. Saving this correction will update the order total and resync the linked vendor PO. Continue?'
-                    );
-                    if (!confirmed) return;
-                  }
+                  // Anything that looks wrong, or a correction to a finalized order, is confirmed first.
+                  if (warningCount > 0 || correctionMode) { setConfirmOpen(true); return; }
                   updateItemsMutation.mutate();
                 }}
                 disabled={updateItemsMutation.isPending}
@@ -471,6 +512,36 @@ export function WeightAdjustmentDialog({
           </div>
         </div>
       </DialogContent>
+          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{warningCount > 0 ? 'Please check these numbers' : 'Save correction?'}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                {warningCount > 0 && (
+                  <ul className="space-y-2">
+                    {(orderItems || []).filter((i) => warnings[i.id]).map((i) => (
+                      <li key={i.id}>
+                        <span className="font-medium text-foreground">{i.product_name}</span>
+                        {warnings[i.id].map((w) => <span key={w} className="block text-amber-700">{w}</span>)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {correctionMode && (
+                  <p>This order is already finalized and may have been invoiced. Saving updates the order total and the vendor purchase order.</p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go back and fix</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmOpen(false); updateItemsMutation.mutate(); }}>
+              {warningCount > 0 ? 'Save anyway' : 'Save correction'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
