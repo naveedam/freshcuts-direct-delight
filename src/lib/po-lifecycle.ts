@@ -234,14 +234,25 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<{ su
         const gstRate = item.product_id ? (gstMap[item.product_id] ?? 0) : 0;
         const taxAmount = Math.round(totalCost * gstRate) / 100;
 
-        // Check if this order_id + product already has a line in this PO
-        const { data: existing } = await supabase
+        // The PO line for this exact order line (two lines of the same product on one order each
+        // have their own). Older lines without an order-line link are matched by product name.
+        let { data: existing } = await supabase
           .from('purchase_order_items')
           .select('id')
-          .eq('purchase_order_id', poId)
-          .eq('order_id', orderId)
-          .eq('product_name', item.product_name)
+          .eq('order_item_id', item.id)
+          .limit(1)
           .maybeSingle();
+        if (!existing) {
+          ({ data: existing } = await supabase
+            .from('purchase_order_items')
+            .select('id')
+            .eq('purchase_order_id', poId)
+            .eq('order_id', orderId)
+            .is('order_item_id', null)
+            .eq('product_name', item.product_name)
+            .limit(1)
+            .maybeSingle());
+        }
 
         if (existing?.id) {
           // Update existing line item
@@ -255,6 +266,7 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<{ su
               actual_received_weight: actualQty,
               received_quantity: Math.max(1, Math.round(actualQty)),
               received_at: now,
+              order_item_id: item.id,
             })
             .eq('id', existing.id);
         } else {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatIST } from '@/lib/ist';
+import { formatIST, fmtQty } from '@/lib/ist';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -55,21 +55,45 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
     },
     enabled: !!purchaseOrder?.id,
   });
-  const items = poItems || [];
-  const orderShortId = purchaseOrder?.notes?.match(/Order #([a-f0-9]{8})/i)?.[1] || null;
-  const linkedOrderId = (items || []).map((i: any) => i.order_id).find(Boolean) || null;
-  const { data: linkedOrder } = useQuery({
-    queryKey: ['po-linked-order', purchaseOrder?.id, linkedOrderId],
-    enabled: !!purchaseOrder && !!linkedOrderId,
+  // A daily PO holds lines from several customer orders: each line is shown with its own
+  // invoice, apartment and flat (found from the line's order, or its order line).
+  const { data: lineOrders } = useQuery({
+    queryKey: ['po-line-orders', purchaseOrder?.id, (poItems || []).length],
+    enabled: !!purchaseOrder && (poItems || []).length > 0,
     queryFn: async () => {
-      const { data } = await supabase
-        .from('orders')
-        .select('id, invoice_number, flat_number, building_name')
-        .eq('id', linkedOrderId)
-        .maybeSingle();
-      return data;
+      const lines = poItems || [];
+      const viaItem = lines.filter((i: any) => !i.order_id && i.order_item_id).map((i: any) => i.order_item_id);
+      const itemToOrder = new Map<string, string>();
+      if (viaItem.length) {
+        const { data } = await supabase.from('order_items').select('id, order_id').in('id', viaItem);
+        (data || []).forEach((r: any) => itemToOrder.set(r.id, r.order_id));
+      }
+      const lineOrder = new Map<string, string>();
+      lines.forEach((i: any) => {
+        const oid = i.order_id || (i.order_item_id && itemToOrder.get(i.order_item_id));
+        if (oid) lineOrder.set(i.id, oid);
+      });
+      const ids = [...new Set(lineOrder.values())];
+      const orders = new Map<string, any>();
+      if (ids.length) {
+        const { data } = await supabase.from('orders')
+          .select('id, invoice_number, flat_number, building_name').in('id', ids);
+        (data || []).forEach((o: any) => orders.set(o.id, o));
+      }
+      return { lineOrder, orders };
     },
   });
+  const orderOfLine = (lineId: string) => {
+    const oid = lineOrders?.lineOrder.get(lineId);
+    return oid ? lineOrders?.orders.get(oid) : undefined;
+  };
+  const linkedOrders = lineOrders ? [...lineOrders.orders.values()] : [];
+  const linkedOrder = linkedOrders.length === 1 ? linkedOrders[0] : null;
+  const orderShortId = linkedOrder ? String(linkedOrder.id).slice(0, 8) : null;
+  // Lines grouped by customer order (apartment, flat), so each invoice's items sit together.
+  const placeKey = (o: any) => o ? `${o.building_name || ''} ${o.flat_number || ''} ${o.invoice_number || ''}` : '~';
+  const items = [...(poItems || [])].sort((a: any, b: any) =>
+    placeKey(orderOfLine(a.id)).localeCompare(placeKey(orderOfLine(b.id))) || String(a.product_name).localeCompare(String(b.product_name)));
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -231,6 +255,17 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
               </div>
             </div>
 
+            {linkedOrders.length > 1 && (
+              <div className="rounded-lg border bg-muted/30 p-4 text-sm">
+                <p className="text-xs text-muted-foreground mb-1">Customer orders on this PO ({linkedOrders.length})</p>
+                <p className="font-medium">
+                  {linkedOrders
+                    .sort((a: any, b: any) => placeKey(a).localeCompare(placeKey(b)))
+                    .map((o: any) => `${o.building_name || '—'} ${o.flat_number || ''}${o.invoice_number ? ` (${o.invoice_number})` : ''}`)
+                    .join(' · ')}
+                </p>
+              </div>
+            )}
             {linkedOrder && (
               <div className="rounded-lg border bg-muted/30 p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
@@ -281,13 +316,25 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
 
                       return (
                         <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.product_name}</TableCell>
+                          <TableCell className="font-medium">
+                            {item.product_name}
+                            {(() => {
+                              const o = orderOfLine(item.id);
+                              return (
+                                <span className="block text-xs font-normal text-muted-foreground">
+                                  {o
+                                    ? [o.invoice_number, [o.building_name, o.flat_number].filter(Boolean).join(' ')].filter(Boolean).join(' · ')
+                                    : 'Added by hand (no customer order)'}
+                                </span>
+                              );
+                            })()}
+                          </TableCell>
                           <TableCell className="text-right">
-                            {Number(item.quantity).toFixed(2)} {unitLabel}
+                            {fmtQty(item.quantity)} {unitLabel}
                           </TableCell>
                           <TableCell className="text-right">
                             {actualWeight > 0 ? (
-                              <span className="font-medium">{actualWeight.toFixed(2)} {unitLabel}</span>
+                              <span className="font-medium">{fmtQty(actualWeight)} {unitLabel}</span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
@@ -299,7 +346,7 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
                                 itemVariance < 0 ? 'text-destructive' : 'text-muted-foreground'
                               }`}>
                                 {itemVariance > 0 ? <TrendingUp className="h-3 w-3" /> : itemVariance < 0 ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                                {itemVariance > 0 ? '+' : ''}{itemVariance.toFixed(2)} {unitLabel}
+                                {itemVariance > 0 ? '+' : ''}{fmtQty(itemVariance)} {unitLabel}
                                 <span className="text-xs">({itemVariancePercent > 0 ? '+' : ''}{itemVariancePercent.toFixed(1)}%)</span>
                               </span>
                             ) : (

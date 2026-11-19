@@ -2,6 +2,16 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-19 — Purchase order lines show their own invoice, apartment and flat
+
+- A daily purchase order holds items from several customer orders. Each line now shows its own invoice, apartment and flat, lines are grouped by customer order, and the header lists every order on the PO (the single-order panel is kept when there's only one).
+
+## 2026-11-19 — Purchase orders follow the vendor's weight
+
+- Purchase order lines always use the vendor's weight (Vendor Wt in Adjust Weights). A database trigger (`20261119100000_po_follows_vendor_weight.sql`) updates the PO line, its amount and the PO total whenever that weight changes, from any screen.
+- Weights show to 3 decimals where needed (0.525 kg, not 0.53 kg) on the purchase order dialog and vendor statements (screen and PDF).
+- The PO sync matches each order line exactly, so two lines of the same product on one order no longer clash.
+
 ## 2026-11-17 — Faster Orders screen (especially on mobile)
 
 - Orders list draws 50 rows at a time ("Show 100 more" / "Show all") instead of every order at once; filters and totals still cover all orders.

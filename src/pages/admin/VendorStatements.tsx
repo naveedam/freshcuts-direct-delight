@@ -1,3 +1,4 @@
+import { fmtQty } from '@/lib/ist';
 import { useMemo, useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -333,7 +334,7 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
                         <TableCell>{l.apartment || '—'}</TableCell>
                         <TableCell>{l.flat || '—'}</TableCell>
                         <TableCell>{l.item}</TableCell>
-                        <TableCell className="text-right tabular-nums">{l.qty.toFixed(2)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtQty(l.qty)}</TableCell>
                         <TableCell className={`text-right tabular-nums ${l.rateMissing ? 'text-destructive font-medium' : ''}`}>
                           {l.rateMissing ? 'missing' : l.rate}
                         </TableCell>

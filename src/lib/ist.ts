@@ -65,3 +65,7 @@ export const IST_DATE: Intl.DateTimeFormatOptions = { timeZone: IST_TZ, day: '2-
 export const IST_DATETIME: Intl.DateTimeFormatOptions = {
   timeZone: IST_TZ, day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit',
 };
+
+/** A weight or quantity as the vendor gave it: up to 3 decimals (0.525), no trailing zeros (0.5, 2). */
+export const fmtQty = (n: number | string | null | undefined) =>
+  (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 3 });

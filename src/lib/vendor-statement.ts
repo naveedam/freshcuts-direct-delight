@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRowsFast, mapLimit } from '@/lib/supabase-paginate';
+import { fmtQty } from '@/lib/ist';
 
 // Vendor statement for a date range: every order line supplied by the vendor, with the vendor's
 // quantity and rate taken from the order (the same figures the invoice and PO are built from),
@@ -410,7 +411,7 @@ export async function downloadStatementPdf(st: VendorStatement, vendorLabel: str
   const multi = new Set(st.lines.map((l) => l.vendorId)).size > 1;
   const th = (t: string, right = false) => `<th style="text-align:${right ? 'right' : 'left'};padding:5px 6px;border:1px solid #d9cfc4;background:#FAF5EE">${t}</th>`;
   const td = (t: string, right = false) => `<td style="text-align:${right ? 'right' : 'left'};padding:4px 6px;border:1px solid #e5ddd3">${t}</td>`;
-  const rows = st.lines.map((l) => `<tr>${td(fmtDay(l.date))}${multi ? td(esc(l.vendorName)) : ''}${td(esc(l.apartment))}${td(esc(l.flat))}${td(esc(l.item))}${td(l.qty.toFixed(2), true)}${td(String(l.rate), true)}${td(inr(l.amount), true)}${td(esc(l.invoice || ''))}${td(esc(l.po?.number || ''))}${td(STATUS_LABEL[l.status])}</tr>`).join('');
+  const rows = st.lines.map((l) => `<tr>${td(fmtDay(l.date))}${multi ? td(esc(l.vendorName)) : ''}${td(esc(l.apartment))}${td(esc(l.flat))}${td(esc(l.item))}${td(fmtQty(l.qty), true)}${td(String(l.rate), true)}${td(inr(l.amount), true)}${td(esc(l.invoice || ''))}${td(esc(l.po?.number || ''))}${td(STATUS_LABEL[l.status])}</tr>`).join('');
   const kv = (k: string, v: number, strong = false) => `<tr><td style="padding:3px 8px">${k}</td><td style="padding:3px 8px;text-align:right;${strong ? 'font-weight:700' : ''}">${inr(v)}</td></tr>`;
   const html = `
   <div style="font-family:Arial,Helvetica,sans-serif;color:#2b2420;font-size:11px;padding:4px">
