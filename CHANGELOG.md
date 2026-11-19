@@ -2,6 +2,15 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-19 — Orders screen opens instantly on return visits
+
+- The Orders screen keeps the last copy of the order list and payments on the device and shows it straight away; the fresh copy loads in the background ("Updating…") and replaces it. The copy is removed when you sign out.
+
+## 2026-11-19 — Orders: paid orders archived
+
+- The Orders list shows only unpaid (Pending) and part-paid orders by default. Fully paid orders are archived: "Show paid (archived) · N" brings them back, "Hide paid orders" hides them again. Picking a status in the payment filter (e.g. Paid) shows exactly that status.
+- Totals at the top (collection, outstanding, overdue) are unchanged and still cover every order.
+
 ## 2026-11-19 — Checks on weights and prices when editing
 
 - Adjust Weights & Prices flags numbers that look wrong, under the line as you type: vendor weight far from the actual weight (e.g. 13 kg vs 1.3 kg, "looks like a decimal point slip"), actual weight far from what was ordered, a big change from the saved weight or price on a correction, and vendor cost above the sale on a line.

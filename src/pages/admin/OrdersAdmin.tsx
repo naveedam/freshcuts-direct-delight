@@ -33,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFinancialYears } from '@/hooks/useFinancialYears';
 import { fetchAllRowsFast } from '@/lib/supabase-paginate';
+import { readCache, writeCache } from '@/lib/local-cache';
 import { istMidnight, istToday } from '@/lib/ist';
 
 const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
@@ -58,6 +59,8 @@ export default function OrdersAdmin() {
   const [searchQuery, setSearchQuery] = useState('');
   // Payment statuses to show; empty = all. Several can be picked (e.g. Unpaid and Partial).
   const [paymentStatuses, setPaymentStatuses] = useState<string[]>([]);
+  // Fully paid orders are archived: hidden unless asked for (or picked in the payment filter).
+  const [showArchived, setShowArchived] = useState(false);
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
   const [cancelTarget, setCancelTarget] = useState<any>(null);
@@ -68,15 +71,23 @@ export default function OrdersAdmin() {
   const [bulkPaymentParty, setBulkPaymentParty] = useState<{ key: PartyKey; title: string } | null>(null);
   const { data: financialYears } = useFinancialYears();
 
-  const { data: orders, isLoading } = useQuery({
+  // The last copy on this device shows at once; the fresh copy loads in the background and replaces it.
+  const ordersCache = useMemo(() => readCache<any[]>('admin-orders'), []);
+  const paymentsCache = useMemo(() => readCache<any[]>('admin-customer-payments'), []);
+
+  const { data: orders, isLoading, isFetching: ordersFetching } = useQuery({
     queryKey: ['admin', 'orders'],
     // Reused for 30 s instead of reloading the full history on every visit and focus.
     staleTime: 30 * 1000,
+    initialData: ordersCache?.data,
+    initialDataUpdatedAt: 0, // always refresh the device copy straight away
     queryFn: async () => {
       // Several pages at once instead of one after another (much quicker on mobile data).
-      return await fetchAllRowsFast<any>(() =>
+      const rows = await fetchAllRowsFast<any>(() =>
         supabase.from('orders').select('*').order('created_at', { ascending: false }).order('id', { ascending: true })
       );
+      writeCache('admin-orders', rows);
+      return rows;
     }
   });
 
@@ -85,10 +96,14 @@ export default function OrdersAdmin() {
     queryKey: ['admin', 'all-customer-payments'],
     // Reused for 30 s instead of reloading the full history on every visit and focus.
     staleTime: 30 * 1000,
+    initialData: paymentsCache?.data,
+    initialDataUpdatedAt: 0,
     queryFn: async () => {
-      return await fetchAllRowsFast<any>(() =>
+      const rows = await fetchAllRowsFast<any>(() =>
         supabase.from('customer_payments').select('id, order_id, amount, payment_date, is_adjustment').order('id')
       );
+      writeCache('admin-customer-payments', rows);
+      return rows;
     },
     refetchInterval: 60000,
   });
@@ -129,6 +144,8 @@ export default function OrdersAdmin() {
     }
     if (paymentStatuses.length > 0) {
       filtered = filtered.filter((o: any) => paymentStatuses.includes(paymentStatusOf(o)));
+    } else if (!showArchived) {
+      filtered = filtered.filter((o: any) => paymentStatusOf(o) !== 'paid');
     }
     if (dateFrom) {
       const from = new Date(dateFrom).getTime();
@@ -156,12 +173,18 @@ export default function OrdersAdmin() {
     }
     return filtered;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders, buildingFilter, fyFilter, paymentStatuses, invoiceDueMap, dateFrom, dateTo, deferredSearch]);
+  }, [orders, buildingFilter, fyFilter, paymentStatuses, invoiceDueMap, dateFrom, dateTo, deferredSearch, showArchived]);
+
+  // How many paid orders the current filters would show if archived orders were included.
+  const archivedHiddenCount = useMemo(() => {
+    if (showArchived || paymentStatuses.length > 0 || !orders) return 0;
+    return orders.filter((o: any) => paymentStatusOf(o) === 'paid').length;
+  }, [orders, showArchived, paymentStatuses, invoiceDueMap]);
 
   // Only the first rows are drawn; thousands of rows at once made typing and dialogs slow.
   const PAGE_SIZE = 50;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [buildingFilter, fyFilter, paymentStatuses, dateFrom, dateTo, deferredSearch]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [buildingFilter, fyFilter, paymentStatuses, dateFrom, dateTo, deferredSearch, showArchived]);
   const visibleOrders = useMemo(() => filteredOrders.slice(0, visibleCount), [filteredOrders, visibleCount]);
 
   // Party summary — when any filter narrows the list
@@ -715,7 +738,14 @@ export default function OrdersAdmin() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-heading text-3xl font-bold text-foreground">Orders</h1>
-            <p className="font-body text-muted-foreground">View and manage customer orders</p>
+            <p className="font-body text-muted-foreground">
+              View and manage customer orders
+              {ordersFetching && !isLoading && (
+                <span className="ml-2 inline-flex items-center gap-1 text-xs">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Updating…
+                </span>
+              )}
+            </p>
           </div>
           <Button onClick={() => setNewOrderOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -847,6 +877,16 @@ export default function OrdersAdmin() {
               aria-label="To date"
             />
           </div>
+          {paymentStatuses.length === 0 && (
+            <Button
+              variant={showArchived ? 'secondary' : 'outline'}
+              size="sm"
+              className="h-9"
+              onClick={() => setShowArchived((v) => !v)}
+            >
+              {showArchived ? 'Hide paid orders' : `Show paid (archived)${archivedHiddenCount ? ` · ${archivedHiddenCount.toLocaleString('en-IN')}` : ''}`}
+            </Button>
+          )}
           {(searchQuery || paymentStatuses.length > 0 || dateFrom || dateTo || buildingFilter) && (
             <Button
               variant="ghost"
@@ -1244,7 +1284,12 @@ export default function OrdersAdmin() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                    No orders yet
+                    {!showArchived && paymentStatuses.length === 0 && (orders?.length || 0) > 0 ? (
+                      <>
+                        No unpaid or part-paid orders{filtersActive ? ' match these filters' : ''}.{' '}
+                        <Button variant="link" className="h-auto p-0" onClick={() => setShowArchived(true)}>Show paid orders</Button>
+                      </>
+                    ) : 'No orders yet'}
                   </TableCell>
                 </TableRow>
               )}
