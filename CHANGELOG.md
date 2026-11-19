@@ -2,6 +2,10 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-19 — Orders: search includes paid orders
+
+- Typing in the search box (customer, flat, phone, invoice) also finds paid orders, so you can repeat an old order without clicking "Show paid". With the search box empty, paid orders stay archived.
+
 ## 2026-11-19 — Orders screen opens instantly on return visits
 
 - The Orders screen keeps the last copy of the order list and payments on the device and shows it straight away; the fresh copy loads in the background ("Updating…") and replaces it. The copy is removed when you sign out.

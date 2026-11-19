@@ -144,7 +144,8 @@ export default function OrdersAdmin() {
     }
     if (paymentStatuses.length > 0) {
       filtered = filtered.filter((o: any) => paymentStatuses.includes(paymentStatusOf(o)));
-    } else if (!showArchived) {
+    } else if (!showArchived && !deferredSearch.trim()) {
+      // Searching (e.g. a customer, to repeat an order) looks through paid orders too.
       filtered = filtered.filter((o: any) => paymentStatusOf(o) !== 'paid');
     }
     if (dateFrom) {
@@ -177,9 +178,9 @@ export default function OrdersAdmin() {
 
   // How many paid orders the current filters would show if archived orders were included.
   const archivedHiddenCount = useMemo(() => {
-    if (showArchived || paymentStatuses.length > 0 || !orders) return 0;
+    if (showArchived || paymentStatuses.length > 0 || deferredSearch.trim() || !orders) return 0;
     return orders.filter((o: any) => paymentStatusOf(o) === 'paid').length;
-  }, [orders, showArchived, paymentStatuses, invoiceDueMap]);
+  }, [orders, showArchived, paymentStatuses, invoiceDueMap, deferredSearch]);
 
   // Only the first rows are drawn; thousands of rows at once made typing and dialogs slow.
   const PAGE_SIZE = 50;
@@ -884,7 +885,9 @@ export default function OrdersAdmin() {
               className="h-9"
               onClick={() => setShowArchived((v) => !v)}
             >
-              {showArchived ? 'Hide paid orders' : `Show paid (archived)${archivedHiddenCount ? ` · ${archivedHiddenCount.toLocaleString('en-IN')}` : ''}`}
+              {showArchived ? 'Hide paid orders'
+                : deferredSearch.trim() ? 'Search includes paid orders'
+                : `Show paid (archived)${archivedHiddenCount ? ` · ${archivedHiddenCount.toLocaleString('en-IN')}` : ''}`}
             </Button>
           )}
           {(searchQuery || paymentStatuses.length > 0 || dateFrom || dateTo || buildingFilter) && (
@@ -1284,7 +1287,7 @@ export default function OrdersAdmin() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                    {!showArchived && paymentStatuses.length === 0 && (orders?.length || 0) > 0 ? (
+                    {!showArchived && paymentStatuses.length === 0 && !deferredSearch.trim() && (orders?.length || 0) > 0 ? (
                       <>
                         No unpaid or part-paid orders{filtersActive ? ' match these filters' : ''}.{' '}
                         <Button variant="link" className="h-auto p-0" onClick={() => setShowArchived(true)}>Show paid orders</Button>
