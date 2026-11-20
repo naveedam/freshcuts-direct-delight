@@ -1,6 +1,7 @@
 import { fmtQty } from '@/lib/ist';
 import { useMemo, useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { VendorPaymentQRDialog } from '@/components/admin/VendorPaymentQRDialog';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PageFrame, StickyTop } from '@/components/admin/TabbedAdminPage';
@@ -14,8 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
-  AlertTriangle, CheckCircle2, Download, FileText, IndianRupee, Loader2, RotateCcw, Undo2, Wallet, Wrench,
-} from 'lucide-react';
+  AlertTriangle, CheckCircle2, Download, FileText, IndianRupee, Loader2, RotateCcw, Undo2, Wallet, Wrench, QrCode } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
 import { LOGO_PNG_DATA_URL } from '@/lib/brand-logo';
@@ -62,6 +62,7 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
   const [preset, setPreset] = useState<Preset>('last_week');
   const [range, setRange] = useState(() => rangeFor('last_week')!);
   const [payOpen, setPayOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const [fixOpen, setFixOpen] = useState(false);
   const [undoFor, setUndoFor] = useState<Settlement | null>(null);
   const [exporting, setExporting] = useState<'xlsx' | 'pdf' | null>(null);
@@ -164,6 +165,10 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
               <Button variant="outline" onClick={() => exportAs('pdf')} disabled={!st || !!exporting}>
                 {exporting === 'pdf' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
                 PDF
+              </Button>
+              <Button variant="outline" onClick={() => setQrOpen(true)} disabled={selected === 'all'}
+                title={selected === 'all' ? 'Choose a vendor to see their payment QR code' : 'Show the vendor’s payment QR code'}>
+                <QrCode className="h-4 w-4 mr-2" /> Pay QR
               </Button>
               <Button
                 onClick={() => setPayOpen(true)}
@@ -452,6 +457,14 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
         )}
       </div>
 
+      {selected !== 'all' && (
+        <VendorPaymentQRDialog
+          vendor={{ id: selected, name: vendorLabel }}
+          open={qrOpen}
+          onOpenChange={setQrOpen}
+          amount={(t?.outstanding ?? 0) > 0 ? t!.outstanding : (st?.ledger.owedAllDates ?? null)}
+        />
+      )}
       {st && selected !== 'all' && (
         <RecordPaymentDialog
           open={payOpen}

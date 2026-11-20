@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Pencil, Trash2, Loader2, Eye, Package, CreditCard, Building2, Phone, Mail, MapPin, IndianRupee, Wallet } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Eye, Package, CreditCard, Building2, Phone, Mail, MapPin, IndianRupee, Wallet, QrCode } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -21,6 +21,7 @@ import { Vendor, VendorForm, defaultVendorForm } from '@/types/vendor';
 import { VendorDetailsDialog } from '@/components/admin/VendorDetailsDialog';
 import { VendorProductsDialog } from '@/components/admin/VendorProductsDialog';
 import { VendorPaymentsDialog } from '@/components/admin/VendorPaymentsDialog';
+import { VendorPaymentQRDialog } from '@/components/admin/VendorPaymentQRDialog';
 
 export default function VendorsAdmin({ embedded = false }: { embedded?: boolean } = {}) {
   const queryClient = useQueryClient();
@@ -31,6 +32,7 @@ export default function VendorsAdmin({ embedded = false }: { embedded?: boolean 
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [productsDialogOpen, setProductsDialogOpen] = useState(false);
   const [paymentsDialogOpen, setPaymentsDialogOpen] = useState(false);
+  const [qrVendor, setQrVendor] = useState<{ id: string; name: string } | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const { data: vendors, isLoading } = useQuery({
@@ -640,6 +642,10 @@ export default function VendorsAdmin({ embedded = false }: { embedded?: boolean 
                         >
                           <CreditCard className="h-4 w-4" />
                         </Button>
+                        <Button size="icon" variant="ghost" title="Payment QR code"
+                          onClick={() => setQrVendor({ id: vendor.id, name: vendor.name })}>
+                          <QrCode className="h-4 w-4" />
+                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => handleEdit(vendor)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -691,6 +697,7 @@ export default function VendorsAdmin({ embedded = false }: { embedded?: boolean 
           />
         </>
       )}
+      <VendorPaymentQRDialog vendor={qrVendor} open={!!qrVendor} onOpenChange={(o) => { if (!o) setQrVendor(null); }} />
     </PageFrame>
   );
 }

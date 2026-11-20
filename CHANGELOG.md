@@ -2,6 +2,12 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-20 — Vendor payment QR codes
+
+- Each vendor can have a payment QR code (photo or screenshot) and an optional UPI ID. "Pay QR" shows it large to scan from your phone: on the Vendors list (QR icon), Statements & Payments (with the amount owed) and the purchase order screen (with that PO's balance).
+- On a phone, with a UPI ID saved, "Pay in UPI app" opens the UPI app with the vendor and amount filled in.
+- Upload, replace or remove the QR from the same dialog. Images are stored privately (admins only). Migration `20261120100000_vendor_payment_qr.sql`.
+
 ## 2026-11-20 — Vendor statement weeks run Monday to Sunday
 
 - Statements & Payments: "This week" and "Last week" now cover Monday–Sunday (default: last week, e.g. 9–15 Nov).

@@ -7,12 +7,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Send, XCircle, CheckCircle, Loader2, TrendingDown, TrendingUp, Minus, AlertTriangle, CreditCard, Pencil, Check, X } from 'lucide-react';
+import { Send, XCircle, CheckCircle, Loader2, TrendingDown, TrendingUp, Minus, AlertTriangle, CreditCard, Pencil, Check, X, QrCode } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { formatCurrency } from '@/lib/currency';
 import { PurchaseOrder } from '@/types/vendor';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { VendorPaymentQRDialog } from '@/components/admin/VendorPaymentQRDialog';
 import { VendorPaymentsDialog } from '@/components/admin/VendorPaymentsDialog';
 import { PO_STATUS_LABELS, PO_STATUS_STYLES } from '@/lib/po-lifecycle';
 
@@ -24,6 +25,7 @@ interface PurchaseOrderDetailsDialogProps {
 export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseOrderDetailsDialogProps) {
   const queryClient = useQueryClient();
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editedCost, setEditedCost] = useState('');
 
@@ -521,6 +523,11 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose}>Close</Button>
           {purchaseOrder.payment_status !== 'paid' && purchaseOrder.vendor && (
+            <Button variant="outline" onClick={() => setQrOpen(true)}>
+              <QrCode className="h-4 w-4 mr-2" /> Pay QR
+            </Button>
+          )}
+          {purchaseOrder.payment_status !== 'paid' && purchaseOrder.vendor && (
             <Button variant="secondary" onClick={() => setPaymentDialogOpen(true)}>
               <CreditCard className="h-4 w-4 mr-2" /> Pay Vendor
             </Button>
@@ -547,6 +554,14 @@ export function PurchaseOrderDetailsDialog({ purchaseOrder, onClose }: PurchaseO
       </DialogContent>
     </Dialog>
 
+    {purchaseOrder.vendor && (
+      <VendorPaymentQRDialog
+        vendor={{ id: purchaseOrder.vendor.id, name: purchaseOrder.vendor.name }}
+        open={qrOpen}
+        onOpenChange={setQrOpen}
+        amount={Math.max(0, Number(purchaseOrder.total_amount || 0) - Number(purchaseOrder.paid_amount || 0))}
+      />
+    )}
     {/* Vendor Payment Dialog */}
     {purchaseOrder.vendor && (
       <VendorPaymentsDialog
