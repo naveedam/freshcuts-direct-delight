@@ -134,10 +134,10 @@ export const onPaidPO = (l: { status: LineStatus }) => l.status === 'paid' || l.
 export const vendorQty = (oi: any) =>
   Number(oi.vendor_supplied_weight ?? oi.actual_weight ?? oi.quantity ?? 0) || 0;
 
-/** Sunday-to-Saturday week containing the given IST date (YYYY-MM-DD). */
+/** Monday-to-Sunday week containing the given IST date (YYYY-MM-DD). */
 export function weekOf(day: string, offsetWeeks = 0): { from: string; to: string } {
   const d = new Date(`${day}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - d.getUTCDay() + offsetWeeks * 7);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + offsetWeeks * 7);
   const end = new Date(d);
   end.setUTCDate(end.getUTCDate() + 6);
   return { from: d.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };

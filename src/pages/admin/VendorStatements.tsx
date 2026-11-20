@@ -192,8 +192,8 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
                 <Select value={preset} onValueChange={(v) => choosePreset(v as Preset)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="this_week">This week (Sun–Sat)</SelectItem>
-                    <SelectItem value="last_week">Last week (Sun–Sat)</SelectItem>
+                    <SelectItem value="this_week">This week (Mon–Sun)</SelectItem>
+                    <SelectItem value="last_week">Last week (Mon–Sun)</SelectItem>
                     <SelectItem value="this_month">This month</SelectItem>
                     <SelectItem value="last_month">Last month</SelectItem>
                     <SelectItem value="custom">Custom dates</SelectItem>

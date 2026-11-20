@@ -2,6 +2,10 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-20 — Vendor statement weeks run Monday to Sunday
+
+- Statements & Payments: "This week" and "Last week" now cover Monday–Sunday (default: last week, e.g. 9–15 Nov).
+
 ## 2026-11-19 — Orders: search includes paid orders
 
 - Typing in the search box (customer, flat, phone, invoice) also finds paid orders, so you can repeat an old order without clicking "Show paid". With the search box empty, paid orders stay archived.
