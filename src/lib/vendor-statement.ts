@@ -212,7 +212,8 @@ export async function loadVendorStatement(vendorId: string | 'all', from: string
   // Build statement lines.
   const lines: StatementLine[] = live.map((oi) => {
     const o = oi.orders;
-    const qty = round2(vendorQty(oi));
+    // Vendor weights go to 3 decimals (1.535 kg); rounding to 2 made 1.535 look like 1.54.
+    const qty = Math.round(vendorQty(oi) * 1000) / 1000;
     const rate = Number(oi.vendor_cost) || 0;
     const amount = round2(qty * rate);
     const pl = lineByItem.get(oi.id);
@@ -361,7 +362,7 @@ export async function downloadStatementExcel(st: VendorStatement, vendorLabel: s
     r.eachCell({ includeEmpty: true }, (c) => { c.border = border; });
   });
   const qtyCol = multi ? 6 : 5;
-  ws.getColumn(qtyCol).numFmt = '0.00';
+  ws.getColumn(qtyCol).numFmt = '0.0##';
   ws.getColumn(qtyCol + 1).numFmt = '#,##0';
   ws.getColumn(qtyCol + 2).numFmt = '#,##0';
   const total = ws.addRow([]);

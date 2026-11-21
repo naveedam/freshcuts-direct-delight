@@ -2,6 +2,10 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-21 — Statements keep vendor weights to 3 decimals
+
+- Statements & Payments rounded each vendor weight to 2 decimals (1.535 kg showed and was priced as 1.54 kg), which made the line ₹5 higher than its purchase order and raised a false "PO line differs" warning. Weights now keep 3 decimals on screen, in the totals, the reconciliation, Excel and PDF.
+
 ## 2026-11-20 — Vendor payment QR codes
 
 - Each vendor can have a payment QR code (photo or screenshot) and an optional UPI ID. "Pay QR" shows it large to scan from your phone: on the Vendors list (QR icon), Statements & Payments (with the amount owed) and the purchase order screen (with that PO's balance).
