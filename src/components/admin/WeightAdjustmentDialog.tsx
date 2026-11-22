@@ -183,6 +183,7 @@ export function WeightAdjustmentDialog({
           .from('order_items')
           .update({
             actual_weight: actualWeight,
+            billed_weight: actualWeight, // billed = the customer's weight, kept in step
             vendor_supplied_weight: vendorSuppliedWeight,
             unit_price: unitPrice,
             total_price: totalPrice,

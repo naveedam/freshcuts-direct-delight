@@ -12,6 +12,7 @@ import {
   saveDocumentRecord,
   downloadBlob,
 } from '@/lib/invoice-generator';
+import { loadInvoiceExtras, type InvoiceExtras } from '@/lib/invoice-extras';
 import InvoiceShareView from '@/components/admin/InvoiceShareView';
 import { supabase } from '@/integrations/supabase/client';
 import { shareInvoice, isNative } from '@/lib/native-share';
@@ -39,6 +40,8 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
   const flatNumber = order?.flat_number || null;
   const buildingName = order?.building_name || null;
 
+  const [extras, setExtras] = useState<InvoiceExtras | null>(null);
+
   // Load order items and business info when dialog opens
   useEffect(() => {
     if (!open || !order?.id) return;
@@ -48,6 +51,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
         supabase.from('business_settings').select('*').limit(1).maybeSingle(),
       ]);
       setOrderItems(itemsRes.data || []);
+      loadInvoiceExtras(order, itemsRes.data || []).then(setExtras).catch(() => setExtras(null));
       setBusiness(bizRes.data || {
         business_name: 'Fresh Cuts Daily',
         address: null, city: null, postal_code: null,
@@ -259,6 +263,8 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
               order={order}
               items={orderItems}
               business={business}
+              unitProductIds={extras?.unitProductIds}
+              partyCredit={extras?.partyCredit}
             />
           </div>
         )}

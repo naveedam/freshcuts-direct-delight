@@ -3,6 +3,7 @@ import { formatCurrency } from '@/lib/currency';
 import { LOGO_PNG_DATA_URL } from '@/lib/brand-logo';
 
 interface ShareOrderItem {
+  product_id?: string | null;
   product_name: string;
   quantity: number;
   unit_price: number;
@@ -49,11 +50,18 @@ interface InvoiceShareViewProps {
   order: ShareOrder;
   items: ShareOrderItem[];
   business: BusinessInfo;
+  /** Products sold by the piece: their quantity shows as a whole number (12, not 12.000). */
+  unitProductIds?: Set<string>;
+  /** The customer's advance still held across all their orders; shown under Balance when above zero. */
+  partyCredit?: number;
 }
 
+// The customer's weight, the same one the order total is worked out from (Actual in Adjust Weights).
+// billed_weight was only set when a purchase order was received and could be out of date after a
+// weight correction, which made the invoice disagree with the order total.
 function getDisplayQty(item: ShareOrderItem): number {
-  if (item.billed_weight != null && item.billed_weight > 0) return item.billed_weight;
   if (item.actual_weight != null && item.actual_weight > 0) return item.actual_weight;
+  if (item.billed_weight != null && item.billed_weight > 0) return item.billed_weight;
   return item.quantity;
 }
 
@@ -63,7 +71,7 @@ function normalizeGst(raw: string): string {
 }
 
 const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
-  ({ order, items, business }, ref) => {
+  ({ order, items, business, unitProductIds, partyCredit }, ref) => {
     const invoiceNum = order.invoice_number || order.id.slice(0, 8).toUpperCase();
     const invoiceDate = new Date(order.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata',
       year: 'numeric', month: 'short', day: 'numeric',
@@ -103,7 +111,9 @@ const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
     const discount = Number(order.discount_amount) || 0;
     const grandTotal = subtotal + totalTax - discount;
     const received = Number(order.amount_paid) || 0;
-    const balance = grandTotal - received;
+    // Work the balance out from the rupee amounts printed above it, so Total − Received = Balance
+    // on the invoice itself (₹1,283.50 prints as ₹1,284, and so must its balance).
+    const balance = Math.round(grandTotal) - Math.round(received);
 
     // HSN summary
     const hsnMap = new Map<string, { hsn: string; taxable: number; cgst: number; sgst: number; igst: number; rate: number }>();
@@ -227,7 +237,11 @@ const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
                   <td style={{ ...tdStyle, textAlign: 'center', color: gray400, fontSize: '10px' }}>{item.sn}</td>
                   <td style={{ ...tdStyle, fontWeight: 600, color: gray900 }}>{item.product_name}</td>
                   <td style={{ ...tdStyle, fontSize: '10px', color: gray500 }}>{item.hsn_code || '—'}</td>
-                  <td style={tdRight}>{item.displayQty.toFixed(3)}</td>
+                  <td style={tdRight}>{
+                    item.product_id && unitProductIds?.has(item.product_id)
+                      ? Math.round(item.displayQty).toLocaleString('en-IN')
+                      : item.displayQty.toFixed(3)
+                  }</td>
                   <td style={tdRight}>{formatCurrency(item.unit_price)}</td>
                   <td style={tdRight}>{formatCurrency(item.lineValue)}</td>
                   {hasTax && <td style={tdRight}>{nt === 'taxable' ? `${item.gst_rate}%` : nt === 'exempt' ? 'Exm' : 'Nil'}</td>}
@@ -338,6 +352,14 @@ const InvoiceShareView = forwardRef<HTMLDivElement, InvoiceShareViewProps>(
             }}>
               <span>Balance</span><span>{formatCurrency(Math.abs(balance))}</span>
             </div>
+            {(partyCredit || 0) > 0.5 && (
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', padding: '4px 0 0',
+                fontSize: '11px', fontWeight: 600, color: '#15803d',
+              }}>
+                <span>Advance remaining</span><span>{formatCurrency(partyCredit!)}</span>
+              </div>
+            )}
           </div>
         </div>
 

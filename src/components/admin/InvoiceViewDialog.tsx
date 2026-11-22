@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { loadInvoiceExtras } from '@/lib/invoice-extras';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -25,10 +26,12 @@ export function InvoiceViewDialog({ orderId, onClose }: { orderId: string | null
       ]);
       if (o.error) throw o.error;
       if (items.error) throw items.error;
+      const extras = await loadInvoiceExtras(o.data, items.data || []);
       return {
         order: o.data as any,
         items: (items.data || []) as any[],
         business: (biz.data as any) || { business_name: 'Fresh Cuts Daily' },
+        extras,
       };
     },
   });
@@ -69,7 +72,8 @@ export function InvoiceViewDialog({ orderId, onClose }: { orderId: string | null
           <p className="py-10 text-center text-destructive">Couldn't load this invoice.</p>
         ) : (
           <div className="overflow-x-auto rounded-md border bg-white">
-            <InvoiceShareView ref={viewRef} order={data.order} items={data.items} business={data.business} />
+            <InvoiceShareView ref={viewRef} order={data.order} items={data.items} business={data.business}
+              unitProductIds={data.extras.unitProductIds} partyCredit={data.extras.partyCredit} />
           </div>
         )}
         <div className="flex justify-end">

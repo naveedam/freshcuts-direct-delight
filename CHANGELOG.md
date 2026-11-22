@@ -2,6 +2,19 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-22 — Invoice: advance remaining, piece quantities
+
+- When the customer has money in advance across their orders, the invoice shows "Advance remaining: ₹…" under Balance (Balance itself stays what's owed on this invoice).
+- Items sold by the piece (eggs, etc.) show a whole quantity (12), not 12.000; weights keep 3 decimals.
+
+## 2026-11-22 — Invoice uses the same weights as the order total
+
+- The invoice took each line's quantity from billed_weight, which is only set when a purchase order is received and wasn't updated by later weight corrections, so it could disagree with the order total (e.g. invoice ₹1,703 vs order ₹1,708). It now uses the customer's actual weight, as the order total does; Adjust Weights also keeps billed_weight in step.
+
+## 2026-11-22 — Invoice balance matches the printed total
+
+- The invoice worked out Balance from the unrounded amounts (e.g. 1.51 kg × ₹850 = ₹1,283.50), so it could print Total ₹1,284 but Balance ₹1,283. Balance is now Total − Received using the rupee amounts printed on the invoice (image, PDF and share).
+
 ## 2026-11-21 — Statements keep vendor weights to 3 decimals
 
 - Statements & Payments rounded each vendor weight to 2 decimals (1.535 kg showed and was priced as 1.54 kg), which made the line ₹5 higher than its purchase order and raised a false "PO line differs" warning. Weights now keep 3 decimals on screen, in the totals, the reconciliation, Excel and PDF.
