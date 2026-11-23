@@ -369,8 +369,8 @@ export function PurchaseOrderDialog({ open, onOpenChange, purchaseOrder }: Purch
                           <TableCell>
                             <Input
                               type="number"
-                              min={isUnitBased ? "1" : "0.01"}
-                              step={isUnitBased ? "1" : "0.01"}
+                              min={isUnitBased ? "1" : "0.001"}
+                              step={isUnitBased ? "1" : "0.001"}
                               value={item.ordered_quantity}
                               onChange={(e) => updateItem(index, { 
                                 ordered_quantity: isUnitBased 

@@ -2,6 +2,15 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-23 — Quantities keep 3 decimals everywhere
+
+- Receive Order and New Purchase Order accept weights to 3 decimals (1.497 kg) instead of 2; pieces stay whole numbers.
+- Weights are no longer shown rounded to 2 decimals on Receive Order, the vendor daily summary and the dashboard: up to 3 decimals, no trailing zeros (1.497, 1.5, 2); pieces show as whole numbers (12).
+
+## 2026-11-22 — PO lines follow a vendor change
+
+- When an order line's vendor is changed after its purchase order line was made, "Fix purchase orders" (and weight corrections) now move the line to the new vendor's daily PO and recalculate the old vendor's PO. Before, the line stayed on the old vendor's PO and showed "No PO yet" on the new vendor's statement.
+
 ## 2026-11-22 — Invoice: advance remaining, piece quantities
 
 - When the customer has money in advance across their orders, the invoice shows "Advance remaining: ₹…" under Balance (Balance itself stays what's owed on this invoice).

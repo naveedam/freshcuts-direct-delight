@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { formatIST, istDayEnd, istDayStart } from '@/lib/ist';
+import { formatIST, istDayEnd, istDayStart, fmtQty } from '@/lib/ist';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -77,7 +77,7 @@ export function VendorDailySummaryDialog({ open, onOpenChange }: Props) {
       `*Daily Procurement — ${formatIST(date, 'dd MMM yyyy')}*`,
       `Vendor: ${g.vendorName}`,
       '',
-      ...g.items.map(i => `• ${i.product} — ${i.qty.toFixed(2)} ${i.unit}`),
+      ...g.items.map(i => `• ${i.product} — ${fmtQty(i.qty)} ${i.unit}`),
       '',
       `Total: ${formatCurrency(g.total)}`,
     ];
@@ -90,7 +90,7 @@ export function VendorDailySummaryDialog({ open, onOpenChange }: Props) {
     const text = grouped.map(g =>
       [
         `=== ${g.vendorName} ===`,
-        ...g.items.map(i => `${i.product}\t${i.qty.toFixed(2)} ${i.unit}\t${formatCurrency(i.subtotal)}`),
+        ...g.items.map(i => `${i.product}\t${fmtQty(i.qty)} ${i.unit}\t${formatCurrency(i.subtotal)}`),
         `Total: ${formatCurrency(g.total)}`,
         '',
       ].join('\n'),
@@ -160,7 +160,7 @@ export function VendorDailySummaryDialog({ open, onOpenChange }: Props) {
                       {g.items.map((it, i) => (
                         <tr key={i} className="border-b last:border-0">
                           <td className="py-2">{it.product}</td>
-                          <td className="text-right">{it.qty.toFixed(2)} {it.unit}</td>
+                          <td className="text-right">{fmtQty(it.qty)} {it.unit}</td>
                           <td className="text-right">{formatCurrency(it.subtotal)}</td>
                         </tr>
                       ))}

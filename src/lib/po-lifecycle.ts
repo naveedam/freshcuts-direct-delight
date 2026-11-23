@@ -212,6 +212,7 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<{ su
 
 
     const now = new Date().toISOString();
+    const otherVendorPOs = new Set<string>(); // previous vendors' POs that lost a line
 
     for (const [vendorId, items] of Object.entries(byVendor)) {
       const poId = await getOrCreateDailyPO(vendorId, poDate);
@@ -236,12 +237,19 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<{ su
 
         // The PO line for this exact order line (two lines of the same product on one order each
         // have their own). Older lines without an order-line link are matched by product name.
-        let { data: existing } = await supabase
+        // If the line's vendor was changed, its old PO line sits on the previous vendor's PO:
+        // take it off there, so the line moves to this vendor's PO instead of staying put.
+        const { data: linked } = await (supabase as any)
           .from('purchase_order_items')
-          .select('id')
-          .eq('order_item_id', item.id)
-          .limit(1)
-          .maybeSingle();
+          .select('id, purchase_order_id, purchase_orders!inner(vendor_id, status)')
+          .eq('order_item_id', item.id);
+        let existing: { id: string } | null = null;
+        for (const l of (linked || []) as any[]) {
+          if (l.purchase_orders?.status === 'cancelled') continue;
+          if (l.purchase_orders?.vendor_id === vendorId) { if (!existing) existing = { id: l.id }; continue; }
+          await supabase.from('purchase_order_items').delete().eq('id', l.id);
+          otherVendorPOs.add(l.purchase_order_id);
+        }
         if (!existing) {
           ({ data: existing } = await supabase
             .from('purchase_order_items')
@@ -306,6 +314,8 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<{ su
           .eq('id', poId);
       }
     }
+    // Recalculate the previous vendors' POs that lost a line.
+    for (const id of otherVendorPOs) await refreshPOTotals(id);
     return { success: true };
   } catch (err: any) {
     console.error('[po-lifecycle] syncPOsFromWeightAdjustment failed:', err);

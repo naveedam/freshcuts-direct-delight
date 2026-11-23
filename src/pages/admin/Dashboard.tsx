@@ -20,7 +20,7 @@ import {
 } from 'recharts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ExecutiveSummaryContent } from './ExecutiveDashboard';
-import { addDays, istMidnight, istMonthStart, istToday, istWeekStartMonday } from '@/lib/ist';
+import { addDays, istMidnight, istMonthStart, istToday, istWeekStartMonday, fmtQty } from '@/lib/ist';
 
 const periodOptions = [
   { label: 'Today', value: 'today' },
@@ -441,7 +441,7 @@ export default function AdminDashboard() {
                         <span className="text-sm font-medium truncate">{p.name}</span>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-sm font-bold">{p.qty % 1 === 0 ? p.qty : p.qty.toFixed(2)} {p.unit || 'kg'}</p>
+                        <p className="text-sm font-bold">{fmtQty(p.qty)} {p.unit || 'kg'}</p>
                         <p className="text-xs text-muted-foreground">{formatCurrency(p.revenue)}</p>
                       </div>
                     </div>
@@ -497,7 +497,7 @@ export default function AdminDashboard() {
                     {v.items.map((item) => (
                       <div key={item.productName} className="flex items-center justify-between text-sm">
                         <span className="truncate mr-2 text-muted-foreground">{item.productName}</span>
-                        <span className="font-medium shrink-0">{item.qty % 1 === 0 ? item.qty : item.qty.toFixed(2)} {item.unit}</span>
+                        <span className="font-medium shrink-0">{fmtQty(item.qty)} {item.unit}</span>
                       </div>
                     ))}
                   </div>

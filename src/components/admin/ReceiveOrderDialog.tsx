@@ -12,7 +12,7 @@ import { PurchaseOrder } from '@/types/vendor';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { istDayStart, istToday } from '@/lib/ist';
+import { istDayStart, istToday, fmtQty } from '@/lib/ist';
 
 interface OrderItemRef {
   order_item_id: string;
@@ -367,23 +367,23 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
                         <div className="flex items-center gap-4 text-sm">
                           <div className="text-right">
                             <span className="text-muted-foreground">Ordered: </span>
-                            <span className="font-medium">{Number(item.quantity).toFixed(2)} {unit}</span>
+                            <span className="font-medium">{fmtQty(item.quantity)} {unit}</span>
                           </div>
                           <div className="text-right">
                             <span className="text-muted-foreground">Prev: </span>
-                            <span>{previousActual > 0 ? `${previousActual.toFixed(2)} ${unit}` : '-'}</span>
+                            <span>{previousActual > 0 ? `${fmtQty(previousActual)} ${unit}` : '-'}</span>
                           </div>
                           <div className="text-right">
                             <span className="text-muted-foreground">Remaining: </span>
                             <span className={remaining > 0 ? 'text-amber-600 font-medium' : 'text-green-600'}>
-                              {remaining.toFixed(2)} {unit}
+                              {fmtQty(remaining)} {unit}
                             </span>
                           </div>
                           {!hasBreakdown && !isComplete && (
                             <div className="flex items-center gap-2">
                               <Input
                                 type="number"
-                                step={isUnitBased ? "1" : "0.01"}
+                                step={isUnitBased ? "1" : "0.001"}
                                 min="0"
                                 value={item.receiving_now || ''}
                                 onChange={(e) => updateReceivingWeight(item.id,
@@ -392,7 +392,7 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
                                     : parseFloat(e.target.value) || 0
                                 )}
                                 className="w-24 text-right"
-                                placeholder="0.00"
+                                placeholder="0.000"
                                 onClick={e => e.stopPropagation()}
                               />
                               <Input
@@ -411,7 +411,7 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
                           {hasBreakdown && !isComplete && (
                             <div className="text-right">
                               <span className="text-muted-foreground">Receiving: </span>
-                              <span className="font-bold text-primary">{item.receiving_now.toFixed(2)} {unit}</span>
+                              <span className="font-bold text-primary">{fmtQty(item.receiving_now)} {unit}</span>
                             </div>
                           )}
                         </div>
@@ -440,12 +440,12 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
                                     <TableCell className="text-xs font-mono">#{bd.order_id.slice(0, 8)}</TableCell>
                                     <TableCell className="text-sm font-medium">{bd.building_name || '-'}</TableCell>
                                     <TableCell className="text-sm font-medium">{bd.flat_number || '-'}</TableCell>
-                                    <TableCell className="text-right text-sm">{bd.ordered_qty.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right text-sm">{bd.current_actual > 0 ? bd.current_actual.toFixed(2) : '-'}</TableCell>
+                                    <TableCell className="text-right text-sm">{fmtQty(bd.ordered_qty)}</TableCell>
+                                    <TableCell className="text-right text-sm">{bd.current_actual > 0 ? fmtQty(bd.current_actual) : '-'}</TableCell>
                                     <TableCell className="text-right">
                                       <Input
                                         type="number"
-                                        step={isUnitBased ? "1" : "0.01"}
+                                        step={isUnitBased ? "1" : "0.001"}
                                         min="0"
                                         value={bd.receiving_now || ''}
                                         onChange={(e) => updateBreakdownReceiving(
@@ -454,7 +454,7 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
                                           isUnitBased ? Math.max(0, parseInt(e.target.value) || 0) : parseFloat(e.target.value) || 0
                                         )}
                                         className="w-24 text-right ml-auto"
-                                        placeholder="0.00"
+                                        placeholder="0.000"
                                       />
                                     </TableCell>
                                   </TableRow>
@@ -483,19 +483,19 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Total Ordered:</span>
-                    <p className="font-semibold">{totalOrdered.toFixed(2)}</p>
+                    <p className="font-semibold">{fmtQty(totalOrdered)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Previously Received:</span>
-                    <p className="font-semibold">{totalPreviouslyReceived.toFixed(2)}</p>
+                    <p className="font-semibold">{fmtQty(totalPreviouslyReceived)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Receiving Now:</span>
-                    <p className="font-semibold text-primary">{totalReceivingNow.toFixed(2)}</p>
+                    <p className="font-semibold text-primary">{fmtQty(totalReceivingNow)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">After Receiving:</span>
-                    <p className="font-semibold">{totalAfterReceiving.toFixed(2)}</p>
+                    <p className="font-semibold">{fmtQty(totalAfterReceiving)}</p>
                   </div>
                 </div>
 
@@ -507,7 +507,7 @@ export function ReceiveOrderDialog({ purchaseOrder, onClose }: ReceiveOrderDialo
                       className="flex items-center gap-1"
                     >
                       {variance > 0 ? <TrendingUp className="h-3 w-3" /> : variance < 0 ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                      {variance > 0 ? '+' : ''}{variance.toFixed(2)} ({variancePercent > 0 ? '+' : ''}{variancePercent.toFixed(1)}%)
+                      {variance > 0 ? '+' : ''}{fmtQty(variance)} ({variancePercent > 0 ? '+' : ''}{variancePercent.toFixed(1)}%)
                     </Badge>
                   </div>
                 )}
