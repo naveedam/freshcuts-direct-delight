@@ -1,6 +1,7 @@
 import { fmtQty } from '@/lib/ist';
 import { useMemo, useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { VendorPaymentQRDialog } from '@/components/admin/VendorPaymentQRDialog';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
-  AlertTriangle, CheckCircle2, Download, FileText, IndianRupee, Loader2, RotateCcw, Undo2, Wallet, Wrench, QrCode } from 'lucide-react';
+  AlertTriangle, CheckCircle2, Download, FileText, IndianRupee, Loader2, RotateCcw, Undo2, Wallet, Wrench, QrCode, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/currency';
 import { LOGO_PNG_DATA_URL } from '@/lib/brand-logo';
@@ -109,7 +110,29 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
   const [shown, setShown] = useState(PAGE);
   const lineKey = `${selected}|${range.from}|${range.to}`;
   const [shownKey, setShownKey] = useState(lineKey);
-  if (shownKey !== lineKey) { setShownKey(lineKey); setShown(PAGE); }
+  // Item filter for the lines table (and its quantity / amount totals).
+  const [itemFilter, setItemFilter] = useState<string[]>([]);
+  const [itemSearch, setItemSearch] = useState('');
+  if (shownKey !== lineKey) { setShownKey(lineKey); setShown(PAGE); if (itemFilter.length) setItemFilter([]); }
+  const itemOptions = useMemo(() => {
+    const m = new Map<string, { qty: number; unit: string; n: number }>();
+    (st?.lines || []).forEach((l) => {
+      const e = m.get(l.item) || { qty: 0, unit: l.unit, n: 0 };
+      e.qty += l.qty; e.n += 1; m.set(l.item, e);
+    });
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [st]);
+  const viewLines = useMemo(
+    () => (itemFilter.length ? (st?.lines || []).filter((l) => itemFilter.includes(l.item)) : (st?.lines || [])),
+    [st, itemFilter],
+  );
+  const viewTotals = useMemo(() => {
+    let kg = 0, pcs = 0, amount = 0;
+    viewLines.forEach((l) => { if (l.unit === 'pcs') pcs += l.qty; else kg += l.qty; amount += l.amount; });
+    return { kg: Math.round(kg * 1000) / 1000, pcs: Math.round(pcs), amount };
+  }, [viewLines]);
+  const qtyLabel = (kg: number, pcs: number) =>
+    [kg > 0 ? `${fmtQty(kg)} kg` : '', pcs > 0 ? `${pcs.toLocaleString('en-IN')} pcs` : ''].filter(Boolean).join(' · ') || '0';
 
   const choosePreset = (p: Preset) => {
     setPreset(p);
@@ -308,6 +331,42 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
 
             {/* Lines */}
             <Card>
+              <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
+                <Popover onOpenChange={(o) => { if (!o) setItemSearch(''); }}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9">
+                      <Filter className="h-4 w-4 mr-2" />
+                      {itemFilter.length === 0 ? 'All items' : itemFilter.length === 1 ? itemFilter[0] : `${itemFilter.length} items`}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-2" align="start">
+                    <Input placeholder="Search items…" value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} className="h-8 mb-2" />
+                    <div className="max-h-72 overflow-y-auto space-y-0.5">
+                      {itemOptions
+                        .filter(([name]) => name.toLowerCase().includes(itemSearch.trim().toLowerCase()))
+                        .map(([name, info]) => (
+                          <label key={name} className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer">
+                            <Checkbox
+                              checked={itemFilter.includes(name)}
+                              onCheckedChange={(v) => setItemFilter((cur) => v === true ? [...cur, name] : cur.filter((x) => x !== name))}
+                            />
+                            <span className="flex-1 truncate">{name}</span>
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              {info.unit === 'pcs' ? `${Math.round(info.qty)} pcs` : `${fmtQty(Math.round(info.qty * 1000) / 1000)} kg`}
+                            </span>
+                          </label>
+                        ))}
+                    </div>
+                    {itemFilter.length > 0 && (
+                      <Button variant="ghost" size="sm" className="w-full mt-2" onClick={() => setItemFilter([])}>Clear (show all items)</Button>
+                    )}
+                  </PopoverContent>
+                </Popover>
+                <span className="text-sm text-muted-foreground">
+                  {viewLines.length.toLocaleString('en-IN')} line(s) · <span className="font-medium text-foreground">{qtyLabel(viewTotals.kg, viewTotals.pcs)}</span>
+                  {' · '}<span className="font-medium text-foreground">{formatCurrency(itemFilter.length ? viewTotals.amount : (t?.statement ?? 0))}</span>
+                </span>
+              </div>
               <CardContent className="p-0 overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -326,20 +385,20 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {st.lines.length === 0 ? (
+                    {viewLines.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
-                          No orders for {vendorLabel} in this period
+                          {st.lines.length === 0 ? `No orders for ${vendorLabel} in this period` : 'No lines for the selected items'}
                         </TableCell>
                       </TableRow>
-                    ) : st.lines.slice(0, shown).map((l) => (
+                    ) : viewLines.slice(0, shown).map((l) => (
                       <TableRow key={l.orderItemId}>
                         <TableCell className="whitespace-nowrap">{fmtDay(l.date)}</TableCell>
                         {selected === 'all' && <TableCell>{l.vendorName}</TableCell>}
                         <TableCell>{l.apartment || '—'}</TableCell>
                         <TableCell>{l.flat || '—'}</TableCell>
                         <TableCell>{l.item}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fmtQty(l.qty)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{l.unit === 'pcs' ? Math.round(l.qty).toLocaleString('en-IN') : fmtQty(l.qty)}</TableCell>
                         <TableCell className={`text-right tabular-nums ${l.rateMissing ? 'text-destructive font-medium' : ''}`}>
                           {l.rateMissing ? 'missing' : l.rate}
                         </TableCell>
@@ -380,21 +439,25 @@ export default function VendorStatements({ embedded = false }: { embedded?: bool
                       </TableRow>
                     ))}
                   </TableBody>
-                  {st.lines.length > 0 && (
+                  {viewLines.length > 0 && (
                     <TableFooter>
                       <TableRow>
-                        <TableCell colSpan={selected === 'all' ? 7 : 6} className="text-right font-semibold">Total</TableCell>
-                        <TableCell className="text-right font-bold tabular-nums">{formatCurrency(t!.statement)}</TableCell>
+                        <TableCell colSpan={selected === 'all' ? 5 : 4} className="text-right font-semibold">
+                          {itemFilter.length ? `Total · ${itemFilter.length === 1 ? itemFilter[0] : `${itemFilter.length} items`}` : 'Total'}
+                        </TableCell>
+                        <TableCell className="text-right font-bold tabular-nums whitespace-nowrap">{qtyLabel(viewTotals.kg, viewTotals.pcs)}</TableCell>
+                        <TableCell />
+                        <TableCell className="text-right font-bold tabular-nums">{formatCurrency(itemFilter.length ? viewTotals.amount : t!.statement)}</TableCell>
                         <TableCell colSpan={3} />
                       </TableRow>
                     </TableFooter>
                   )}
                 </Table>
-                {st.lines.length > shown && (
+                {viewLines.length > shown && (
                   <div className="flex items-center justify-center gap-3 py-4 text-sm text-muted-foreground border-t">
-                    Showing {shown.toLocaleString('en-IN')} of {st.lines.length.toLocaleString('en-IN')} lines
+                    Showing {shown.toLocaleString('en-IN')} of {viewLines.length.toLocaleString('en-IN')} lines
                     <Button variant="outline" size="sm" onClick={() => setShown((n) => n + 1000)}>Show 1,000 more</Button>
-                    <Button variant="ghost" size="sm" onClick={() => setShown(st.lines.length)}>Show all</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setShown(viewLines.length)}>Show all</Button>
                   </div>
                 )}
               </CardContent>

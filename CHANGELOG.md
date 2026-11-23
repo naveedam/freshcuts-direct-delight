@@ -2,6 +2,11 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-23 — Statements: filter by item, quantity totals
+
+- Statements & Payments has an item filter above the lines (search, pick one or more items). The table, line count, quantity total and amount total follow the filter; the cards and reconciliation still cover the whole statement.
+- The lines table now totals quantity as well as amount (kg and pieces shown separately); piece items show whole numbers.
+
 ## 2026-11-23 — Quantities keep 3 decimals everywhere
 
 - Receive Order and New Purchase Order accept weights to 3 decimals (1.497 kg) instead of 2; pieces stay whole numbers.

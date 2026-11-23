@@ -20,6 +20,8 @@ export interface StatementLine {
   flat: string;
   item: string;
   qty: number;
+  /** 'pcs' for items sold by the piece, else 'kg'. */
+  unit: 'kg' | 'pcs';
   rate: number;
   amount: number;
   invoice: string | null;
@@ -151,7 +153,7 @@ export async function loadVendorStatement(vendorId: string | 'all', from: string
     // Order lines supplied by the vendor, for orders placed in the range (IST).
     fetchAllRowsFast<any>(() => {
       let q = db.from('order_items')
-        .select(`id, order_id, vendor_id, product_name, quantity, actual_weight, vendor_supplied_weight, vendor_cost,
+        .select(`id, order_id, vendor_id, product_id, product_name, quantity, actual_weight, vendor_supplied_weight, vendor_cost,
           orders!inner(id, created_at, invoice_number, building_name, flat_number, shipping_address, status, invoice_cancelled, weight_finalized)`)
         .not('vendor_id', 'is', null)
         .gte('orders.created_at', `${from}T00:00:00+05:30`)
@@ -209,6 +211,14 @@ export async function loadVendorStatement(vendorId: string | 'all', from: string
   const paidByPO = new Map<string, number>();
   allPOs.forEach((po) => paidByPO.set(po.id, Number(po.paid_amount) || 0));
 
+  // Which products are sold by the piece (for the quantity unit and totals).
+  const pieceProducts = new Set<string>();
+  const productIds = [...new Set(live.map((i) => i.product_id).filter(Boolean))] as string[];
+  for (const part of chunk(productIds, 150)) {
+    const { data } = await db.from('products').select('id, pricing_model').in('id', part);
+    (data || []).forEach((p: any) => { if (p.pricing_model === 'unit_based') pieceProducts.add(p.id); });
+  }
+
   // Build statement lines.
   const lines: StatementLine[] = live.map((oi) => {
     const o = oi.orders;
@@ -232,7 +242,7 @@ export async function loadVendorStatement(vendorId: string | 'all', from: string
       date: istDate(o.created_at),
       apartment: (o.building_name || o.shipping_address || '').trim(),
       flat: (o.flat_number || '').trim(),
-      item: oi.product_name, qty, rate, amount,
+      item: oi.product_name, qty, unit: oi.product_id && pieceProducts.has(oi.product_id) ? 'pcs' : 'kg', rate, amount,
       invoice: o.invoice_number || null,
       weightFinalized: !!o.weight_finalized,
       po: poInfo, status,
