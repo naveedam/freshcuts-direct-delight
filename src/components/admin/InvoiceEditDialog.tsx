@@ -7,10 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, FileText, Pencil, Save, X, Share2 } from 'lucide-react';
+import { Loader2, FileText, Pencil, Save, X, Share2, Trash2, Undo2 } from 'lucide-react';
 import { ShareInvoiceDialog } from './ShareInvoiceDialog';
 import { useAuth } from '@/context/AuthContext';
-import { syncPOsFromWeightAdjustment } from '@/lib/po-lifecycle';
+import { syncPOsFromWeightAdjustment, refreshPOTotals } from '@/lib/po-lifecycle';
 
 interface OrderItem {
   id: string;
@@ -65,6 +65,8 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  // Lines taken off the invoice (e.g. not delivered); removed for good on Save.
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (open && orderItems.length > 0) {
@@ -81,13 +83,14 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
         hsnCode: item.hsn_code,
       })));
       setEditMode(false);
+      setRemovedIds([]);
     }
   }, [open, orderItems]);
 
   const isIGST = order?.is_igst || false;
 
   const calculations = useMemo(() => {
-    return items.map(item => {
+    return items.filter(item => !removedIds.includes(item.id)).map(item => {
       const lineValue = item.displayQty * item.unitPrice;
       const nt = normalizeGstType(item.gstType);
       let taxableValue = 0, cgst = 0, sgst = 0, igst = 0;
@@ -101,7 +104,7 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
       const total = lineValue + taxAmount;
       return { ...item, lineValue, taxableValue, cgst, sgst, igst, taxAmount, total };
     });
-  }, [items, isIGST]);
+  }, [items, isIGST, removedIds]);
 
   const totals = useMemo(() => {
     let subtotal = 0, totalTax = 0;
@@ -133,6 +136,30 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // Lines taken off: off the vendor's purchase order first, then off the order.
+      const touchedPOs = new Set<string>();
+      for (const id of removedIds) {
+        const { data: poLines, error: e1 } = await supabase
+          .from('purchase_order_items').select('id, purchase_order_id').eq('order_item_id', id);
+        if (e1) throw e1;
+        for (const l of poLines || []) {
+          const { error } = await supabase.from('purchase_order_items').delete().eq('id', l.id);
+          if (error) throw error;
+          touchedPOs.add(l.purchase_order_id);
+        }
+        // Delete the line; if something else still refers to it, zero it instead (as Edit Order does),
+        // so it no longer counts anywhere.
+        const { error: e2 } = await supabase.from('order_items').delete().eq('id', id);
+        if (e2) {
+          const { error: e3 } = await supabase.from('order_items')
+            .update({ quantity: 0, actual_weight: 0, vendor_supplied_weight: 0, unit_price: 0, total_price: 0,
+                      taxable_value: 0, cgst_amount: 0, sgst_amount: 0, igst_amount: 0 } as any)
+            .eq('id', id);
+          if (e3) throw e3;
+        }
+      }
+      for (const poId of touchedPOs) await refreshPOTotals(poId);
+
       // Update each order item
       for (const calc of calculations) {
         const { error } = await supabase.from('order_items').update({
@@ -178,7 +205,15 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
         action: 'invoice_edit',
         snapshot_before: snapshotBefore,
         snapshot_after: snapshotAfter,
-        changes: calculations.map(c => {
+        changes: [
+          // Removed lines (not delivered): quantity after = 0.
+          ...orderItems.filter(i => removedIds.includes(i.id)).map(i => ({
+            item_id: i.id, product_name: i.product_name, removed: true,
+            qty_before: i.actual_weight ?? i.quantity, qty_after: 0,
+            rate_before: i.unit_price, rate_after: i.unit_price,
+            gst_before: i.gst_rate, gst_after: i.gst_rate,
+          })),
+          ...calculations.map(c => {
           const orig = orderItems.find(o => o.id === c.id);
           return {
             item_id: c.id, product_name: c.product_name,
@@ -190,6 +225,7 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
             gst_after: c.gstRate,
           };
         }),
+        ],
       });
 
       // Resync linked vendor PO(s) with the corrected actual weights
@@ -198,7 +234,12 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
     onSuccess: (poSyncResult) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'orderItems'] });
-      toast.success('Invoice items updated successfully');
+      toast.success(removedIds.length ? 'Invoice updated: item(s) removed and vendor PO adjusted' : 'Invoice items updated successfully');
+      if (removedIds.length) {
+        setItems(prev => prev.filter(i => !removedIds.includes(i.id)));
+        setRemovedIds([]);
+        queryClient.invalidateQueries({ queryKey: ['vendor-statements'] });
+      }
       if (poSyncResult && poSyncResult.success === false) {
         toast.warning('Invoice updated, but vendor PO sync failed: ' + (poSyncResult.error || 'unknown error') + '. Please check the purchase order manually.');
       }
@@ -210,8 +251,16 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
   });
 
   const handleSave = () => {
+    if (calculations.length === 0) {
+      toast.error('An invoice needs at least one item. To drop the whole order, cancel the invoice instead.');
+      return;
+    }
+    if (removedIds.length > 0) {
+      const names = items.filter(i => removedIds.includes(i.id)).map(i => i.product_name).join(', ');
+      if (!window.confirm(`Remove ${names} from this invoice? It also comes off the vendor's purchase order, and the totals are recalculated.`)) return;
+    }
     // Validate
-    for (const item of items) {
+    for (const item of items.filter(i => !removedIds.includes(i.id))) {
       if (item.displayQty <= 0) {
         toast.error(`Quantity must be > 0 for ${item.product_name}`);
         return;
@@ -269,6 +318,7 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
                 <>
                   <Button size="sm" variant="ghost" onClick={() => {
                     setEditMode(false);
+                    setRemovedIds([]);
                     // Reset items
                     setItems(orderItems.map(item => ({
                       id: item.id,
@@ -307,6 +357,7 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
                 <TableHead className="text-center">GST %</TableHead>
                 <TableHead className="text-right">Tax</TableHead>
                 <TableHead className="text-right">Total</TableHead>
+                {editMode && <TableHead className="w-10" />}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -378,12 +429,33 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
                     </TableCell>
                     <TableCell className="text-right">{formatCurrency(calc.taxAmount)}</TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(calc.total)}</TableCell>
+                    {editMode && (
+                      <TableCell className="px-1">
+                        <Button size="icon" variant="ghost" className="h-8 w-8" title="Remove (not delivered)"
+                          onClick={() => setRemovedIds(prev => [...prev, calc.id])}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
         </div>
+        {removedIds.length > 0 && (
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm space-y-1">
+            <p className="font-medium text-destructive">Will be removed on Save (also from the vendor's purchase order):</p>
+            {items.filter(i => removedIds.includes(i.id)).map(i => (
+              <div key={i.id} className="flex items-center justify-between gap-2">
+                <span>{i.product_name} · {i.displayQty} × {formatCurrency(i.unitPrice)}</span>
+                <Button size="sm" variant="ghost" className="h-7" onClick={() => setRemovedIds(prev => prev.filter(x => x !== i.id))}>
+                  <Undo2 className="h-3.5 w-3.5 mr-1" /> Undo
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Totals */}
         <div className="flex justify-end">

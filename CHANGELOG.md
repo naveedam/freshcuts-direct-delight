@@ -2,6 +2,10 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-25 — Edit Invoice: remove an item (not delivered)
+
+- In Edit Invoice, each line has a remove button. Removed lines are listed with Undo until you save; on Save (after a confirmation) the line comes off the order and invoice, off the vendor's purchase order (whose total and payment status are recalculated), and the invoice total and balance are recalculated. The removal is recorded in the order's edit log. At least one item must remain.
+
 ## 2026-11-23 — Statements: filter by item, quantity totals
 
 - Statements & Payments has an item filter above the lines (search, pick one or more items). The table, line count, quantity total and amount total follow the filter; the cards and reconciliation still cover the whole statement.
