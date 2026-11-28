@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { refreshPOTotals } from '@/lib/po-lifecycle';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { gstTypeToUi, resolveGst } from '@/lib/gst-ui';
@@ -295,14 +296,26 @@ export function EditOrderDialog({ open, onOpenChange, order, orderItems }: EditO
       // Delete removed items
       const removedIds = items.filter((i) => i._removed && i.id).map((i) => i.id!);
       if (removedIds.length > 0) {
-        // We can't delete order_items (no DELETE RLS), so set quantity to 0 and total to 0
+        // Removed lines come off the vendor's purchase order and are deleted from the order. If a line
+        // can't be deleted (something else still refers to it), it's zeroed so it counts nowhere.
+        const touchedPOs = new Set<string>();
         for (const rid of removedIds) {
-          const { error } = await supabase
-            .from('order_items')
-            .update({ quantity: 0, unit_price: 0, total_price: 0, taxable_value: 0, cgst_amount: 0, sgst_amount: 0, igst_amount: 0 })
-            .eq('id', rid);
-          if (error) throw error;
+          const { data: poLines } = await supabase
+            .from('purchase_order_items').select('id, purchase_order_id').eq('order_item_id', rid);
+          for (const l of poLines || []) {
+            await supabase.from('purchase_order_items').delete().eq('id', l.id);
+            touchedPOs.add(l.purchase_order_id);
+          }
+          const { error: delErr } = await supabase.from('order_items').delete().eq('id', rid);
+          if (delErr) {
+            const { error } = await supabase
+              .from('order_items')
+              .update({ quantity: 0, unit_price: 0, total_price: 0, taxable_value: 0, cgst_amount: 0, sgst_amount: 0, igst_amount: 0 })
+              .eq('id', rid);
+            if (error) throw error;
+          }
         }
+        for (const poId of touchedPOs) await refreshPOTotals(poId);
       }
 
       // Update existing items

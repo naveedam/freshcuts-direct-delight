@@ -366,7 +366,8 @@ export default function OrdersAdmin() {
       const { data, error } = await supabase
         .from('order_items')
         .select('*')
-        .eq('order_id', selectedOrder.id);
+        .eq('order_id', selectedOrder.id)
+        .or('quantity.gt.0,total_price.gt.0');
       if (error) throw error;
       return data;
     },
@@ -380,7 +381,8 @@ export default function OrdersAdmin() {
       const { data, error } = await supabase
         .from('order_items')
         .select('*')
-        .eq('order_id', weightAdjustOrder.id);
+        .eq('order_id', weightAdjustOrder.id)
+        .or('quantity.gt.0,total_price.gt.0');
       if (error) throw error;
       return data;
     },
@@ -394,7 +396,8 @@ export default function OrdersAdmin() {
       const { data, error } = await supabase
         .from('order_items')
         .select('*')
-        .eq('order_id', editOrder.id);
+        .eq('order_id', editOrder.id)
+        .or('quantity.gt.0,total_price.gt.0');
       if (error) throw error;
       return data;
     },
@@ -408,7 +411,8 @@ export default function OrdersAdmin() {
       const { data, error } = await supabase
         .from('order_items')
         .select('*')
-        .eq('order_id', invoiceEditOrder.id);
+        .eq('order_id', invoiceEditOrder.id)
+        .or('quantity.gt.0,total_price.gt.0');
       if (error) throw error;
       return data;
     },

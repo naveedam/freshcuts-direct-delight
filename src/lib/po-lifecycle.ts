@@ -144,7 +144,8 @@ export async function syncPOsFromWeightAdjustment(orderId: string): Promise<{ su
       .from('order_items')
       .select('id, product_id, product_name, actual_weight, vendor_supplied_weight, quantity, vendor_id, vendor_cost')
       .eq('order_id', orderId)
-      .not('vendor_id', 'is', null);
+      .not('vendor_id', 'is', null)
+      .or('quantity.gt.0,total_price.gt.0'); // lines removed from the order (zeroed) don't go on POs
 
     if (itemsError) return { success: false, error: itemsError.message };
     if (!orderItems?.length) return { success: true };

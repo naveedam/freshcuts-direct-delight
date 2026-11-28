@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,8 @@ interface OrderItem {
   igst_amount: number;
   actual_weight: number | null;
   vendor_cost: number | null;
+  vendor_id?: string | null;
+  product_id?: string | null;
 }
 
 interface EditableItem {
@@ -38,6 +41,7 @@ interface EditableItem {
   gstRate: number;
   gstType: string;
   hsnCode: string | null;
+  vendorId: string | null;
 }
 
 interface InvoiceEditDialogProps {
@@ -65,6 +69,19 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  // Vendors to pick from when a line's supplier changes.
+  const { data: vendorList = [] } = useQuery({
+    queryKey: ['invoice-edit-vendors'],
+    enabled: open,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('vendors').select('id, name, status').order('name');
+      if (error) throw error;
+      return (data || []).filter((v: any) => v.status !== 'blacklisted');
+    },
+  });
+  const vendorName = (id: string | null) => vendorList.find((v: any) => v.id === id)?.name || '—';
+
   // Lines taken off the invoice (e.g. not delivered); removed for good on Save.
   const [removedIds, setRemovedIds] = useState<string[]>([]);
 
@@ -81,6 +98,7 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
         gstRate: Number(item.gst_rate),
         gstType: item.gst_type,
         hsnCode: item.hsn_code,
+        vendorId: item.vendor_id ?? null,
       })));
       setEditMode(false);
       setRemovedIds([]);
@@ -159,6 +177,23 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
         }
       }
       for (const poId of touchedPOs) await refreshPOTotals(poId);
+
+      // Lines whose vendor changed: new vendor and that vendor's rate for the product (from Vendor
+      // Products, if set); the PO sync below then moves the line to the new vendor's purchase order.
+      for (const calc of calculations) {
+        const orig = orderItems.find(o => o.id === calc.id);
+        if (!orig || (orig.vendor_id ?? null) === calc.vendorId || !calc.vendorId) continue;
+        let rate: number | null = null;
+        if (orig.product_id) {
+          const { data: vp } = await supabase.from('vendor_products')
+            .select('cost_price').eq('vendor_id', calc.vendorId).eq('product_id', orig.product_id).maybeSingle();
+          if (vp && Number(vp.cost_price) > 0) rate = Number(vp.cost_price);
+        }
+        const { error } = await supabase.from('order_items')
+          .update({ vendor_id: calc.vendorId, ...(rate != null ? { vendor_cost: rate } : {}) })
+          .eq('id', calc.id);
+        if (error) throw error;
+      }
 
       // Update each order item
       for (const calc of calculations) {
@@ -330,6 +365,7 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
                       gstRate: Number(item.gst_rate),
                       gstType: item.gst_type,
                       hsnCode: item.hsn_code,
+                      vendorId: item.vendor_id ?? null,
                     })));
                   }}>
                     <X className="h-4 w-4 mr-1" /> Cancel
@@ -372,6 +408,21 @@ export function InvoiceEditDialog({ open, onOpenChange, order: orderProp, orderI
                     <TableCell>
                       <div>
                         <span className="font-medium">{calc.product_name}</span>
+                        {editMode ? (
+                          <Select value={item.vendorId ?? ''} onValueChange={(v) => setItems(prev => prev.map(i => i.id === item.id ? { ...i, vendorId: v } : i))}>
+                            <SelectTrigger className="h-7 mt-1 w-48 text-xs"><SelectValue placeholder="Vendor" /></SelectTrigger>
+                            <SelectContent>
+                              {vendorList.map((v: any) => <SelectItem key={v.id} value={v.id} className="text-xs">{v.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        ) : item.vendorId ? (
+                          <span className="block text-xs text-muted-foreground">Vendor: {vendorName(item.vendorId)}</span>
+                        ) : null}
+                        {editMode && origItem && (origItem.vendor_id ?? null) !== item.vendorId && (
+                          <span className="block text-xs text-amber-700">
+                            Was {vendorName(origItem.vendor_id ?? null)} · moves to the new vendor's purchase order on Save
+                          </span>
+                        )}
                         {qtyMismatch && (
                           <span className="block text-xs text-muted-foreground">
                             Ordered: {Number(origItem!.quantity).toFixed(3)} kg

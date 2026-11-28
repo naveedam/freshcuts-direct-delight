@@ -47,7 +47,7 @@ export function ShareInvoiceDialog({ open, onOpenChange, order, onDone }: ShareI
     if (!open || !order?.id) return;
     const load = async () => {
       const [itemsRes, bizRes] = await Promise.all([
-        supabase.from('order_items').select('*').eq('order_id', order.id),
+        supabase.from('order_items').select('*').eq('order_id', order.id).or('quantity.gt.0,total_price.gt.0'),
         supabase.from('business_settings').select('*').limit(1).maybeSingle(),
       ]);
       setOrderItems(itemsRes.data || []);

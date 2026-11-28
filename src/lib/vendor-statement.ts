@@ -177,7 +177,9 @@ export async function loadVendorStatement(vendorId: string | 'all', from: string
       return q;
     }),
   ]);
-  const live = items.filter((i) => i.orders && i.orders.status !== 'cancelled' && !i.orders.invoice_cancelled);
+  // Leave out cancelled orders, and lines removed from an order (zeroed: no quantity, no amount).
+  const live = items.filter((i) => i.orders && i.orders.status !== 'cancelled' && !i.orders.invoice_cancelled
+    && (Number(i.quantity) > 0 || Number(i.actual_weight) > 0 || Number(i.vendor_supplied_weight) > 0));
   const poById = new Map<string, any>(allPOs.map((p) => [p.id, p]));
 
   // PO lines: everything on the POs dated in the range (a few requests, run together), then any order

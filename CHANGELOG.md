@@ -2,6 +2,15 @@
 
 All notable changes to FreshCuts Daily are documented here.
 
+## 2026-11-27 — Edit Invoice: change a line's vendor
+
+- In Edit Invoice, each line shows its vendor and, in edit mode, a vendor picker. On Save, the line takes the new vendor (and that vendor's rate for the product from Vendor Products, if set), comes off the old vendor's purchase order and goes onto the new vendor's PO for that day; both POs are recalculated. The customer's invoice amounts don't change.
+
+## 2026-11-27 — Removed order items really go away
+
+- Edit Order zeroed removed items instead of deleting them, so they kept appearing in Adjust Weights, invoices and statements, and could stay on the vendor's PO. Removed items are now deleted and taken off the vendor's PO (whose total is recalculated); if a line can't be deleted it's zeroed as before.
+- Zeroed lines are hidden everywhere order items are shown (order details, Adjust Weights, Edit Invoice, invoice view/share, vendor statements) and aren't put on purchase orders.
+
 ## 2026-11-25 — Edit Invoice: remove an item (not delivered)
 
 - In Edit Invoice, each line has a remove button. Removed lines are listed with Undo until you save; on Save (after a confirmation) the line comes off the order and invoice, off the vendor's purchase order (whose total and payment status are recalculated), and the invoice total and balance are recalculated. The removal is recorded in the order's edit log. At least one item must remain.

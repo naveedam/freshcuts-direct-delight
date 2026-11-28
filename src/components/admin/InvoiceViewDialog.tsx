@@ -21,7 +21,7 @@ export function InvoiceViewDialog({ orderId, onClose }: { orderId: string | null
     queryFn: async () => {
       const [o, items, biz] = await Promise.all([
         supabase.from('orders').select('*').eq('id', orderId!).single(),
-        supabase.from('order_items').select('*').eq('order_id', orderId!),
+        supabase.from('order_items').select('*').eq('order_id', orderId!).or('quantity.gt.0,total_price.gt.0'),
         supabase.from('business_settings').select('*').limit(1).maybeSingle(),
       ]);
       if (o.error) throw o.error;
